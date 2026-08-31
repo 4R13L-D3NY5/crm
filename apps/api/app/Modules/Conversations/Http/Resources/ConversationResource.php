@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Modules\Conversations\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ConversationResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'organization_id' => $this->organization_id,
+            'channel' => $this->channel,
+            'status' => $this->status,
+            'subject' => $this->subject,
+            'unread_count' => $this->unread_count ?? 0,
+            'is_group' => (bool) $this->is_group,
+            'last_message_at' => $this->last_message_at?->toIso8601String(),
+            'closed_at' => $this->closed_at?->toIso8601String(),
+            'rating' => $this->rating,
+            'feedback' => $this->feedback,
+            'queue' => $this->queue ? [
+                'id' => $this->queue->id,
+                'name' => $this->queue->name,
+                'color' => $this->queue->color,
+            ] : null,
+            'contact' => $this->contact ? [
+                'id' => $this->contact->id,
+                'name' => $this->contact->name,
+                'phone' => $this->contact->phone,
+                'email' => $this->contact->email,
+            ] : null,
+            'company' => $this->company ? [
+                'id' => $this->company->id,
+                'name' => $this->company->name,
+            ] : null,
+            'assignee' => $this->assignee ? [
+                'id' => $this->assignee->id,
+                'name' => $this->assignee->name,
+                'email' => $this->assignee->email,
+            ] : ($this->assignment?->assignee ? [
+                'id' => $this->assignment->assignee->id,
+                'name' => $this->assignment->assignee->name,
+                'email' => $this->assignment->assignee->email,
+            ] : null),
+            'latest_message' => $this->whenLoaded(
+                'latestMessage',
+                fn () => $this->latestMessage ? (new MessageResource($this->latestMessage))->resolve() : null,
+            ),
+            'messages' => MessageResource::collection($this->whenLoaded('messages')),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+}

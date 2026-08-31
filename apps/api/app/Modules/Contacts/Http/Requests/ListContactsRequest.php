@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Modules\Contacts\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class ListContactsRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user() !== null;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'in:active,lead,inactive'],
+            'tag' => ['nullable', 'string', 'max:50'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ];
+    }
+}
