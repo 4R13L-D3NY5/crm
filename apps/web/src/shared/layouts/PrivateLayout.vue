@@ -176,7 +176,38 @@
             <q-item-section>Audiencia & Contactos</q-item-section>
           </q-item>
 
-          <!-- 4. Etiquetas & Segmentación -->
+          <!-- 4. Pipeline Comercial (Kanban) -->
+          <q-item
+            clickable
+            to="/app/deals"
+            class="xf-nav-item"
+            active-class="xf-nav-item--active"
+          >
+            <q-item-section avatar>
+              <q-icon name="sym_r_view_kanban" color="teal-4" />
+            </q-item-section>
+            <q-item-section>
+              <div class="row items-center justify-between">
+                <span>Pipeline Comercial</span>
+                <q-badge color="teal-9" text-color="teal-2" rounded class="text-caption">Kanban</q-badge>
+              </div>
+            </q-item-section>
+          </q-item>
+
+          <!-- 5. Empresas & Cuentas -->
+          <q-item
+            clickable
+            to="/app/companies"
+            class="xf-nav-item"
+            active-class="xf-nav-item--active"
+          >
+            <q-item-section avatar>
+              <q-icon name="sym_r_domain" />
+            </q-item-section>
+            <q-item-section>Empresas & Cuentas</q-item-section>
+          </q-item>
+
+          <!-- 6. Etiquetas & Segmentación -->
           <q-item
             clickable
             to="/app/tags"
@@ -189,7 +220,7 @@
             <q-item-section>Etiquetas & Segmentos</q-item-section>
           </q-item>
 
-          <!-- 5. Respuestas Rápidas -->
+          <!-- 7. Respuestas Rápidas -->
           <q-item
             clickable
             to="/app/quick-messages"
@@ -202,7 +233,7 @@
             <q-item-section>Respuestas Rápidas</q-item-section>
           </q-item>
 
-          <!-- 6. Envíos Programados -->
+          <!-- 8. Envíos Programados -->
           <q-item
             clickable
             to="/app/scheduled-messages"
@@ -217,7 +248,7 @@
 
           <div class="xf-nav-section-title q-mt-sm">INTELIGENCIA & AUTOMATIZACIÓN</div>
 
-          <!-- 7. Hentle-AI Wäbot (Cognitivo RAG) -->
+          <!-- 9. Hentle-AI Wäbot (Cognitivo RAG) -->
           <q-item
             clickable
             to="/app/wabot"
@@ -235,7 +266,7 @@
             </q-item-section>
           </q-item>
 
-          <!-- 8. Campañas & Difusión Masiva -->
+          <!-- 10. Campañas & Difusión Masiva -->
           <q-item
             clickable
             to="/app/campaigns"
@@ -248,7 +279,7 @@
             <q-item-section>Campañas Masivas</q-item-section>
           </q-item>
 
-          <!-- 9. Departamentos / Colas -->
+          <!-- 11. Departamentos / Colas -->
           <q-item
             clickable
             to="/app/departments"
@@ -263,7 +294,7 @@
 
           <div class="xf-nav-section-title q-mt-sm">GESTIÓN & MÉTRICAS</div>
 
-          <!-- 10. Equipo & Permisos -->
+          <!-- 12. Equipo & Permisos -->
           <q-item
             clickable
             to="/app/users"
@@ -276,7 +307,7 @@
             <q-item-section>Equipo & Operadores</q-item-section>
           </q-item>
 
-          <!-- 11. Informes & SLAs -->
+          <!-- 13. Informes & SLAs -->
           <q-item
             clickable
             to="/app/reports"
@@ -289,7 +320,20 @@
             <q-item-section>Métricas & Analytics</q-item-section>
           </q-item>
 
-          <!-- 12. Configuración -->
+          <!-- 14. Auditoría Forense -->
+          <q-item
+            clickable
+            to="/app/audit"
+            class="xf-nav-item"
+            active-class="xf-nav-item--active"
+          >
+            <q-item-section avatar>
+              <q-icon name="sym_r_security" color="cyan-4" />
+            </q-item-section>
+            <q-item-section>Auditoría Forense</q-item-section>
+          </q-item>
+
+          <!-- 15. Configuración -->
           <q-item
             clickable
             to="/app/settings"
@@ -302,7 +346,7 @@
             <q-item-section>Ajustes de Espacio</q-item-section>
           </q-item>
 
-          <!-- 13. API Tokens -->
+          <!-- 16. API Tokens -->
           <q-item
             clickable
             to="/app/tokens"
