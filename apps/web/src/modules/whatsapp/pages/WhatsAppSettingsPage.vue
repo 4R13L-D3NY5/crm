@@ -327,7 +327,6 @@ onMounted(async () => {
   }
 })
 
-const isAddModalOpen = ref(false)
 const isQrModalOpen = ref(false)
 const qrLoading = ref(false)
 const qrTimeLeft = ref(60)
