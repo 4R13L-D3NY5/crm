@@ -40,11 +40,9 @@ defineProps<{
 <style scoped lang="scss">
 .app-table {
   border: 1px solid var(--crm-color-border);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at top right, rgba(73, 194, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(13, 26, 42, 0.96) 0%, rgba(9, 20, 33, 0.94) 100%);
-  box-shadow: var(--crm-shadow-soft);
-  backdrop-filter: blur(14px);
+  border-radius: var(--crm-radius-card);
+  background: var(--crm-bg-card);
+  box-shadow: var(--crm-shadow-card);
 }
+
 </style>

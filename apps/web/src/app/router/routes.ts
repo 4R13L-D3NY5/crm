@@ -61,6 +61,7 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/app/conversations',
+    redirect: '/app/contacts',
   },
 ]
+

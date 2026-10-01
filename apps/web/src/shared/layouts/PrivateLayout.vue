@@ -1,9 +1,6 @@
 <template>
-  <q-layout
-    view="hHh Lpr lFf"
-    class="xf-app-layout"
-  >
-    <!-- Top Header Glassmorphism -->
+  <q-layout view="hHh Lpr lFf" class="xf-app-layout">
+    <!-- Top Header Minimalista -->
     <q-header class="xf-header-top">
       <q-toolbar class="xf-toolbar">
         <div class="row items-center q-gutter-x-sm">
@@ -17,63 +14,32 @@
             @click="leftDrawerOpen = !leftDrawerOpen"
           />
 
-          <!-- Logo XpertiFlow Suite Pro -->
+          <!-- Brand Logo XpertiFlow V2 -->
           <div class="xf-logo-container">
             <div class="xf-logo-badge">
-              <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-                <rect width="28" height="28" rx="8" fill="url(#xfGrad)" />
+              <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+                <rect width="28" height="28" rx="7" fill="#10B981" />
                 <path d="M7 14L12 9L16 13L21 8M7 20L12 15L16 19L21 14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                <defs>
-                  <linearGradient id="xfGrad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#10B981" />
-                    <stop offset="0.5" stop-color="#06B6D4" />
-                    <stop offset="1" stop-color="#6366F1" />
-                  </linearGradient>
-                </defs>
               </svg>
             </div>
-            <div class="column">
-              <div class="row items-center q-gutter-x-xs">
-                <span class="xf-logo-text">XpertiFlow</span>
-                <span class="xf-logo-badge-pill">PRO</span>
-              </div>
-              <span class="xf-logo-sub">Omnichannel CRM</span>
+            <div class="row items-center q-gutter-x-xs">
+              <span class="xf-logo-text">XpertiFlow</span>
+              <span class="xf-logo-badge-pill">V2</span>
             </div>
+          </div>
+
+          <!-- Pill Indicador de Fase Activa -->
+          <div class="phase-active-pill q-ml-sm gt-xs">
+            <span class="phase-active-dot"></span>
+            <span>Fase 1: Directorio & Clientes</span>
           </div>
         </div>
 
         <q-space />
 
-        <!-- Acciones derechas del Header -->
+        <!-- Acciones Derechas -->
         <div class="row items-center q-gutter-x-sm">
-          <!-- Botón de Ayuda / Docs -->
-          <q-btn
-            flat
-            round
-            dense
-            icon="sym_r_menu_book"
-            color="grey-4"
-            class="xf-header-action-btn"
-            to="/app/docs"
-          >
-            <q-tooltip>Documentación de API y Ayuda</q-tooltip>
-          </q-btn>
-
-          <!-- Notificaciones con badge animado -->
-          <q-btn
-            flat
-            round
-            dense
-            icon="sym_r_forum"
-            color="grey-4"
-            class="xf-header-action-btn"
-            to="/app/conversations"
-          >
-            <q-badge color="negative" floating rounded class="xf-badge-pulse">26</q-badge>
-            <q-tooltip>26 conversaciones pendientes o no leídas</q-tooltip>
-          </q-btn>
-
-          <!-- Selector de Organización con estilo Glass -->
+          <!-- Selector de Organización -->
           <q-select
             v-model="selectedOrganizationId"
             :options="organizationOptions"
@@ -86,27 +52,23 @@
             @update:model-value="onOrganizationChange"
           >
             <template #prepend>
-              <q-icon name="sym_r_corporate_fare" size="16px" color="teal-4" />
+              <q-icon name="sym_r_corporate_fare" size="15px" class="text-teal-4" />
             </template>
           </q-select>
 
-          <!-- Avatar / Perfil con Menú Glass -->
+          <!-- Avatar / Menú de Usuario -->
           <q-btn flat round dense class="q-ml-xs">
-            <q-avatar size="34px" class="xf-avatar-user">
+            <q-avatar size="32px" class="xf-avatar-user">
               {{ initials }}
             </q-avatar>
             <q-menu anchor="bottom right" self="top right" dark class="xf-profile-menu">
               <div class="q-pa-md">
-                <div class="text-bold text-white">{{ authStore.user?.name ?? 'Jose Claure' }}</div>
-                <div class="text-caption text-grey-4">{{ authStore.user?.email ?? 'jclaure_dis@unitepc.net' }}</div>
-                <div class="xf-user-role-badge q-mt-xs">Administrador General</div>
+                <div class="text-weight-bold text-white">{{ authStore.user?.name ?? 'Admin' }}</div>
+                <div class="text-caption text-grey-4">{{ authStore.user?.email ?? 'admin@crm.local' }}</div>
+                <div class="xf-user-role-badge q-mt-xs">Fase 1 • Superadmin</div>
               </div>
               <q-separator dark class="q-my-xs" />
               <q-list dense>
-                <q-item clickable v-close-popup to="/app/settings" class="xf-profile-item">
-                  <q-item-section avatar><q-icon name="sym_r_tune" size="18px" /></q-item-section>
-                  <q-item-section>Ajustes de Cuenta</q-item-section>
-                </q-item>
                 <q-item clickable v-close-popup class="xf-profile-item text-negative" @click="handleLogout">
                   <q-item-section avatar><q-icon name="sym_r_logout" size="18px" color="negative" /></q-item-section>
                   <q-item-section>Cerrar sesión</q-item-section>
@@ -118,272 +80,107 @@
       </q-toolbar>
     </q-header>
 
-    <!-- Sidebar Lateral Elegante -->
+    <!-- Sidebar Lateral Minimalista — Únicamente Fase 1 -->
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
-      :width="250"
+      :width="240"
       bordered
       class="xf-sidebar-drawer"
     >
       <div class="xf-sidebar-content">
-        <!-- Navegación por Grupos / Categorías -->
-        <q-list class="xf-nav-list" padding>
-          <div class="xf-nav-section-title">ATENCIÓN & MENSAJERÍA</div>
+        <div>
+          <!-- Encabezado de Navegación de Fase -->
+          <div class="xf-nav-section-header">
+            <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
+              Fase 1 • Módulos Activos
+            </div>
+          </div>
 
-          <!-- 1. Chats Omnicanal -->
-          <q-item
-            clickable
-            to="/app/conversations"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_chat" />
-            </q-item-section>
-            <q-item-section>Bandeja Omnicanal</q-item-section>
-            <q-item-section side>
-              <span class="xf-nav-counter">26</span>
-            </q-item-section>
-          </q-item>
+          <!-- Lista de Navegación: Exclusivamente Fase 1 -->
+          <q-list class="xf-nav-list" padding>
+            <!-- 1. Dashboard / Resumen -->
+            <q-item
+              clickable
+              to="/app/dashboard"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_dashboard" size="18px" />
+              </q-item-section>
+              <q-item-section>Dashboard</q-item-section>
+            </q-item>
 
-          <!-- 2. Conexiones Multicanal -->
-          <q-item
-            clickable
-            to="/app/whatsapp"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_hub" />
-            </q-item-section>
-            <q-item-section>Conexiones & Canales</q-item-section>
-            <q-item-section side>
-              <span class="xf-status-dot-active"></span>
-            </q-item-section>
-          </q-item>
+            <!-- 2. Audiencia & Contactos -->
+            <q-item
+              clickable
+              to="/app/contacts"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_contacts" size="18px" />
+              </q-item-section>
+              <q-item-section>Contactos & Audiencia</q-item-section>
+            </q-item>
 
-          <!-- 3. Audiencia / Contactos -->
-          <q-item
-            clickable
-            to="/app/contacts"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_contacts" />
-            </q-item-section>
-            <q-item-section>Audiencia & Contactos</q-item-section>
-          </q-item>
+            <!-- 3. Etiquetas & Segmentos -->
+            <q-item
+              clickable
+              to="/app/tags"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_label" size="18px" />
+              </q-item-section>
+              <q-item-section>Etiquetas & Segmentos</q-item-section>
+            </q-item>
 
-          <!-- 4. Pipeline Comercial (Kanban) -->
-          <q-item
-            clickable
-            to="/app/deals"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_view_kanban" color="teal-4" />
-            </q-item-section>
-            <q-item-section>
-              <div class="row items-center justify-between">
-                <span>Pipeline Comercial</span>
-                <q-badge color="teal-9" text-color="teal-2" rounded class="text-caption">Kanban</q-badge>
-              </div>
-            </q-item-section>
-          </q-item>
+            <!-- 4. Empresas & Cuentas -->
+            <q-item
+              clickable
+              to="/app/companies"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_domain" size="18px" />
+              </q-item-section>
+              <q-item-section>Empresas & Cuentas</q-item-section>
+            </q-item>
+          </q-list>
 
-          <!-- 5. Empresas & Cuentas -->
-          <q-item
-            clickable
-            to="/app/companies"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_domain" />
-            </q-item-section>
-            <q-item-section>Empresas & Cuentas</q-item-section>
-          </q-item>
+          <!-- Tarjeta Minimalista del Roadmap V2 -->
+          <div class="xf-roadmap-card q-mx-sm q-mt-md">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-bold text-white">Roadmap V2</span>
+              <span class="text-caption text-teal-4 text-weight-medium">Fase 1 / 6</span>
+            </div>
+            <p class="text-caption text-grey-5 q-mb-xs roadmap-text">
+              Fase 2 (Chats WhatsApp) y Fase 3 (Kanban) se desbloquearán en sus etapas.
+            </p>
+            <q-linear-progress :value="0.17" color="positive" track-color="grey-9" rounded size="4px" />
+          </div>
+        </div>
 
-          <!-- 6. Etiquetas & Segmentación -->
-          <q-item
-            clickable
-            to="/app/tags"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_label" />
-            </q-item-section>
-            <q-item-section>Etiquetas & Segmentos</q-item-section>
-          </q-item>
-
-          <!-- 7. Respuestas Rápidas -->
-          <q-item
-            clickable
-            to="/app/quick-messages"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_bolt" />
-            </q-item-section>
-            <q-item-section>Respuestas Rápidas</q-item-section>
-          </q-item>
-
-          <!-- 8. Envíos Programados -->
-          <q-item
-            clickable
-            to="/app/scheduled-messages"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_event_available" />
-            </q-item-section>
-            <q-item-section>Envíos Programados</q-item-section>
-          </q-item>
-
-          <div class="xf-nav-section-title q-mt-sm">INTELIGENCIA & AUTOMATIZACIÓN</div>
-
-          <!-- 9. Hentle-AI Wäbot (Cognitivo RAG) -->
-          <q-item
-            clickable
-            to="/app/wabot"
-            class="xf-nav-item xf-nav-item--ai"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_auto_awesome" class="xf-ai-icon" />
-            </q-item-section>
-            <q-item-section>
-              <div class="row items-center justify-between">
-                <span>Hentle-AI (RAG)</span>
-                <span class="xf-ai-badge">IA</span>
-              </div>
-            </q-item-section>
-          </q-item>
-
-          <!-- 10. Campañas & Difusión Masiva -->
-          <q-item
-            clickable
-            to="/app/campaigns"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_campaign" />
-            </q-item-section>
-            <q-item-section>Campañas Masivas</q-item-section>
-          </q-item>
-
-          <!-- 11. Departamentos / Colas -->
-          <q-item
-            clickable
-            to="/app/departments"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_account_tree" />
-            </q-item-section>
-            <q-item-section>Filas & Enrutamiento</q-item-section>
-          </q-item>
-
-          <div class="xf-nav-section-title q-mt-sm">GESTIÓN & MÉTRICAS</div>
-
-          <!-- 12. Equipo & Permisos -->
-          <q-item
-            clickable
-            to="/app/users"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_badge" />
-            </q-item-section>
-            <q-item-section>Equipo & Operadores</q-item-section>
-          </q-item>
-
-          <!-- 13. Informes & SLAs -->
-          <q-item
-            clickable
-            to="/app/reports"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_analytics" />
-            </q-item-section>
-            <q-item-section>Métricas & Analytics</q-item-section>
-          </q-item>
-
-          <!-- 14. Auditoría Forense -->
-          <q-item
-            clickable
-            to="/app/audit"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_security" color="cyan-4" />
-            </q-item-section>
-            <q-item-section>Auditoría Forense</q-item-section>
-          </q-item>
-
-          <!-- 15. Configuración -->
-          <q-item
-            clickable
-            to="/app/settings"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_tune" />
-            </q-item-section>
-            <q-item-section>Ajustes de Espacio</q-item-section>
-          </q-item>
-
-          <!-- 16. API Tokens -->
-          <q-item
-            clickable
-            to="/app/tokens"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_key" />
-            </q-item-section>
-            <q-item-section>Tokens de Acceso</q-item-section>
-          </q-item>
-
-          <!-- 14. Documentación OpenAPI -->
-          <q-item
-            clickable
-            to="/app/docs"
-            class="xf-nav-item"
-            active-class="xf-nav-item--active"
-          >
-            <q-item-section avatar>
-              <q-icon name="sym_r_code" />
-            </q-item-section>
-            <q-item-section>Swagger & API SDK</q-item-section>
-          </q-item>
-        </q-list>
-
-        <!-- Footer Sidebar: Modo Oscuro / Claro Toggle -->
+        <!-- Footer Sidebar: Toggle Modo Oscuro / Claro -->
         <div class="xf-sidebar-footer">
           <div class="xf-theme-toggle-box">
-            <div class="row items-center q-gutter-x-sm">
-              <q-icon :name="isDarkMode ? 'sym_r_dark_mode' : 'sym_r_light_mode'" size="18px" :color="isDarkMode ? 'teal-4' : 'amber-7'" />
-              <span class="text-caption text-weight-medium">{{ isDarkMode ? 'Modo Titanio' : 'Modo Studio' }}</span>
+            <div class="row items-center q-gutter-x-xs">
+              <q-icon
+                :name="isDarkMode ? 'sym_r_dark_mode' : 'sym_r_light_mode'"
+                size="16px"
+                :color="isDarkMode ? 'teal-4' : 'amber-7'"
+              />
+              <span class="text-caption text-weight-medium">{{ isDarkMode ? 'Oscuro' : 'Claro' }}</span>
             </div>
             <q-toggle
               v-model="isDarkMode"
               dense
               color="primary"
+              size="sm"
               @update:model-value="toggleTheme"
             />
           </div>
@@ -391,7 +188,7 @@
       </div>
     </q-drawer>
 
-    <!-- Contenedor de Páginas -->
+    <!-- Contenedor Principal de Vistas -->
     <q-page-container class="xf-page-container">
       <router-view v-slot="{ Component }">
         <transition name="xf-fade" mode="out-in">
@@ -473,7 +270,7 @@ async function handleLogout() {
 }
 </script>
 
-<style lang="scss">
+<style scoped lang="scss">
 .xf-app-layout {
   background-color: var(--crm-bg-app);
   min-height: 100vh;
@@ -482,91 +279,91 @@ async function handleLogout() {
 .xf-header-top {
   background-color: var(--crm-bg-header) !important;
   border-bottom: 1px solid var(--crm-color-border);
-  height: 56px;
+  height: 52px;
 }
 
 .xf-toolbar {
-  min-height: 56px;
-  padding: 0 18px;
+  min-height: 52px;
+  padding: 0 16px;
 }
 
-.xf-btn-icon,
-.xf-header-action-btn {
-  transition: all var(--crm-transition);
+.xf-btn-icon {
+  transition: all var(--crm-transition-fast);
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.06);
   }
 }
 
 .xf-logo-container {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-left: 6px;
+  gap: 8px;
+  margin-left: 4px;
 }
 
 .xf-logo-text {
-  font-size: 1.12rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--crm-color-ink);
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
 }
 
 .xf-logo-badge-pill {
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 0.65rem;
+  font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-  color: #ffffff;
-  letter-spacing: 0.04em;
+  background: var(--crm-color-primary-soft);
+  color: var(--crm-color-primary);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-.xf-logo-sub {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--crm-color-muted);
-  letter-spacing: 0.02em;
-  line-height: 1;
+.phase-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--crm-color-primary);
 }
 
-.xf-badge-pulse {
-  font-size: 0.68rem;
-  font-weight: 700;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+.phase-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--crm-color-primary);
 }
 
 .xf-org-select {
-  min-width: 170px;
-  .q-field__control {
-    height: 36px;
-    min-height: 36px;
+  min-width: 150px;
+  :deep(.q-field__control) {
+    height: 32px;
+    min-height: 32px;
     background: var(--crm-bg-card);
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid var(--crm-color-border);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 }
 
 .xf-avatar-user {
-  background: linear-gradient(135deg, #10b981 0%, #6366f1 100%) !important;
+  background: var(--crm-color-primary) !important;
   color: #ffffff;
   font-weight: 700;
-  font-size: 0.82rem;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.75rem;
 }
 
 .xf-user-role-badge {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  padding: 2px 6px;
+  background: var(--crm-color-primary-soft);
+  color: var(--crm-color-primary);
+  padding: 1px 6px;
   border-radius: 4px;
 }
 
@@ -582,90 +379,71 @@ async function handleLogout() {
   justify-content: space-between;
 }
 
+.xf-nav-section-header {
+  padding: 14px 16px 6px;
+}
+
+.letter-spacing-wide {
+  letter-spacing: 0.05em;
+  font-size: 0.68rem;
+}
+
 .xf-nav-list {
-  padding: 10px 8px;
+  padding: 4px 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.xf-nav-section-title {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--crm-color-muted);
-  padding: 8px 12px 4px;
-}
-
 .xf-nav-item {
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--crm-color-muted);
-  min-height: 38px;
+  min-height: 36px;
   padding: 6px 12px;
   font-size: 0.84rem;
   font-weight: 500;
-  transition: all var(--crm-transition);
+  transition: all var(--crm-transition-fast);
 
-  .q-icon {
-    font-size: 20px;
-    color: var(--crm-color-muted);
-    transition: all var(--crm-transition);
+  :deep(.q-icon) {
+    font-size: 18px;
+    color: var(--crm-color-dim);
+    transition: color var(--crm-transition-fast);
   }
 
   &:hover {
     background: var(--crm-bg-card-hover);
     color: var(--crm-color-ink);
-    transform: translateX(2px);
 
-    .q-icon {
+    :deep(.q-icon) {
       color: var(--crm-color-ink);
     }
   }
 
   &--active {
-    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.03) 100%) !important;
-    border-left: 3px solid #10b981;
-    color: var(--crm-color-ink) !important;
+    background: var(--crm-color-primary-soft) !important;
+    color: var(--crm-color-primary) !important;
     font-weight: 600;
 
-    .q-icon {
-      color: #10b981 !important;
+    :deep(.q-icon) {
+      color: var(--crm-color-primary) !important;
     }
   }
 }
 
-.xf-nav-counter {
+.xf-roadmap-card {
+  padding: 10px 12px;
+  background: var(--crm-bg-card);
+  border: 1px solid var(--crm-color-border);
+  border-radius: 8px;
+}
+
+.roadmap-text {
   font-size: 0.7rem;
-  font-weight: 700;
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-  padding: 2px 6px;
-  border-radius: 10px;
-}
-
-.xf-status-dot-active {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
-}
-
-.xf-ai-icon {
-  color: #a855f7 !important;
-}
-
-.xf-ai-badge {
-  font-size: 0.6rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
-  color: #ffffff;
-  padding: 1px 5px;
-  border-radius: 4px;
+  line-height: 1.35;
 }
 
 .xf-sidebar-footer {
-  padding: 12px 10px;
+  padding: 10px;
   border-top: 1px solid var(--crm-color-border);
 }
 
@@ -675,8 +453,8 @@ async function handleLogout() {
   justify-content: space-between;
   background: var(--crm-bg-card);
   border: 1px solid var(--crm-color-border);
-  padding: 6px 12px;
-  border-radius: 10px;
+  padding: 4px 10px;
+  border-radius: 8px;
 }
 
 .xf-page-container {
@@ -686,22 +464,7 @@ async function handleLogout() {
 .xf-profile-menu {
   background: var(--crm-bg-card) !important;
   border: 1px solid var(--crm-color-border) !important;
-  border-radius: 12px !important;
-}
-
-// Transición suave entre páginas
-.xf-fade-enter-active,
-.xf-fade-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.xf-fade-enter-from {
-  opacity: 0;
-  transform: translateY(4px);
-}
-
-.xf-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
+  border-radius: 10px !important;
+  box-shadow: var(--crm-shadow-dropdown) !important;
 }
 </style>

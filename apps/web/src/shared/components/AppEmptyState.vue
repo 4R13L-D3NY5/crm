@@ -43,25 +43,23 @@ withDefaults(
   display: grid;
   justify-items: start;
   gap: 14px;
-  padding: 28px;
-  border: 1px dashed rgba(122, 226, 231, 0.22);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at top right, rgba(73, 194, 255, 0.08), transparent 30%),
-    rgba(9, 21, 34, 0.74);
+  padding: 32px;
+  border: 1px dashed var(--crm-color-border-hover);
+  border-radius: var(--crm-radius-card);
+  background: var(--crm-bg-card);
 }
 
 .app-empty-state__orb {
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
-  border: 1px solid rgba(122, 226, 231, 0.18);
-  border-radius: 18px;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--crm-color-border);
+  border-radius: 10px;
   color: var(--crm-color-primary);
-  background: rgba(7, 18, 30, 0.82);
-  box-shadow: inset 0 1px 0 rgba(122, 226, 231, 0.08);
+  background: var(--crm-color-primary-soft);
 }
+
 
 .app-empty-state__title {
   color: var(--crm-color-ink);

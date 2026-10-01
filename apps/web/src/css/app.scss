@@ -1,5 +1,6 @@
 // ========================================================
-// XPERTIFLOW DESIGN SYSTEM (Elegante, Premium & Ultra-Fluido)
+// XPERTIFLOW V2 — DESIGN SYSTEM MINIMALISTA & ELEGANTE
+// Inspiración: Linear, Raycast, Vercel, Apple Human Interface
 // ========================================================
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -10,60 +11,68 @@
   --crm-font-body: 'Plus Jakarta Sans', sans-serif;
   --crm-font-mono: 'JetBrains Mono', monospace;
 
-  // MODO OSCURO TITANIUM / OBSIDIAN (Default)
-  --crm-bg-app: #080c14;
-  --crm-bg-header: rgba(13, 19, 31, 0.85);
-  --crm-bg-sidebar: #0b111d;
-  --crm-bg-card: #111827;
-  --crm-bg-card-hover: #172238;
-  --crm-bg-surface-elevated: #1e293b;
+  // PALETA MINIMALISTA MODO OSCURO (Obsidian & Refined Emerald)
+  --crm-bg-app: #090d16;
+  --crm-bg-header: rgba(13, 18, 30, 0.85);
+  --crm-bg-sidebar: #0c111e;
+  --crm-bg-card: #111726;
+  --crm-bg-card-hover: #151d30;
+  --crm-bg-surface-elevated: #182238;
 
   --crm-color-primary: #10b981;
-  --crm-color-primary-dark: #059669;
-  --crm-color-primary-glow: rgba(16, 185, 129, 0.25);
-  --crm-color-secondary: #06b6d4;
-  --crm-color-accent: #6366f1;
-  --crm-color-ai-glow: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  --crm-color-primary-hover: #059669;
+  --crm-color-primary-soft: rgba(16, 185, 129, 0.1);
+  --crm-color-secondary: #6366f1;
+  --crm-color-accent: #f59e0b;
 
   --crm-color-ink: #f8fafc;
   --crm-color-muted: #94a3b8;
+  --crm-color-dim: #64748b;
   --crm-color-border: rgba(255, 255, 255, 0.07);
-  --crm-color-border-hover: rgba(255, 255, 255, 0.15);
+  --crm-color-border-hover: rgba(255, 255, 255, 0.14);
 
-  --crm-shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
-  --crm-shadow-glow: 0 0 20px -3px var(--crm-color-primary-glow);
-  --crm-radius-card: 14px;
-  --crm-radius-control: 10px;
-  --crm-transition: cubic-bezier(0.4, 0, 0.2, 1) 220ms;
+  --crm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --crm-shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  --crm-shadow-dropdown: 0 12px 32px -4px rgba(0, 0, 0, 0.55);
+
+  --crm-radius-sm: 6px;
+  --crm-radius-control: 8px;
+  --crm-radius-card: 12px;
+  --crm-radius-pill: 9999px;
+
+  --crm-transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --crm-transition: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --crm-transition-smooth: 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-// MODO CLARO STUDIO PRO (Light Theme)
+// MODO CLARO REFINADO
 [data-theme='light'],
 .body--light {
-  --crm-bg-app: #f4f6fb;
-  --crm-bg-header: rgba(255, 255, 255, 0.9);
+  --crm-bg-app: #f8fafc;
+  --crm-bg-header: rgba(255, 255, 255, 0.85);
   --crm-bg-sidebar: #ffffff;
   --crm-bg-card: #ffffff;
-  --crm-bg-card-hover: #f8fafc;
-  --crm-bg-surface-elevated: #edf2f7;
+  --crm-bg-card-hover: #f1f5f9;
+  --crm-bg-surface-elevated: #e2e8f0;
 
   --crm-color-primary: #059669;
-  --crm-color-primary-dark: #047857;
-  --crm-color-primary-glow: rgba(5, 150, 105, 0.2);
-  --crm-color-secondary: #0284c7;
-  --crm-color-accent: #4f46e5;
-  --crm-color-ai-glow: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+  --crm-color-primary-hover: #047857;
+  --crm-color-primary-soft: rgba(5, 150, 105, 0.08);
+  --crm-color-secondary: #4f46e5;
+  --crm-color-accent: #d97706;
 
   --crm-color-ink: #0f172a;
   --crm-color-muted: #64748b;
-  --crm-color-border: rgba(0, 0, 0, 0.07);
-  --crm-color-border-hover: rgba(0, 0, 0, 0.14);
+  --crm-color-dim: #94a3b8;
+  --crm-color-border: rgba(0, 0, 0, 0.08);
+  --crm-color-border-hover: rgba(0, 0, 0, 0.16);
 
-  --crm-shadow-card: 0 4px 15px -2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --crm-shadow-glow: 0 0 15px -3px var(--crm-color-primary-glow);
+  --crm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --crm-shadow-card: 0 4px 14px -2px rgba(0, 0, 0, 0.06);
+  --crm-shadow-dropdown: 0 12px 28px -4px rgba(0, 0, 0, 0.12);
 }
 
-// Base & Tipografía
+// Reset & Tipografía Global
 html,
 body,
 #app {
@@ -73,6 +82,7 @@ body,
   background-color: var(--crm-bg-app);
   color: var(--crm-color-ink);
   font-family: var(--crm-font-body);
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -82,34 +92,54 @@ body {
   color: var(--crm-color-ink) !important;
 }
 
-// Glassmorphism & Header Blur
+// Header con Glassmorphism Sutil
 .q-header {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
-// Tarjetas y Contenedores con Elevación Suave
+// Tarjetas Minimalistas
 .q-card {
   background-color: var(--crm-bg-card) !important;
   border: 1px solid var(--crm-color-border) !important;
   border-radius: var(--crm-radius-card) !important;
   color: var(--crm-color-ink) !important;
   box-shadow: var(--crm-shadow-card) !important;
-  transition: all var(--crm-transition);
+  transition: border-color var(--crm-transition), background-color var(--crm-transition);
 }
 
-// Botones Primarios con Estilo Gradiente Sutil
+// Botones Limpios y Elegantes
 .xf-btn-primary {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  background: var(--crm-color-primary) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
-  letter-spacing: -0.01em;
+  font-size: 0.85rem !important;
   border-radius: var(--crm-radius-control) !important;
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3) !important;
   transition: all var(--crm-transition);
 
   &:hover {
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.45) !important;
+    background: var(--crm-color-primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.xf-btn-glass {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--crm-color-border) !important;
+  color: var(--crm-color-ink) !important;
+  font-size: 0.85rem !important;
+  border-radius: var(--crm-radius-control) !important;
+  backdrop-filter: blur(8px);
+  transition: all var(--crm-transition);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--crm-color-border-hover) !important;
     transform: translateY(-1px);
   }
 
@@ -118,22 +148,26 @@ body {
   }
 }
 
-// Botones Secundarios Glass
-.xf-btn-glass {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid var(--crm-color-border) !important;
-  color: var(--crm-color-ink) !important;
+// Inputs Minimalistas Quasar
+.q-field--outlined .q-field__control {
   border-radius: var(--crm-radius-control) !important;
-  backdrop-filter: blur(8px);
-  transition: all var(--crm-transition);
+  border-color: var(--crm-color-border) !important;
+  transition: border-color var(--crm-transition), box-shadow var(--crm-transition);
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.09) !important;
+  &:before {
+    border-color: var(--crm-color-border) !important;
+  }
+
+  &:hover:before {
     border-color: var(--crm-color-border-hover) !important;
   }
 }
 
-// Scrollbars Elegantes y Delgados
+.q-field--focused .q-field__control {
+  box-shadow: 0 0 0 2px var(--crm-color-primary-soft) !important;
+}
+
+// Scrollbars Delgados y Minimalistas
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -144,20 +178,45 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  transition: background var(--crm-transition);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 [data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.12);
+  &:hover {
+    background: rgba(0, 0, 0, 0.22);
+  }
+}
+
+// Transiciones de Página Ultra-Fluídas
+.xf-fade-enter-active,
+.xf-fade-leave-active {
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.xf-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.xf-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 // Links
 a {
   color: var(--crm-color-primary);
   text-decoration: none;
-  transition: color 150ms ease;
+  transition: color var(--crm-transition-fast);
+
   &:hover {
-    color: var(--crm-color-secondary);
+    color: var(--crm-color-primary-hover);
   }
 }

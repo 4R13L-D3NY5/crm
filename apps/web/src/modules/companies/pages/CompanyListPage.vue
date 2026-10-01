@@ -310,11 +310,11 @@ function getValidationErrors(error: unknown): Record<string, string[]> {
 
 <style scoped lang="scss">
 .companies-filters {
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at top right, rgba(73, 194, 255, 0.08), transparent 26%),
-    linear-gradient(180deg, rgba(13, 26, 42, 0.94) 0%, rgba(9, 20, 33, 0.92) 100%);
+  border-radius: var(--crm-radius-card);
+  background: var(--crm-bg-card);
+  border: 1px solid var(--crm-color-border);
 }
+
 
 .companies-filters__grid {
   display: grid;

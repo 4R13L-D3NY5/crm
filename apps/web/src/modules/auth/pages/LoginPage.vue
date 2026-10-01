@@ -1,130 +1,144 @@
 <template>
-  <section class="login-page">
-    <div class="login-page__header">
-      <div class="row items-center justify-between">
-        <h2 class="login-page__title">Acceso al Sistema</h2>
-        <q-badge color="teal-9" text-color="teal-2" rounded class="q-px-sm">
-          V2.0
-        </q-badge>
+  <div class="login-card">
+    <!-- Header de la tarjeta: Brand & Identidad Minimalista -->
+    <div class="login-card__header text-center q-mb-lg">
+      <div class="login-brand-icon q-mb-sm">
+        <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="8" fill="#10B981" />
+          <path d="M7 14L12 9L16 13L21 8M7 20L12 15L16 19L21 14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
-      <p class="login-page__subtitle">
-        Selecciona una cuenta de prueba rápida o introduce tus credenciales:
+
+      <div class="row items-center justify-center q-gutter-x-xs">
+        <h1 class="login-card__title">XpertiFlow</h1>
+        <span class="login-card__version-pill">V2</span>
+      </div>
+      <p class="login-card__subtitle">
+        Directorio inteligente & Suite omnicanal
       </p>
     </div>
 
-    <!-- Selector Rápido de Cuentas Demo -->
-    <div class="demo-selector">
-      <div class="demo-selector__header text-caption text-grey-4 q-mb-xs">
-        <q-icon name="sym_r_touch_app" size="14px" color="teal-4" class="q-mr-xs" />
-        Prueba con 1 clic:
+    <!-- Selector de Rol Demo Rápido -->
+    <div class="role-selector q-mb-md">
+      <div class="role-selector__label text-caption q-mb-xs">
+        Acceso rápido de prueba:
       </div>
-      <div class="row q-gutter-xs">
+      <div class="role-pills">
         <button
           type="button"
-          class="demo-card"
-          :class="{ 'demo-card--active': email === 'admin@crm.local' }"
-          @click="selectRole('admin@crm.local', 'Administrador (Owner)')"
+          class="role-pill"
+          :class="{ 'role-pill--active': email === 'admin@crm.local' }"
+          @click="selectRole('admin@crm.local', 'Admin')"
         >
-          <span class="demo-card__icon">👑</span>
-          <div class="demo-card__info">
-            <span class="demo-card__role">Admin</span>
-            <span class="demo-card__sub">Control total</span>
-          </div>
+          <span class="role-pill__emoji">👑</span>
+          <span>Admin</span>
         </button>
 
         <button
           type="button"
-          class="demo-card"
-          :class="{ 'demo-card--active': email === 'supervisora@crm.local' }"
-          @click="selectRole('supervisora@crm.local', 'Supervisora')"
+          class="role-pill"
+          :class="{ 'role-pill--active': email === 'supervisora@crm.local' }"
+          @click="selectRole('supervisora@crm.local', 'Supervisor')"
         >
-          <span class="demo-card__icon">🛡️</span>
-          <div class="demo-card__info">
-            <span class="demo-card__role">Supervisor</span>
-            <span class="demo-card__sub">Colas y SLA</span>
-          </div>
+          <span class="role-pill__emoji">🛡️</span>
+          <span>Supervisor</span>
         </button>
 
         <button
           type="button"
-          class="demo-card"
-          :class="{ 'demo-card--active': email === 'agente@crm.local' }"
-          @click="selectRole('agente@crm.local', 'Agente Operativo')"
+          class="role-pill"
+          :class="{ 'role-pill--active': email === 'agente@crm.local' }"
+          @click="selectRole('agente@crm.local', 'Agente')"
         >
-          <span class="demo-card__icon">🎧</span>
-          <div class="demo-card__info">
-            <span class="demo-card__role">Agente</span>
-            <span class="demo-card__sub">Bandeja chat</span>
-          </div>
+          <span class="role-pill__emoji">🎧</span>
+          <span>Agente</span>
         </button>
       </div>
     </div>
 
-    <q-form class="login-page__form" @submit.prevent="submit">
+    <!-- Formulario de Acceso -->
+    <q-form class="login-form" @submit.prevent="submit">
       <q-banner
         v-if="authStore.errorMessage"
-        inline-actions
         rounded
-        class="login-page__error"
+        dense
+        class="login-error q-mb-sm"
       >
         <template #avatar>
-          <q-icon name="sym_r_error" color="negative" />
+          <q-icon name="sym_r_error" size="18px" color="negative" />
         </template>
         {{ authStore.errorMessage }}
       </q-banner>
 
-      <q-input
-        v-model="email"
-        label="Correo corporativo"
-        outlined
-        dark
-        dense
-        type="email"
-        autocomplete="username"
-        class="login-input"
-        :rules="[val => !!val || 'El correo es requerido']"
-      >
-        <template #prepend>
-          <q-icon name="sym_r_mail" size="18px" color="teal-4" />
-        </template>
-      </q-input>
+      <div class="q-gutter-y-sm">
+        <div>
+          <label class="text-caption text-weight-medium q-mb-xs block text-grey-4">Correo corporativo</label>
+          <q-input
+            v-model="email"
+            outlined
+            dark
+            dense
+            type="email"
+            autocomplete="username"
+            placeholder="admin@crm.local"
+            class="clean-input"
+            :rules="[val => !!val || 'El correo es requerido']"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_mail" size="16px" class="text-grey-5" />
+            </template>
+          </q-input>
+        </div>
 
-      <q-input
-        v-model="password"
-        label="Contraseña"
-        outlined
-        dark
-        dense
-        :type="showPassword ? 'text' : 'password'"
-        autocomplete="current-password"
-        class="login-input"
-        :rules="[val => !!val || 'La contraseña es requerida']"
-      >
-        <template #prepend>
-          <q-icon name="sym_r_key" size="18px" color="teal-4" />
-        </template>
-        <template #append>
-          <q-icon
-            :name="showPassword ? 'sym_r_visibility_off' : 'sym_r_visibility'"
-            class="cursor-pointer text-grey-4"
-            size="18px"
-            @click="showPassword = !showPassword"
-          />
-        </template>
-      </q-input>
+        <div>
+          <label class="text-caption text-weight-medium q-mb-xs block text-grey-4">Contraseña</label>
+          <q-input
+            v-model="password"
+            outlined
+            dark
+            dense
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="clean-input"
+            :rules="[val => !!val || 'La contraseña es requerida']"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_key" size="16px" class="text-grey-5" />
+            </template>
+            <template #append>
+              <q-icon
+                :name="showPassword ? 'sym_r_visibility_off' : 'sym_r_visibility'"
+                class="cursor-pointer text-grey-5"
+                size="16px"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </q-input>
+        </div>
+      </div>
 
       <q-btn
         type="submit"
-        color="primary"
-        :label="`Ingresar como ${currentRoleLabel}`"
+        label="Acceder al CRM"
         icon-right="sym_r_arrow_forward"
         unelevated
         no-caps
-        class="login-page__submit"
+        class="login-submit-btn q-mt-md"
         :loading="authStore.isLoading"
       />
     </q-form>
-  </section>
+
+    <!-- Footer Discreto: Fase 1 Activa -->
+    <div class="login-card__footer text-center q-mt-lg">
+      <div class="row items-center justify-center q-gutter-x-xs text-caption text-grey-5">
+        <span class="phase-indicator-dot"></span>
+        <span>Fase 1: Directorio & Contactos</span>
+        <span>•</span>
+        <span>V2 Modular</span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -138,18 +152,16 @@ const router = useRouter()
 const email = ref('admin@crm.local')
 const password = ref('password')
 const showPassword = ref(false)
-const currentRoleLabel = ref('Administrador')
 
-function selectRole(demoEmail: string, roleLabel: string) {
+function selectRole(demoEmail: string, _roleLabel: string) {
   email.value = demoEmail
   password.value = 'password'
-  currentRoleLabel.value = roleLabel
 }
 
 async function submit() {
   try {
     await authStore.login(email.value, password.value)
-    await router.replace({ name: 'dashboard' })
+    await router.replace({ name: 'contacts.index' })
   } catch {
     // Error message handled in authStore
   }
@@ -157,104 +169,135 @@ async function submit() {
 </script>
 
 <style scoped lang="scss">
-.login-page {
-  display: grid;
-  gap: 18px;
+.login-card {
+  padding: 32px 28px;
+  background: var(--crm-bg-card);
+  border: 1px solid var(--crm-color-border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
 }
 
-.login-page__title {
+.login-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card__title {
   margin: 0;
-  font-family: var(--crm-font-display, sans-serif);
-  color: #ffffff;
-  font-size: 1.65rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  color: var(--crm-color-ink);
 }
 
-.login-page__subtitle {
-  margin: 6px 0 0;
-  color: #94a3b8;
-  font-size: 0.88rem;
-  line-height: 1.5;
+.login-card__version-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--crm-color-primary-soft);
+  color: var(--crm-color-primary);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-.demo-selector {
+.login-card__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--crm-color-muted);
+}
+
+.role-selector {
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--crm-color-border);
+  border-radius: 10px;
 }
 
-.demo-card {
+.role-selector__label {
+  color: var(--crm-color-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.role-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.role-pill {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border: 1px solid var(--crm-color-border);
+  border-radius: 6px;
+  color: var(--crm-color-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
   cursor: pointer;
-  text-align: left;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--crm-transition-fast);
 
   &:hover {
-    background: rgba(16, 185, 129, 0.08);
-    border-color: rgba(16, 185, 129, 0.4);
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--crm-color-ink);
+    border-color: var(--crm-color-border-hover);
   }
 
   &--active {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: #10b981;
-    box-shadow: 0 0 12px -2px rgba(16, 185, 129, 0.3);
+    background: var(--crm-color-primary-soft);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: var(--crm-color-primary);
+    font-weight: 600;
   }
 }
 
-.demo-card__icon {
-  font-size: 1.1rem;
+.role-pill__emoji {
+  font-size: 0.85rem;
 }
 
-.demo-card__info {
+.login-form {
   display: flex;
   flex-direction: column;
 }
 
-.demo-card__role {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.demo-card__sub {
-  font-size: 0.65rem;
-  color: #94a3b8;
-}
-
-.login-page__form {
-  display: grid;
-  gap: 14px;
-}
-
-.login-page__error {
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.1);
+.login-error {
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
   color: #fca5a5;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
-.login-page__submit {
-  min-height: 48px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  box-shadow: 0 4px 16px -2px rgba(16, 185, 129, 0.4);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+.login-submit-btn {
+  width: 100%;
+  min-height: 42px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: var(--crm-color-primary) !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+  transition: all var(--crm-transition);
 
   &:hover {
+    background: var(--crm-color-primary-hover) !important;
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px -2px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
   }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.phase-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--crm-color-primary);
 }
 </style>

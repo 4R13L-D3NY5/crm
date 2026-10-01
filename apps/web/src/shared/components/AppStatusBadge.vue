@@ -45,12 +45,12 @@ const label = computed(() => props.label ?? props.status)
 
 <style scoped lang="scss">
 .app-status-badge {
-  padding: 7px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: var(--crm-radius-pill);
   font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
 }
+
 </style>

@@ -380,11 +380,11 @@ function channelLabel(channel: 'manual' | 'whatsapp' | 'email') {
 
 .company-detail__hero,
 .company-detail__section {
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at top right, rgba(73, 194, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(13, 26, 42, 0.94) 0%, rgba(9, 20, 33, 0.92) 100%);
+  border-radius: var(--crm-radius-card);
+  background: var(--crm-bg-card);
+  border: 1px solid var(--crm-color-border);
 }
+
 
 .company-detail__hero-grid {
   display: grid;
@@ -428,11 +428,12 @@ function channelLabel(channel: 'manual' | 'whatsapp' | 'email') {
 .company-detail__row-card {
   display: grid;
   gap: 8px;
-  padding: 16px;
-  border: 1px solid rgba(118, 198, 255, 0.1);
-  border-radius: 18px;
-  background: rgba(12, 24, 39, 0.72);
+  padding: 14px 16px;
+  border: 1px solid var(--crm-color-border);
+  border-radius: var(--crm-radius-control);
+  background: var(--crm-bg-card-hover);
 }
+
 
 .company-detail__row-top,
 .company-detail__row-bottom,
