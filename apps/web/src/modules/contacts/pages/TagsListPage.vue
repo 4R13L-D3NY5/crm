@@ -1,14 +1,31 @@
 <template>
-  <div class="whaticket-tags-page">
+  <div class="tags-list-page">
     <!-- Header de Etiquetas -->
-    <div class="q-mb-md">
-      <h1 class="text-h5 text-bold text-white q-my-none">Etiquetas</h1>
-      <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
-        Crea y organiza las etiquetas usadas para clasificar contactos y atenciones.
-      </p>
+    <div class="row items-center justify-between q-mb-lg">
+      <div>
+        <div class="row items-center q-gutter-x-sm">
+          <h1 class="text-h5 text-bold text-white q-my-none">Etiquetas & Segmentación</h1>
+          <q-badge color="teal-9" text-color="teal-2" rounded class="q-px-sm">
+            {{ tags.length }} registradas
+          </q-badge>
+        </div>
+        <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
+          Clasifica tus contactos, conversaciones y oportunidades con identificadores visuales en color.
+        </p>
+      </div>
+
+      <q-btn
+        color="primary"
+        icon="sym_r_add"
+        label="+ Nueva Etiqueta"
+        unelevated
+        no-caps
+        class="xf-btn-primary"
+        @click="openCreateTagDialog"
+      />
     </div>
 
-    <!-- Barra de Búsqueda y Botón Nueva Etiqueta -->
+    <!-- Barra de Búsqueda -->
     <div class="row items-center justify-between q-col-gutter-sm q-mb-md">
       <div class="col-12 col-sm-6 col-md-4">
         <q-input
@@ -17,69 +34,63 @@
           outlined
           dark
           placeholder="Buscar etiqueta..."
-          class="whaticket-filter-input"
+          class="tags-filter-input"
         >
           <template #prepend>
-            <q-icon name="sym_r_search" size="18px" color="grey-5" />
+            <q-icon name="sym_r_search" size="18px" color="teal-4" />
+          </template>
+          <template v-if="search" #append>
+            <q-icon
+              name="sym_r_close"
+              size="16px"
+              class="cursor-pointer text-grey-5"
+              @click="search = ''"
+            />
           </template>
         </q-input>
       </div>
-
-      <div class="col-12 col-sm-6 col-md-4 row items-center justify-end q-gutter-sm">
-        <!-- Switch vista -->
-        <div class="whaticket-view-toggle">
-          <button class="whaticket-view-btn whaticket-view-btn--active">
-            <q-icon name="sym_r_list" size="18px" />
-          </button>
-          <button class="whaticket-view-btn">
-            <q-icon name="sym_r_grid_view" size="18px" />
-          </button>
-        </div>
-
-        <q-btn
-          color="primary"
-          label="+ Nueva etiqueta"
-          unelevated
-          no-caps
-          class="whaticket-btn-primary"
-          @click="openCreateTagDialog"
-        />
-      </div>
     </div>
 
-    <!-- Tabla de Etiquetas (Exacto a la Captura 5 de Whaticket) -->
-    <q-card flat bordered class="whaticket-table-card">
-      <q-markup-table flat dark class="whaticket-table">
+    <!-- Tabla de Etiquetas con Colores Hexadecimales -->
+    <q-card flat bordered class="tags-table-card">
+      <q-markup-table flat dark class="tags-table">
         <thead>
           <tr>
-            <th class="text-left">NOMBRE</th>
-            <th class="text-center" style="width: 250px">
-              <span class="row items-center justify-center q-gutter-x-xs">
-                <span>Color</span>
-                <q-icon name="sym_r_info" size="14px" color="grey-5" />
-              </span>
-            </th>
-            <th class="text-right" style="width: 150px">ACCIONES</th>
+            <th class="text-left">NOMBRE DE ETIQUETA</th>
+            <th class="text-center" style="width: 220px">COLOR / IDENTIFICADOR</th>
+            <th class="text-right" style="width: 140px">ACCIONES</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tag in filteredTags" :key="tag.id" class="whaticket-table-row">
+          <tr v-if="tagsQuery.isLoading.value">
+            <td colspan="3" class="text-center q-pa-lg text-grey-4">
+              <q-spinner-dots size="32px" color="primary" />
+              <div class="q-mt-sm">Cargando etiquetas del workspace...</div>
+            </td>
+          </tr>
+          <tr v-else-if="filteredTags.length === 0">
+            <td colspan="3" class="text-center q-pa-xl text-grey-4">
+              <q-icon name="sym_r_label_off" size="44px" class="q-mb-sm text-grey-6" />
+              <div class="text-subtitle1 text-white text-bold">No se encontraron etiquetas</div>
+              <div class="text-caption text-grey-5">Crea una nueva etiqueta para comenzar a segmentar.</div>
+            </td>
+          </tr>
+          <tr v-for="tag in filteredTags" v-else :key="tag.id" class="tags-table-row">
             <!-- Nombre -->
             <td class="text-left text-white text-weight-medium">
-              {{ tag.name }}
+              <div class="row items-center q-gutter-x-sm">
+                <span class="tag-bullet" :style="{ backgroundColor: tag.color_hex || '#00a884' }" />
+                <span class="text-bold">{{ tag.name }}</span>
+              </div>
             </td>
 
             <!-- Pastilla de Color -->
             <td class="text-center">
               <span
-                v-if="tag.color"
-                class="whaticket-color-chip"
-                :style="{ backgroundColor: tag.color }"
+                class="tag-color-chip"
+                :style="{ backgroundColor: tag.color_hex || '#00a884' }"
               >
-                {{ tag.color }}
-              </span>
-              <span v-else class="whaticket-color-chip whaticket-color-chip--none">
-                Sin color
+                {{ tag.color_hex || '#00a884' }}
               </span>
             </td>
 
@@ -94,7 +105,9 @@
                   color="grey-4"
                   size="sm"
                   @click="editTag(tag)"
-                />
+                >
+                  <q-tooltip>Editar etiqueta</q-tooltip>
+                </q-btn>
                 <q-btn
                   flat
                   round
@@ -102,8 +115,10 @@
                   icon="sym_r_delete"
                   color="negative"
                   size="sm"
-                  @click="deleteTag(tag.id)"
-                />
+                  @click="confirmDeleteTag(tag)"
+                >
+                  <q-tooltip>Eliminar etiqueta</q-tooltip>
+                </q-btn>
               </div>
             </td>
           </tr>
@@ -113,29 +128,48 @@
 
     <!-- Dialog Crear / Editar Etiqueta -->
     <q-dialog v-model="isDialogOpen">
-      <q-card style="min-width: 400px" class="whaticket-modal-card q-pa-md">
-        <q-card-section>
+      <q-card style="width: 440px; max-width: 95vw" class="tags-modal-card q-pa-md">
+        <q-card-section class="q-pb-none">
           <div class="text-h6 text-bold text-white">
             {{ currentTag?.id ? 'Editar Etiqueta' : 'Nueva Etiqueta' }}
           </div>
+          <div class="text-caption text-grey-4">
+            Asigna un nombre representativo y un color distintivo.
+          </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md q-pt-md">
           <q-input
             v-model="form.name"
-            label="Nombre de la etiqueta"
+            label="Nombre de la etiqueta *"
             outlined
             dark
             dense
+            :rules="[val => !!val || 'El nombre es obligatorio']"
           />
-          <div class="row items-center q-gutter-x-sm">
-            <span class="text-caption text-grey-4">Color de etiqueta:</span>
-            <input
-              v-model="form.color"
-              type="color"
-              style="width: 40px; height: 32px; border: none; border-radius: 6px; cursor: pointer"
-            />
-            <span class="text-bold text-caption text-white">{{ form.color }}</span>
+
+          <div>
+            <div class="text-caption text-grey-4 q-mb-xs">Color hexadecimal:</div>
+            <div class="row items-center q-gutter-x-sm">
+              <input
+                v-model="form.color_hex"
+                type="color"
+                class="tag-color-picker"
+              />
+              <span class="text-bold text-caption text-white font-mono">{{ form.color_hex }}</span>
+            </div>
+
+            <!-- Paleta rápida de colores recomendados -->
+            <div class="row q-gutter-xs q-mt-sm">
+              <span
+                v-for="color in presetColors"
+                :key="color"
+                class="tag-preset-dot cursor-pointer"
+                :style="{ backgroundColor: color }"
+                :class="{ 'tag-preset-dot--selected': form.color_hex === color }"
+                @click="form.color_hex = color"
+              />
+            </div>
           </div>
         </q-card-section>
 
@@ -143,199 +177,225 @@
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated
-            label="Guardar"
+            label="Guardar Etiqueta"
             color="primary"
             no-caps
-            class="whaticket-btn-primary"
+            class="xf-btn-primary"
+            :loading="createTagMutation.isPending.value || updateTagMutation.isPending.value"
             @click="saveTag"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo de Confirmación para Eliminar Etiqueta -->
+    <AppConfirmDialog
+      v-model="isConfirmDeleteOpen"
+      title="Eliminar etiqueta"
+      :message="`¿Deseas eliminar la etiqueta '${tagToDelete?.name}'? Los contactos asociados perderán esta etiqueta.`"
+      confirm-label="Eliminar"
+      confirm-color="negative"
+      :loading="deleteTagMutation.isPending.value"
+      @confirm="executeDeleteTag"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import AppConfirmDialog from '@/shared/components/AppConfirmDialog.vue'
+import { useContactTags, useTagMutations } from '../composables/useContacts'
+import type { ContactTag } from '../types/contact.types'
 
 const notify = useAppNotify()
 
-interface TagItem {
-  id: string
-  name: string
-  color: string | null
-}
-
 const search = ref('')
 const isDialogOpen = ref(false)
-const currentTag = ref<TagItem | null>(null)
+const isConfirmDeleteOpen = ref(false)
+const currentTag = ref<ContactTag | null>(null)
+const tagToDelete = ref<ContactTag | null>(null)
+
+const presetColors = [
+  '#00a884',
+  '#10b981',
+  '#0284c7',
+  '#06b6d4',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f59e0b',
+  '#ef4444',
+]
 
 const form = reactive({
   name: '',
-  color: '#00a884',
+  color_hex: '#00a884',
 })
 
-const tags = ref<TagItem[]>([
-  { id: '1', name: 'Adm. de Empresas', color: null },
-  { id: '2', name: 'agos', color: null },
-  { id: '3', name: 'Agosto-26', color: null },
-  { id: '4', name: 'ALTO 1/2025', color: '#33ab9f' },
-  { id: '5', name: 'Arte y Escultura', color: '#9500ae' },
-  { id: '6', name: 'Beca Anticipada', color: null },
-  { id: '7', name: 'Beca patriota', color: '#1c5c56' },
-  { id: '8', name: 'beca retoma', color: null },
-  { id: '9', name: 'Bioquímica y Farmacia', color: '#9778be' },
-  { id: '10', name: 'cbba', color: null },
-])
+const tagsQuery = useContactTags()
+const { createTagMutation, updateTagMutation, deleteTagMutation } = useTagMutations()
+
+const tags = computed<ContactTag[]>(() => tagsQuery.data.value ?? [])
 
 const filteredTags = computed(() => {
-  if (!search.value) return tags.value
-  return tags.value.filter((t) =>
-    t.name.toLowerCase().includes(search.value.toLowerCase()),
-  )
+  if (!search.value.trim()) return tags.value
+  const q = search.value.toLowerCase()
+  return tags.value.filter((t) => t.name.toLowerCase().includes(q))
 })
 
 function openCreateTagDialog() {
   currentTag.value = null
   form.name = ''
-  form.color = '#00a884'
+  form.color_hex = '#00a884'
   isDialogOpen.value = true
 }
 
-function editTag(tag: TagItem) {
+function editTag(tag: ContactTag) {
   currentTag.value = tag
   form.name = tag.name
-  form.color = tag.color || '#00a884'
+  form.color_hex = tag.color_hex || '#00a884'
   isDialogOpen.value = true
 }
 
-function saveTag() {
-  if (!form.name.trim()) return
-
-  if (currentTag.value) {
-    currentTag.value.name = form.name
-    currentTag.value.color = form.color
-    notify.success({ message: 'Etiqueta actualizada.' })
-  } else {
-    tags.value.push({
-      id: Date.now().toString(),
-      name: form.name,
-      color: form.color,
-    })
-    notify.success({ message: 'Etiqueta creada.' })
-  }
-  isDialogOpen.value = false
+function confirmDeleteTag(tag: ContactTag) {
+  tagToDelete.value = tag
+  isConfirmDeleteOpen.value = true
 }
 
-function deleteTag(id: string) {
-  tags.value = tags.value.filter((t) => t.id !== id)
-  notify.warning({ message: 'Etiqueta eliminada.' })
+async function executeDeleteTag() {
+  if (!tagToDelete.value) return
+  try {
+    await deleteTagMutation.mutateAsync(tagToDelete.value.id)
+    notify.success({ message: 'Etiqueta eliminada correctamente.' })
+    isConfirmDeleteOpen.value = false
+    tagToDelete.value = null
+  } catch {
+    notify.error({ message: 'No se pudo eliminar la etiqueta.' })
+  }
+}
+
+async function saveTag() {
+  if (!form.name.trim()) return
+
+  try {
+    if (currentTag.value) {
+      await updateTagMutation.mutateAsync({
+        id: currentTag.value.id,
+        payload: { name: form.name.trim(), color_hex: form.color_hex },
+      })
+      notify.success({ message: 'Etiqueta actualizada exitosamente.' })
+    } else {
+      await createTagMutation.mutateAsync({
+        name: form.name.trim(),
+        color_hex: form.color_hex,
+      })
+      notify.success({ message: 'Etiqueta creada exitosamente.' })
+    }
+    isDialogOpen.value = false
+  } catch {
+    notify.error({ message: 'No se pudo guardar la etiqueta.' })
+  }
 }
 </script>
 
 <style scoped lang="scss">
-.whaticket-tags-page {
-  padding: 24px 32px;
-  background-color: var(--crm-bg-app);
-  min-height: calc(100vh - 52px);
+.tags-list-page {
+  padding: 28px 36px;
+  background-color: var(--crm-bg-app, #080c14);
+  min-height: calc(100vh - 56px);
 }
 
-.whaticket-filter-input {
-  .q-field__control {
-    background: #182229 !important;
-    border-radius: 8px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    font-size: 0.85rem;
-  }
+.tags-filter-input {
+  min-width: 240px;
 }
 
-.whaticket-view-toggle {
-  display: flex;
-  background: #182229;
-  border-radius: 8px;
-  padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.whaticket-view-btn {
-  background: transparent;
-  border: none;
-  color: #8696a0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-
-  &--active {
-    background: #202c33;
-    color: #ffffff;
-  }
-}
-
-.whaticket-btn-primary {
-  background-color: #00a884 !important;
-  color: #ffffff !important;
-  font-weight: 600;
-  border-radius: 8px;
-  height: 36px;
-}
-
-.whaticket-table-card {
-  background-color: #182229 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 12px !important;
+.tags-table-card {
+  background: var(--crm-bg-card, #111827);
+  border-radius: var(--crm-radius-card, 14px);
   overflow: hidden;
 }
 
-.whaticket-table {
-  background-color: transparent !important;
+.tags-table {
+  background: transparent;
 
-  thead tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    th {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: #8696a0;
-      padding: 12px 16px;
-    }
+  thead tr th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--crm-color-muted, #94a3b8);
+    border-bottom: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.07));
+    padding: 14px 16px;
   }
 
   tbody tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    transition: background-color 0.12s ease;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.05));
 
     &:hover {
-      background-color: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.03);
     }
+  }
 
-    td {
-      padding: 12px 16px;
-      font-size: 0.85rem;
-    }
+  tbody td {
+    padding: 12px 16px;
   }
 }
 
-.whaticket-color-chip {
+.tag-bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   display: inline-block;
-  padding: 2px 12px;
-  border-radius: 12px;
+}
+
+.tag-color-chip {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.75rem;
   font-weight: 600;
+  font-family: var(--crm-font-mono, monospace);
+  padding: 3px 10px;
+  border-radius: 999px;
   color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
 
-  &--none {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: #8696a0;
+.tag-color-picker {
+  width: 42px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.tag-preset-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-block;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.2);
+  }
+
+  &--selected {
+    box-shadow: 0 0 0 2px #ffffff;
+    transform: scale(1.15);
   }
 }
 
-.whaticket-modal-card {
-  background-color: #111b21 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 16px !important;
+.tags-modal-card {
+  background: var(--crm-bg-card, #111827);
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+}
+
+.xf-btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  font-weight: 600;
+  border-radius: 8px;
 }
 </style>

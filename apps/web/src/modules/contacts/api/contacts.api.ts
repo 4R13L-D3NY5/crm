@@ -4,6 +4,7 @@ import type {
   Contact,
   ContactFilters,
   ContactPayload,
+  ContactTag,
   PaginatedContacts,
 } from '../types/contact.types'
 
@@ -38,4 +39,40 @@ export async function updateContact(
 
 export async function deleteContact(id: string): Promise<void> {
   await http.delete(`/contacts/${id}`)
+}
+
+export async function importContacts(
+  payload: { contacts: Array<{ name: string; phone: string; email?: string; tags?: string[] }> },
+): Promise<{ data: { created_count: number; total_processed: number }; message?: string }> {
+  const response = await http.post<{ data: { created_count: number; total_processed: number }; message?: string }>(
+    '/contacts/import',
+    payload,
+  )
+
+  return response.data
+}
+
+export async function getTags(): Promise<ContactTag[]> {
+  const response = await http.get<{ data: ContactTag[] }>('/tags')
+
+  return response.data.data
+}
+
+export async function createTag(payload: { name: string; color_hex?: string }): Promise<ContactTag> {
+  const response = await http.post<{ data: ContactTag }>('/tags', payload)
+
+  return response.data.data
+}
+
+export async function updateTag(
+  id: string,
+  payload: { name: string; color_hex?: string },
+): Promise<ContactTag> {
+  const response = await http.put<{ data: ContactTag }>(`/tags/${id}`, payload)
+
+  return response.data.data
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  await http.delete(`/tags/${id}`)
 }

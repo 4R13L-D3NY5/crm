@@ -26,6 +26,8 @@ export interface ConversationMessage {
   body: string
   media_url?: string | null
   media_type?: 'image' | 'audio' | 'video' | 'document' | 'ptt' | null
+  media_duration_seconds?: number | null
+  transcription?: string | null
   quoted_message?: {
     id: string
     body: string
@@ -46,7 +48,7 @@ export interface ConversationSummaryRelation {
 export interface Conversation {
   id: string
   organization_id: string
-  channel: 'manual' | 'whatsapp' | 'email'
+  channel: 'manual' | 'whatsapp' | 'email' | 'facebook' | 'instagram'
   status: 'open' | 'pending' | 'closed'
   subject: string | null
   unread_count?: number
@@ -130,3 +132,17 @@ export interface WhatsAppMessagePayload {
 export type PaginatedConversations = Paginated<Conversation>
 export type ConversationFormContact = Contact
 export type ConversationFormCompany = Company
+
+export interface AssignmentPayload {
+  assigned_to_user_id: string | null
+}
+
+export interface StatusPayload {
+  status: 'open' | 'pending' | 'closed'
+}
+
+export interface AiReplySuggestionRun {
+  id: string
+  suggestion: string
+  tokens_used?: number
+}

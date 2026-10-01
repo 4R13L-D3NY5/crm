@@ -445,7 +445,7 @@ function applyTheme(dark: boolean) {
 }
 
 const selectedOrganizationId = computed({
-  get: () => authStore.user?.current_organization_id ?? '',
+  get: () => authStore.user?.current_organization?.id ?? '',
   set: (id: string) => {
     authStore.switchOrganization(id)
   },

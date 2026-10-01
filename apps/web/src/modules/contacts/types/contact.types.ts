@@ -4,6 +4,23 @@ export interface ContactTag {
   id: string
   name: string
   slug: string
+  color_hex?: string
+}
+
+export interface ImportContactItem {
+  name: string
+  phone: string
+  email?: string
+  tags?: string[]
+}
+
+export interface ImportContactsPayload {
+  contacts: ImportContactItem[]
+}
+
+export interface ImportContactsResult {
+  created_count: number
+  total_processed: number
 }
 
 export interface ContactCompanySummary {
@@ -48,6 +65,7 @@ export interface Contact {
   status: 'active' | 'lead' | 'inactive'
   notes: string | null
   tags: ContactTag[]
+  company?: ContactCompanySummary | null
   companies?: ContactCompanySummary[]
   deals?: ContactDealSummary[]
   conversations?: ContactConversationSummary[]

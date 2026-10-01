@@ -4,10 +4,15 @@ import { computed, toValue } from 'vue'
 
 import {
   createContact,
+  createTag,
   deleteContact,
+  deleteTag,
   getContact,
   getContacts,
+  getTags,
+  importContacts,
   updateContact,
+  updateTag,
 } from '../api/contacts.api'
 import type { ContactFilters, ContactPayload } from '../types/contact.types'
 
@@ -64,10 +69,63 @@ export function useContactMutations() {
     },
   })
 
+  const importMutation = useMutation({
+    mutationFn: (payload: { contacts: Array<{ name: string; phone: string; email?: string; tags?: string[] }> }) =>
+      importContacts(payload),
+    onSuccess: async () => {
+      await invalidateContacts()
+      await queryClient.invalidateQueries({ queryKey: ['tags'] })
+    },
+  })
+
   return {
     createMutation,
     updateMutation,
     deleteMutation,
+    importMutation,
+  }
+}
+
+export function useContactTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: () => getTags(),
+  })
+}
+
+export function useTagMutations() {
+  const queryClient = useQueryClient()
+
+  const invalidateTags = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['tags'] })
+  }
+
+  const createTagMutation = useMutation({
+    mutationFn: (payload: { name: string; color_hex?: string }) => createTag(payload),
+    onSuccess: async () => {
+      await invalidateTags()
+    },
+  })
+
+  const updateTagMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { name: string; color_hex?: string } }) =>
+      updateTag(id, payload),
+    onSuccess: async () => {
+      await invalidateTags()
+    },
+  })
+
+  const deleteTagMutation = useMutation({
+    mutationFn: (id: string) => deleteTag(id),
+    onSuccess: async () => {
+      await invalidateTags()
+    },
+  })
+
+  return {
+    createTagMutation,
+    updateTagMutation,
+    deleteTagMutation,
   }
 }
 

@@ -9,10 +9,10 @@ export function useTicketRealtime(selectedTicketId?: () => string | null) {
   let pollingInterval: number | null = null
 
   onMounted(() => {
-    // Si Laravel Reverb / Echo está configurado en window.Echo
-    const echo = (window as unknown as { Echo?: { channel: (name: string) => { listen: (event: string, callback: () => void) => void } } }).Echo
+    type EchoChannel = { listen: (event: string, callback: () => void) => EchoChannel }
+    const echo = (window as unknown as { Echo?: { channel: (name: string) => EchoChannel } }).Echo
 
-    const orgId = authStore.user?.organization_id || authStore.user?.current_organization_id
+    const orgId = authStore.user?.current_organization?.id
 
     if (echo && orgId) {
       echo.channel(`organizations.${orgId}`)

@@ -133,6 +133,14 @@ export const useAuthStore = defineStore('auth', {
         (state.demoRole
           ? (ROLE_PERMISSIONS[state.demoRole] ?? []).includes(permission)
           : state.user?.permissions.includes(permission)) ?? false,
+    hasAnyPermission:
+      (state) =>
+      (permissions: string[]): boolean => {
+        const userPerms = state.demoRole
+          ? (ROLE_PERMISSIONS[state.demoRole] ?? [])
+          : (state.user?.permissions ?? [])
+        return permissions.some((p) => userPerms.includes(p))
+      },
   },
   actions: {
     async hydrateSession() {
