@@ -32,13 +32,21 @@ function isMutatingRequest(config?: InternalAxiosRequestConfig): boolean {
 }
 
 async function ensureCsrfCookie(): Promise<void> {
-  await axios.get(`${appOrigin}/sanctum/csrf-cookie`, {
-    withCredentials: true,
-    headers: {
-      Accept: 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-  })
+  if (getXsrfCookie()) {
+    return
+  }
+
+  try {
+    await axios.get(`${appOrigin}/sanctum/csrf-cookie`, {
+      withCredentials: true,
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    })
+  } catch {
+    // Tolerant in case domain is stateful or endpoint is handled
+  }
 }
 
 export const http = axios.create({

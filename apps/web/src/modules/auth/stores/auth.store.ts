@@ -174,7 +174,11 @@ export const useAuthStore = defineStore('auth', {
       this.errorMessage = null
 
       try {
-        await getCsrfCookie()
+        try {
+          await getCsrfCookie()
+        } catch {
+          // CSRF cookie endpoint is tolerant for stateful domains
+        }
 
         const user = await login({ email, password })
 
@@ -183,8 +187,9 @@ export const useAuthStore = defineStore('auth', {
         this.isReady = true
         this.demoRole = null
         clearStoredDemoRole()
-      } catch (error) {
-        this.errorMessage = 'Credenciales invalidas o sesion no disponible.'
+      } catch (error: any) {
+        this.errorMessage =
+          error?.response?.data?.message || 'Credenciales inválidas o sesión no disponible.'
         throw error
       } finally {
         this.isLoading = false
