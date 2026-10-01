@@ -40,13 +40,65 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  api:
+    image: crm-api:latest
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: crm-api
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./apps/api:/var/www/html
+    environment:
+      APP_NAME: "CRM API"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8010
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: crm
+      DB_USERNAME: crm
+      DB_PASSWORD: crm
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: crm-web:latest
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: crm-web
+    restart: unless-stopped
+    ports:
+      - "9010:9010"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    environment:
+      VITE_APP_NAME: "CRM Web"
+      VITE_HOST: 0.0.0.0
+      VITE_PORT: 9010
+      VITE_API_BASE_URL: http://localhost:8010/api
+    depends_on:
+      - api
+
   nginx:
     image: nginx:1.27-alpine
     container_name: crm-nginx
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
+      - api
+      - web
     ports:
       - "8085:80"
     volumes:
@@ -55,4 +107,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-

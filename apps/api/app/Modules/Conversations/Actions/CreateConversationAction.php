@@ -18,6 +18,7 @@ class CreateConversationAction
             'contact_id' => $payload['contact_id'] ?? null,
             'company_id' => $payload['company_id'] ?? null,
             'created_by_user_id' => $user->getKey(),
+            'assigned_to_user_id' => $payload['assigned_to_user_id'] ?? null,
             'channel' => $payload['channel'] ?? 'manual',
             'status' => $payload['status'],
             'subject' => $payload['subject'] ?? null,

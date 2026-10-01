@@ -23,7 +23,7 @@ class InternalNoteController extends Controller
         $message = Message::create([
             'organization_id' => $organization->id,
             'conversation_id' => $ticket->id,
-            'direction' => 'outbound',
+            'direction' => 'internal',
             'is_internal' => true,
             'body' => $validated['body'],
             'sent_at' => Carbon::now(),

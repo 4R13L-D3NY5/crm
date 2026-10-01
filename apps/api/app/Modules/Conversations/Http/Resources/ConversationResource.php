@@ -36,6 +36,17 @@ class ConversationResource extends JsonResource
                 'id' => $this->company->id,
                 'name' => $this->company->name,
             ] : null,
+            'assigned_to_user_id' => $this->assigned_to_user_id ?? $this->assignment?->assigned_to_user_id,
+            'assignment' => $this->assignment ? [
+                'id' => $this->assignment->assigned_to_user_id,
+                'assigned_to_user_id' => $this->assignment->assigned_to_user_id,
+                'assigned_by_user_id' => $this->assignment->assigned_by_user_id,
+                'assignee' => $this->assignment->assignee ? [
+                    'id' => $this->assignment->assignee->id,
+                    'name' => $this->assignment->assignee->name,
+                    'email' => $this->assignment->assignee->email,
+                ] : null,
+            ] : null,
             'assignee' => $this->assignee ? [
                 'id' => $this->assignee->id,
                 'name' => $this->assignee->name,

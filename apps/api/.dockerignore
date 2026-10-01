@@ -1,0 +1,5 @@
+vendor
+.git
+.env.backup
+.phpunit.cache
+storage/logs/*.log
