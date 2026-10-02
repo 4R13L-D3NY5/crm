@@ -8,8 +8,11 @@ use App\Modules\WhatsApp\Http\Controllers\WhatsAppWebhookEventController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('whatsapp/accounts', [WhatsAppAccountController::class, 'index']);
+Route::post('whatsapp/accounts', [WhatsAppAccountController::class, 'store']);
+Route::delete('whatsapp/accounts/{id}', [WhatsAppAccountController::class, 'destroy']);
 Route::get('whatsapp/accounts/current', [WhatsAppAccountController::class, 'show']);
 Route::put('whatsapp/accounts/current', [WhatsAppAccountController::class, 'update']);
+
 Route::put('whatsapp/accounts/{id}/users', AssignUsersToWhatsAppAccountController::class);
 Route::get('whatsapp/events', [WhatsAppWebhookEventController::class, 'index']);
 Route::post('conversations/{conversation}/messages/whatsapp', [ConversationWhatsAppMessageController::class, 'store']);
