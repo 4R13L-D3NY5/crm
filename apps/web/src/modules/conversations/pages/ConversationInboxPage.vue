@@ -71,8 +71,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { syncFacebookMessages } from '@/modules/whatsapp/api/whatsapp.api'
 import {
   useConversation,
   useConversationFormOptions,
@@ -251,6 +252,32 @@ watch(
   },
   { immediate: true },
 )
+
+// Auto-sincronización periódica de mensajes de Facebook / Redes cada 6 segundos
+let socialPollingTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  socialPollingTimer = setInterval(async () => {
+    const hasFacebook = allConversations.value.some((c) => c.channel === 'facebook')
+    if (hasFacebook) {
+      try {
+        await syncFacebookMessages()
+        await conversationsQuery.refetch()
+        if (selectedConversationId.value) {
+          await activeConversationQuery.refetch()
+        }
+      } catch {
+        // Silencioso en segundo plano
+      }
+    }
+  }, 6000)
+})
+
+onUnmounted(() => {
+  if (socialPollingTimer) {
+    clearInterval(socialPollingTimer)
+  }
+})
 </script>
 
 <style scoped lang="scss">
