@@ -29,24 +29,37 @@ class WhatsAppAccountController
         $organization = $request->user()->currentOrganization;
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'session_type' => ['nullable', 'string', 'in:baileys_qr,meta_cloud'],
-            'display_phone_number' => ['nullable', 'string', 'max:50'],
+            'session_type' => ['nullable', 'string', 'in:baileys_qr,meta_cloud,facebook,instagram,tiktok'],
+            'display_phone_number' => ['nullable', 'string', 'max:100'],
+            'phone_number_id' => ['nullable', 'string', 'max:255'],
+            'business_account_id' => ['nullable', 'string', 'max:255'],
+            'access_token' => ['nullable', 'string'],
+            'verify_token' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $sessionType = $validated['session_type'] ?? 'baileys_qr';
+        $hasCredentials = filled($validated['access_token'] ?? null) || filled($validated['phone_number_id'] ?? null);
 
         $account = WhatsAppAccount::create([
             'organization_id' => $organization->id,
             'name' => $validated['name'],
-            'session_type' => $validated['session_type'] ?? 'baileys_qr',
+            'session_type' => $sessionType,
             'display_phone_number' => $validated['display_phone_number'] ?? null,
-            'status' => 'DISCONNECTED',
-            'is_active' => false,
+            'phone_number_id' => $validated['phone_number_id'] ?? null,
+            'business_account_id' => $validated['business_account_id'] ?? null,
+            'access_token' => $validated['access_token'] ?? null,
+            'verify_token' => $validated['verify_token'] ?? \Illuminate\Support\Str::random(32),
+            'status' => ($sessionType !== 'baileys_qr' && $hasCredentials) ? 'CONNECTED' : 'DISCONNECTED',
+            'is_active' => ($sessionType !== 'baileys_qr' && $hasCredentials),
+            'last_connected_at' => ($sessionType !== 'baileys_qr' && $hasCredentials) ? now() : null,
         ]);
 
         return response()->json([
             'data' => (new WhatsAppAccountResource($account))->resolve(),
-            'message' => 'Canal de WhatsApp registrado exitosamente.',
+            'message' => 'Canal de comunicación registrado exitosamente.',
         ], 201);
     }
+
 
     public function show(): JsonResponse
     {

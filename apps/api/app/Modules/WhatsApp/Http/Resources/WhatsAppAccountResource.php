@@ -22,10 +22,14 @@ class WhatsAppAccountResource extends JsonResource
             'verify_token' => $this->verify_token,
             'has_access_token' => filled($this->access_token),
             'is_active' => (bool) $this->is_active,
+            'webhook_url' => url('/api/whatsapp/webhook'),
+
+            'social_webhook_url' => url('/api/social/comments/webhook'),
             'last_connected_at' => $this->last_connected_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+
     }
 }
 

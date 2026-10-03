@@ -113,11 +113,17 @@ class WhatsAppQrSessionController extends Controller
         ]);
 
         $cleanPhone = preg_replace('/[^0-9+]/', '', $validated['from_phone']);
+        $channel = match ($account->session_type ?? 'baileys_qr') {
+            'facebook' => 'facebook',
+            'instagram' => 'instagram',
+            'tiktok' => 'tiktok',
+            default => 'whatsapp',
+        };
 
         // 1. Buscar o crear contacto
         $contact = Contact::firstOrCreate(
             ['organization_id' => $organization->id, 'phone' => $cleanPhone],
-            ['first_name' => $validated['from_name'] ?? 'Usuario WhatsApp', 'status' => 'active']
+            ['first_name' => $validated['from_name'] ?? 'Usuario ' . ucfirst($channel), 'status' => 'active']
         );
 
         // 2. Buscar conversación abierta o crear nueva
@@ -128,7 +134,7 @@ class WhatsAppQrSessionController extends Controller
                 'status' => 'pending',
             ],
             [
-                'channel' => 'whatsapp',
+                'channel' => $channel,
                 'whatsapp_account_id' => $account->id,
                 'unread_count' => 0,
                 'last_message_at' => Carbon::now(),

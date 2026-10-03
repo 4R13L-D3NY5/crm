@@ -48,7 +48,7 @@ export interface ConversationSummaryRelation {
 export interface Conversation {
   id: string
   organization_id: string
-  channel: 'manual' | 'whatsapp' | 'email' | 'facebook' | 'instagram'
+  channel: 'manual' | 'whatsapp' | 'email' | 'facebook' | 'instagram' | 'tiktok'
   status: 'open' | 'pending' | 'closed'
   subject: string | null
   unread_count?: number

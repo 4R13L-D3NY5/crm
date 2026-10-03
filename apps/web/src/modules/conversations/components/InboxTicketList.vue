@@ -102,15 +102,26 @@
         :class="{ 'ticket-row--active': selectedId === item.id }"
         @click="emit('select', item)"
       >
-        <!-- Avatar del Contacto -->
-        <q-avatar size="38px" class="ticket-avatar">
-          {{ getInitials(item.contact?.name || item.subject || 'W') }}
-        </q-avatar>
+        <!-- Avatar del Contacto con Badge de Canal -->
+        <div class="relative-position">
+          <q-avatar size="38px" class="ticket-avatar">
+            {{ getInitials(item.contact?.name || item.subject || 'C') }}
+          </q-avatar>
+          <q-badge
+            floating
+            rounded
+            dense
+            :style="{ background: getChannelColor(item.channel) }"
+            class="channel-mini-badge"
+          >
+            <q-icon :name="getChannelIcon(item.channel)" size="10px" color="white" />
+          </q-badge>
+        </div>
 
         <!-- Información Central -->
         <div class="ticket-content">
           <div class="row items-center justify-between no-wrap">
-            <span class="ticket-name ellipsis">{{ item.contact?.name || item.subject || 'Contacto WhatsApp' }}</span>
+            <span class="ticket-name ellipsis">{{ item.contact?.name || item.subject || 'Contacto' }}</span>
             <span class="ticket-time">{{ formatTime(item.last_message_at) }}</span>
           </div>
 
@@ -180,9 +191,35 @@ function formatTime(dateStr: string | null): string {
     return ''
   }
 }
+
+function getChannelColor(channel?: string) {
+  switch (channel) {
+    case 'facebook': return '#1877f2'
+    case 'instagram': return '#e1306c'
+    case 'tiktok': return '#25f4ee'
+    case 'whatsapp': default: return '#10b981'
+  }
+}
+
+function getChannelIcon(channel?: string) {
+  switch (channel) {
+    case 'facebook': return 'sym_r_public'
+    case 'instagram': return 'sym_r_photo_camera'
+    case 'tiktok': return 'sym_r_music_note'
+    case 'whatsapp': default: return 'sym_r_chat'
+  }
+}
 </script>
 
 <style scoped lang="scss">
+.channel-mini-badge {
+  top: -2px;
+  right: -2px;
+  padding: 2px;
+  min-height: unset;
+  border: 1px solid var(--crm-bg-sidebar);
+}
+
 .inbox-ticket-list {
   width: 340px;
   min-width: 320px;

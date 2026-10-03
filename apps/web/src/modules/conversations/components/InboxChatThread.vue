@@ -12,8 +12,15 @@
           <div class="ellipsis">
             <div class="row items-center q-gutter-x-xs no-wrap">
               <span class="text-subtitle2 text-weight-bold text-white ellipsis">
-                {{ conversation.contact?.name || conversation.subject || 'Cliente WhatsApp' }}
+                {{ conversation.contact?.name || conversation.subject || 'Contacto' }}
               </span>
+              <q-badge
+                :style="{ background: getChannelColor(conversation.channel) + '22', color: getChannelColor(conversation.channel), border: '1px solid ' + getChannelColor(conversation.channel) + '55' }"
+                rounded
+                class="q-px-xs text-caption"
+              >
+                {{ getChannelLabel(conversation.channel) }}
+              </q-badge>
               <q-badge
                 :color="statusBadgeColor"
                 rounded
@@ -23,7 +30,7 @@
               </q-badge>
             </div>
             <div class="text-caption text-grey-4 ellipsis font-mono" style="font-size: 0.72rem">
-              {{ conversation.contact?.phone || 'Canal WhatsApp' }}
+              {{ conversation.contact?.phone || `Canal ${getChannelLabel(conversation.channel)}` }}
             </div>
           </div>
         </div>
@@ -242,6 +249,24 @@ function formatMessageTime(dateStr: string | null): string {
     return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
+  }
+}
+
+function getChannelColor(channel?: string) {
+  switch (channel) {
+    case 'facebook': return '#1877f2'
+    case 'instagram': return '#e1306c'
+    case 'tiktok': return '#25f4ee'
+    case 'whatsapp': default: return '#10b981'
+  }
+}
+
+function getChannelLabel(channel?: string) {
+  switch (channel) {
+    case 'facebook': return 'Facebook'
+    case 'instagram': return 'Instagram'
+    case 'tiktok': return 'TikTok'
+    case 'whatsapp': default: return 'WhatsApp'
   }
 }
 

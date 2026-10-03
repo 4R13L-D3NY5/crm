@@ -125,7 +125,7 @@
               <q-item-section>Bandeja Omnicanal</q-item-section>
             </q-item>
 
-            <!-- 3. Canales & WhatsApp (Fase 2) -->
+            <!-- 3. Canales & Conexiones (Fase 2) -->
             <q-item
               clickable
               to="/app/whatsapp"
@@ -135,7 +135,7 @@
               <q-item-section avatar>
                 <q-icon name="sym_r_hub" size="18px" />
               </q-item-section>
-              <q-item-section>Líneas & WhatsApp</q-item-section>
+              <q-item-section>Canales & Conexiones</q-item-section>
             </q-item>
 
             <!-- 4. Audiencia & Contactos -->

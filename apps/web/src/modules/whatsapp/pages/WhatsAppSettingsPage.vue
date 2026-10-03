@@ -4,13 +4,13 @@
     <div class="row items-center justify-between q-mb-lg">
       <div>
         <div class="row items-center q-gutter-x-sm">
-          <h1 class="text-h5 text-bold text-white q-my-none">Conexiones & Canales</h1>
+          <h1 class="text-h5 text-bold text-white q-my-none">Conexiones & Canales Omnicanal</h1>
           <q-badge color="teal-9" text-color="teal-2" rounded class="q-px-sm">
-            {{ accounts.length }} líneas
+            {{ accounts.length }} canales
           </q-badge>
         </div>
         <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
-          Sincronización de números de WhatsApp Business, emparejamiento QR y pasarelas de atención.
+          Vinculación de WhatsApp (Web QR y Cloud API), Facebook Fanpage, Instagram Direct y TikTok Business.
         </p>
       </div>
 
@@ -18,7 +18,7 @@
         <q-btn
           unelevated
           no-caps
-          label="+ Nueva Línea de WhatsApp"
+          label="+ Vincular Nuevo Canal"
           icon="sym_r_add"
           class="xf-btn-primary"
           @click="isCreateModalOpen = true"
@@ -37,17 +37,17 @@
       class="column items-center justify-center q-pa-xl text-center empty-channels-box"
     >
       <div class="empty-icon-wrap q-mb-md">
-        <q-icon name="sym_r_phonelink_ring" size="36px" color="teal-4" />
+        <q-icon name="sym_r_hub" size="34px" color="teal-4" />
       </div>
-      <div class="text-subtitle1 text-white text-bold">No tienes líneas de WhatsApp configuradas</div>
-      <p class="text-caption text-grey-4 q-mt-xs text-center" style="max-width: 420px">
-        Conecta una línea telefónica con código QR o Meta Cloud API para comenzar a recibir y responder mensajes en la bandeja omnicanal.
+      <div class="text-subtitle1 text-white text-bold">No tienes canales configurados aún</div>
+      <p class="text-caption text-grey-4 q-mt-xs text-center" style="max-width: 440px">
+        Conecta una línea de WhatsApp (QR o Cloud API), tu Fanpage de Facebook, cuenta de Instagram o TikTok para centralizar la atención en la bandeja.
       </p>
       <q-btn
         unelevated
         no-caps
-        label="Conectar mi Primera Línea"
-        icon="sym_r_qr_code_scanner"
+        label="Vincular mi Primer Canal"
+        icon="sym_r_add"
         class="xf-btn-primary q-mt-sm"
         @click="isCreateModalOpen = true"
       />
@@ -87,6 +87,7 @@
 
     <WhatsAppSimulateModal
       v-model="isSimulateModalOpen"
+      :account="activeAccount"
       :loading="mutations.simulateIncomingMutation.isPending.value"
       @submit="handleSimulateIncoming"
     />
