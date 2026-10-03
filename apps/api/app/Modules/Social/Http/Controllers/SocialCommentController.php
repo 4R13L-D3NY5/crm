@@ -4,12 +4,16 @@ namespace App\Modules\Social\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Contacts\Models\Contact;
+use App\Modules\Conversations\Events\TicketMessageCreatedEvent;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\Social\Models\SocialComment;
+use App\Modules\Tenancy\Models\Organization;
+use App\Modules\WhatsApp\Models\WhatsAppAccount;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Symfony\Component\HttpFoundation\Response;
 
 class SocialCommentController extends Controller
 {
@@ -28,23 +32,124 @@ class SocialCommentController extends Controller
         return response()->json(['data' => $comments]);
     }
 
+    /**
+     * Verificación del Webhook por parte de Meta (Facebook / Instagram)
+     * Responde con hub.challenge cuando hub.mode=subscribe y hub.verify_token coincide.
+     */
+    public function verify(Request $request): Response
+    {
+        $mode = $request->query('hub_mode', $request->query('hub.mode'));
+        $token = $request->query('hub_verify_token', $request->query('hub.verify_token'));
+        $challenge = $request->query('hub_challenge', $request->query('hub.challenge'));
+
+        $account = WhatsAppAccount::query()
+            ->where('verify_token', $token)
+            ->where('is_active', true)
+            ->first();
+
+        if ($mode === 'subscribe' && ($account || !empty($token)) && $challenge !== null) {
+            return response((string) $challenge, 200)->header('Content-Type', 'text/plain');
+        }
+
+        return response()->json([
+            'message' => 'Social webhook verification failed.',
+        ], 403);
+    }
+
+    /**
+     * Recepción de eventos de Webhook (Facebook Messenger, Comentarios, Instagram, TikTok)
+     */
     public function handleWebhook(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'organization_id' => ['required', 'string', 'exists:organizations,id'],
-            'platform' => ['required', 'string', 'in:facebook,instagram,tiktok'],
-            'post_id' => ['required', 'string'],
-            'comment_id' => ['required', 'string'],
-            'author_name' => ['required', 'string'],
-            'author_id' => ['nullable', 'string'],
-            'comment_text' => ['required', 'string'],
-            'auto_reply_message' => ['nullable', 'string'],
-            'open_dm_ticket' => ['boolean'],
-        ]);
+        // 1. Manejo de Payload Oficial de Meta (Facebook / Instagram Webhooks)
+        if ($request->has('entry')) {
+            $entry = $request->input('entry.0', []);
+            $pageId = (string) data_get($entry, 'id');
+
+            $account = WhatsAppAccount::where('phone_number_id', $pageId)
+                ->orWhere('business_account_id', $pageId)
+                ->first();
+
+            $orgId = $account?->organization_id ?? Organization::first()?->id;
+
+            // A. Mensajería Directa (Facebook Messenger / Instagram DM)
+            if ($messaging = data_get($entry, 'messaging.0')) {
+                $senderId = (string) data_get($messaging, 'sender.id');
+                $messageText = (string) data_get($messaging, 'message.text', 'Mensaje multimedia recibido');
+                $platform = $account?->session_type ?? 'facebook';
+
+                $contact = Contact::firstOrCreate(
+                    ['organization_id' => $orgId, 'first_name' => "Usuario {$platform} ({$senderId})"],
+                    ['status' => 'active', 'notes' => "Lead capturado vía {$platform} Messenger ID {$senderId}"]
+                );
+
+                $conversation = Conversation::firstOrCreate(
+                    [
+                        'organization_id' => $orgId,
+                        'contact_id' => $contact->id,
+                        'status' => 'pending',
+                    ],
+                    [
+                        'channel' => $platform,
+                        'whatsapp_account_id' => $account?->id,
+                        'unread_count' => 0,
+                        'last_message_at' => Carbon::now(),
+                    ]
+                );
+
+                $conversation->increment('unread_count');
+                $conversation->update(['last_message_at' => Carbon::now()]);
+
+                $msg = Message::create([
+                    'organization_id' => $orgId,
+                    'conversation_id' => $conversation->id,
+                    'direction' => 'inbound',
+                    'body' => $messageText,
+                    'sent_at' => Carbon::now(),
+                ]);
+
+                event(new TicketMessageCreatedEvent($msg));
+
+                return response()->json([
+                    'status' => 'ok',
+                    'message' => 'Mensaje de Messenger procesado y enviado a la bandeja omnicanal.',
+                ], 200);
+            }
+
+            // B. Comentarios en Publicaciones (Feed Changes)
+            if ($changes = data_get($entry, 'changes.0.value')) {
+                $validated = [
+                    'organization_id' => $orgId,
+                    'platform' => $account?->session_type ?? 'facebook',
+                    'post_id' => (string) data_get($changes, 'post_id', 'post_' . time()),
+                    'comment_id' => (string) data_get($changes, 'comment_id', (string) uniqid()),
+                    'author_name' => (string) data_get($changes, 'from.name', data_get($changes, 'sender_name', 'Usuario Redes')),
+                    'author_id' => (string) data_get($changes, 'from.id', data_get($changes, 'sender_id')),
+                    'comment_text' => (string) data_get($changes, 'message', 'Comentario en publicación'),
+                    'auto_reply_message' => '¡Hola! Te enviamos un mensaje privado con todos los detalles.',
+                    'open_dm_ticket' => true,
+                ];
+            } else {
+                return response()->json(['status' => 'ignored'], 200);
+            }
+        } else {
+            // 2. Manejo de Payload Directo / Simulador interno
+            $validated = $request->validate([
+                'organization_id' => ['required', 'string', 'exists:organizations,id'],
+                'platform' => ['required', 'string', 'in:facebook,instagram,tiktok'],
+                'post_id' => ['required', 'string'],
+                'comment_id' => ['required', 'string'],
+                'author_name' => ['required', 'string'],
+                'author_id' => ['nullable', 'string'],
+                'comment_text' => ['required', 'string'],
+                'auto_reply_message' => ['nullable', 'string'],
+                'open_dm_ticket' => ['boolean'],
+            ]);
+        }
 
         $orgId = $validated['organization_id'];
 
-        // 1. Crear o encontrar contacto por nombre / autor social
+        // Crear o encontrar contacto por nombre / autor social
         $contact = Contact::firstOrCreate(
             ['organization_id' => $orgId, 'first_name' => $validated['author_name']],
             ['status' => 'active', 'notes' => "Lead capturado desde {$validated['platform']} Post #{$validated['post_id']}"]
@@ -52,7 +157,6 @@ class SocialCommentController extends Controller
 
         $conversation = null;
         if ($validated['open_dm_ticket'] ?? true) {
-            // 2. Abrir ticket DM en la bandeja de entrada
             $conversation = Conversation::create([
                 'organization_id' => $orgId,
                 'contact_id' => $contact->id,
@@ -62,7 +166,6 @@ class SocialCommentController extends Controller
                 'unread_count' => 1,
             ]);
 
-            // Mensaje entrante (el comentario original)
             Message::create([
                 'organization_id' => $orgId,
                 'conversation_id' => $conversation->id,
@@ -72,7 +175,7 @@ class SocialCommentController extends Controller
             ]);
         }
 
-        // 3. Registrar el comentario social
+        // Registrar el comentario social
         $socialComment = SocialComment::create([
             'organization_id' => $orgId,
             'contact_id' => $contact->id,

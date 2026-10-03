@@ -94,4 +94,66 @@ class Phase5HentleAiAndSocialCommentsTest extends TestCase
             'channel' => 'facebook',
         ]);
     }
+
+    public function test_meta_webhook_verification_returns_challenge(): void
+    {
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $account = \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Fanpage Oficial',
+            'session_type' => 'facebook',
+            'phone_number_id' => 'fb_page_100200',
+            'verify_token' => 'meta_test_token_123',
+            'is_active' => true,
+        ]);
+
+        $response = $this->get('/api/social/comments/webhook?hub_mode=subscribe&hub_verify_token=meta_test_token_123&hub_challenge=88997766');
+
+        $response->assertStatus(200);
+        $this->assertSame('88997766', $response->getContent());
+    }
+
+    public function test_meta_messenger_raw_webhook_creates_ticket(): void
+    {
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $account = \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Fanpage Oficial',
+            'session_type' => 'facebook',
+            'phone_number_id' => 'fb_page_100200',
+            'verify_token' => 'meta_token_fb',
+            'is_active' => true,
+        ]);
+
+        $rawMetaPayload = [
+            'object' => 'page',
+            'entry' => [
+                [
+                    'id' => 'fb_page_100200',
+                    'time' => 1712000000,
+                    'messaging' => [
+                        [
+                            'sender' => ['id' => 'fb_user_998877'],
+                            'recipient' => ['id' => 'fb_page_100200'],
+                            'message' => [
+                                'mid' => 'mid.fb.12345',
+                                'text' => 'Hola, quiero consultar por los cursos disponibles.',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/social/comments/webhook', $rawMetaPayload);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('conversations', [
+            'organization_id' => $organization->id,
+            'channel' => 'facebook',
+        ]);
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Hola, quiero consultar por los cursos disponibles.',
+        ]);
+    }
 }

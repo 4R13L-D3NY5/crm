@@ -19,6 +19,7 @@ Route::get('/health', static function () {
 Route::get('/docs/openapi.json', [\App\Modules\Docs\Http\Controllers\OpenApiDocsController::class, 'openApiJson'])->name('api.docs.openapi');
 
 require app_path('Modules/WhatsApp/webhook-routes.php');
+Route::get('social/comments/webhook', [\App\Modules\Social\Http\Controllers\SocialCommentController::class, 'verify'])->name('social.comments.webhook.verify');
 Route::post('social/comments/webhook', [\App\Modules\Social\Http\Controllers\SocialCommentController::class, 'handleWebhook'])->name('social.comments.webhook');
 
 Route::middleware('web')->group(function (): void {
