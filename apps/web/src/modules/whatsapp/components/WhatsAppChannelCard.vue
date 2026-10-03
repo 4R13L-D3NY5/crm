@@ -43,6 +43,17 @@
               </q-item>
 
               <q-item
+                v-if="account.session_type === 'facebook'"
+                clickable
+                v-close-popup
+                class="text-blue-4"
+                @click="handleSyncFacebook"
+              >
+                <q-item-section avatar><q-icon name="sym_r_sync" size="16px" color="blue-4" /></q-item-section>
+                <q-item-section>Sincronizar Mensajes</q-item-section>
+              </q-item>
+
+              <q-item
                 clickable
                 v-close-popup
                 @click="emit('simulate', account)"
@@ -106,6 +117,18 @@
     <q-separator dark class="q-mt-sm" style="border-color: var(--crm-color-border)" />
     <q-card-actions align="between" class="q-px-md q-py-sm">
       <div class="row items-center q-gutter-x-xs">
+        <q-btn
+          v-if="account.session_type === 'facebook'"
+          flat
+          dense
+          size="sm"
+          no-caps
+          icon="sym_r_sync"
+          label="Sincronizar"
+          color="blue-4"
+          :loading="isSyncing"
+          @click="handleSyncFacebook"
+        />
         <q-btn
           flat
           dense
@@ -307,6 +330,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { useQueryClient } from '@tanstack/vue-query'
+import { syncFacebookMessages } from '../api/whatsapp.api'
 import type { WhatsAppAccount } from '../types/whatsapp.types'
 
 const props = defineProps<{
@@ -416,6 +441,33 @@ function formatDate(dateStr: string) {
     return `Activo: ${d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
   } catch {
     return ''
+  }
+}
+
+const queryClient = useQueryClient()
+const isSyncing = ref(false)
+
+async function handleSyncFacebook() {
+  isSyncing.value = true
+  try {
+    const res = await syncFacebookMessages(props.account.id)
+    await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] })
+    $q.notify({
+      type: 'positive',
+      message: res.message || 'Mensajes sincronizados correctamente con Facebook.',
+      position: 'bottom-right',
+      timeout: 3000,
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al sincronizar con Facebook',
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  } finally {
+    isSyncing.value = false
   }
 }
 </script>

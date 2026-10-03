@@ -196,4 +196,89 @@ class SocialCommentController extends Controller
             'message' => 'Comentario procesado: auto-respuesta pública enviada y ticket DM generado.',
         ], 201);
     }
+
+    /**
+     * Sincroniza conversaciones y mensajes recientes directamente desde la Graph API de Facebook
+     */
+    public function syncFacebook(Request $request): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $accountId = $request->input('account_id');
+        $account = WhatsAppAccount::where('organization_id', $organization->id)
+            ->when($accountId, fn ($q) => $q->where('id', $accountId))
+            ->where('session_type', 'facebook')
+            ->first();
+
+        if (!$account || !$account->access_token) {
+            return response()->json(['message' => 'No hay una cuenta de Facebook conectada con token activo.'], 404);
+        }
+
+        $token = $account->access_token;
+        $pageId = $account->phone_number_id;
+
+        $client = new \GuzzleHttp\Client();
+        try {
+            $response = $client->get("https://graph.facebook.com/v21.0/{$pageId}/conversations?fields=id,updated_time,messages{message,from,created_time}&access_token={$token}");
+            $data = json_decode($response->getBody()->getContents(), true);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al conectar con la API de Facebook: ' . $e->getMessage()], 502);
+        }
+
+        $createdCount = 0;
+        foreach (data_get($data, 'data', []) as $conversationData) {
+            foreach (data_get($conversationData, 'messages.data', []) as $msgData) {
+                $senderId = (string) data_get($msgData, 'from.id');
+                $senderName = (string) data_get($msgData, 'from.name', 'Usuario Facebook');
+                $text = (string) data_get($msgData, 'message');
+                $sentAt = Carbon::parse(data_get($msgData, 'created_time', now()));
+
+                // Omitir mensajes enviados por la propia página
+                if ($senderId === (string) $pageId || $senderId === (string) $account->business_account_id) {
+                    continue;
+                }
+
+                $contact = Contact::firstOrCreate(
+                    ['organization_id' => $organization->id, 'first_name' => $senderName],
+                    ['status' => 'active', 'notes' => "Lead de Facebook Messenger ID #{$senderId}"]
+                );
+
+                $conversation = Conversation::firstOrCreate(
+                    [
+                        'organization_id' => $organization->id,
+                        'contact_id' => $contact->id,
+                        'status' => 'pending',
+                    ],
+                    [
+                        'channel' => 'facebook',
+                        'whatsapp_account_id' => $account->id,
+                        'unread_count' => 0,
+                        'last_message_at' => $sentAt,
+                    ]
+                );
+
+                $exists = Message::where('conversation_id', $conversation->id)
+                    ->where('body', $text)
+                    ->exists();
+
+                if (!$exists) {
+                    $msg = Message::create([
+                        'organization_id' => $organization->id,
+                        'conversation_id' => $conversation->id,
+                        'direction' => 'inbound',
+                        'body' => $text,
+                        'sent_at' => $sentAt,
+                    ]);
+                    $conversation->increment('unread_count');
+                    $conversation->update(['last_message_at' => $sentAt]);
+                    event(new TicketMessageCreatedEvent($msg));
+                    $createdCount++;
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => "Sincronización completada. Se importaron {$createdCount} mensajes de Facebook.",
+            'imported' => $createdCount,
+        ]);
+    }
 }

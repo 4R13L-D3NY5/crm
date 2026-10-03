@@ -80,3 +80,13 @@ export async function getWhatsAppEvents(
   })
   return response.data
 }
+
+export async function syncFacebookMessages(
+  accountId?: string,
+): Promise<{ message: string; imported?: number }> {
+  const response = await http.post<{ message: string; imported?: number }>(
+    '/social/facebook/sync',
+    { account_id: accountId },
+  )
+  return response.data
+}
