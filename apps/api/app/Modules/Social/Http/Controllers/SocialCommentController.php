@@ -260,22 +260,27 @@ class SocialCommentController extends Controller
                     $contact->update(['custom_fields' => $fields]);
                 }
 
-                $conversation = Conversation::firstOrCreate(
-                    [
+                $conversation = Conversation::where('organization_id', $organization->id)
+                    ->where('contact_id', $contact->id)
+                    ->where('channel', 'facebook')
+                    ->latest('last_message_at')
+                    ->first();
+
+                if (!$conversation) {
+                    $conversation = Conversation::create([
                         'organization_id' => $organization->id,
                         'contact_id' => $contact->id,
-                        'status' => 'pending',
-                    ],
-                    [
                         'channel' => 'facebook',
+                        'status' => 'pending',
                         'whatsapp_account_id' => $account->id,
                         'unread_count' => 0,
                         'last_message_at' => $sentAt,
-                    ]
-                );
+                    ]);
+                }
 
                 $exists = Message::where('conversation_id', $conversation->id)
                     ->where('body', $text)
+                    ->where('direction', 'inbound')
                     ->exists();
 
                 if (!$exists) {
