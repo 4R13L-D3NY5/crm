@@ -156,4 +156,60 @@ class Phase5HentleAiAndSocialCommentsTest extends TestCase
             'body' => 'Hola, quiero consultar por los cursos disponibles.',
         ]);
     }
+
+    public function test_instagram_raw_webhook_creates_instagram_ticket(): void
+    {
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $account = \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Instagram Oficial',
+            'session_type' => 'instagram',
+            'phone_number_id' => '17841400998877',
+            'verify_token' => 'meta_token_ig',
+            'is_active' => true,
+        ]);
+
+        $rawMetaPayload = [
+            'object' => 'instagram',
+            'entry' => [
+                [
+                    'id' => '17841400998877',
+                    'time' => 1712000000,
+                    'messaging' => [
+                        [
+                            'sender' => ['id' => 'ig_customer_456'],
+                            'recipient' => ['id' => '17841400998877'],
+                            'message' => [
+                                'mid' => 'mid.ig.67890',
+                                'text' => 'Hola, ¿cuánto cuesta el diplomado?',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/api/social/comments/webhook', $rawMetaPayload);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('conversations', [
+            'organization_id' => $organization->id,
+            'channel' => 'instagram',
+        ]);
+        $this->assertDatabaseHas('messages', [
+            'body' => 'Hola, ¿cuánto cuesta el diplomado?',
+            'direction' => 'inbound',
+        ]);
+    }
+
+    public function test_instagram_sync_returns_404_when_no_account_configured(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $user->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+        $user->update(['current_organization_id' => $organization->id]);
+
+        $response = $this->actingAs($user)->postJson('/api/social/instagram/sync');
+        $response->assertStatus(404);
+    }
 }

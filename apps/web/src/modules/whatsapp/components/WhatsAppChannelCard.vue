@@ -54,6 +54,18 @@
               </q-item>
 
               <q-item
+                v-if="account.session_type === 'instagram'"
+                clickable
+                v-close-popup
+                class="text-pink-4"
+                @click="handleSyncInstagram"
+              >
+                <q-item-section avatar><q-icon name="sym_r_sync" size="16px" color="pink-4" /></q-item-section>
+                <q-item-section>Sincronizar DMs Instagram</q-item-section>
+              </q-item>
+
+
+              <q-item
                 clickable
                 v-close-popup
                 @click="emit('simulate', account)"
@@ -128,6 +140,18 @@
           color="blue-4"
           :loading="isSyncing"
           @click="handleSyncFacebook"
+        />
+        <q-btn
+          v-if="account.session_type === 'instagram'"
+          flat
+          dense
+          size="sm"
+          no-caps
+          icon="sym_r_sync"
+          label="Sincronizar"
+          color="pink-4"
+          :loading="isSyncing"
+          @click="handleSyncInstagram"
         />
         <q-btn
           flat
@@ -331,7 +355,7 @@
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useQueryClient } from '@tanstack/vue-query'
-import { syncFacebookMessages } from '../api/whatsapp.api'
+import { syncFacebookMessages, syncInstagramMessages } from '../api/whatsapp.api'
 import type { WhatsAppAccount } from '../types/whatsapp.types'
 
 const props = defineProps<{
@@ -463,6 +487,30 @@ async function handleSyncFacebook() {
     $q.notify({
       type: 'negative',
       message: err?.response?.data?.message || 'Error al sincronizar con Facebook',
+      position: 'bottom-right',
+      timeout: 4000,
+    })
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+async function handleSyncInstagram() {
+  isSyncing.value = true
+  try {
+    const res = await syncInstagramMessages(props.account.id)
+    await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] })
+    $q.notify({
+      type: 'positive',
+      message: res.message || 'Mensajes sincronizados correctamente con Instagram Direct.',
+      position: 'bottom-right',
+      timeout: 3000,
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al sincronizar con Instagram',
       position: 'bottom-right',
       timeout: 4000,
     })

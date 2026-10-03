@@ -20,7 +20,7 @@
       <InboxChatThread
         :conversation="selectedConversation"
         :is-action-loading="isActionPending"
-        :is-sending="mutations.whatsappMessageMutation.isPending.value || mutations.messageMutation.isPending.value"
+        :is-sending="mutations.whatsappMessageMutation.isPending.value || mutations.instagramMessageMutation.isPending.value || mutations.messageMutation.isPending.value"
         @accept="handleAcceptTicket"
         @transfer="isTransferModalOpen = true"
         @close="handleCloseTicket"
@@ -216,14 +216,21 @@ async function handleSendMessage({ body, is_internal }: { body: string; is_inter
         payload: { body },
       })
       notify.info({ message: 'Nota interna agregada.' })
+    } else if (selectedConversation.value?.channel === 'instagram') {
+      await mutations.instagramMessageMutation.mutateAsync({
+        id: selectedConversationId.value,
+        payload: { body },
+      })
+      notify.success({ message: 'Mensaje directo enviado a Instagram.' })
     } else {
       await mutations.whatsappMessageMutation.mutateAsync({
         id: selectedConversationId.value,
         payload: { body },
       })
     }
-  } catch {
-    notify.error({ message: 'Error al enviar el mensaje.' })
+  } catch (err: any) {
+    const errorMsg = err?.response?.data?.message || 'Error al enviar el mensaje.'
+    notify.error({ message: errorMsg })
   }
 }
 

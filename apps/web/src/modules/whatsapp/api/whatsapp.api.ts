@@ -90,3 +90,14 @@ export async function syncFacebookMessages(
   )
   return response.data
 }
+
+export async function syncInstagramMessages(
+  accountId?: string,
+): Promise<{ message: string; imported?: number }> {
+  const response = await http.post<{ message: string; imported?: number }>(
+    '/social/instagram/sync',
+    { account_id: accountId },
+  )
+  return response.data
+}
+

@@ -80,8 +80,16 @@ class SocialCommentController extends Controller
 
                 $contact = Contact::firstOrCreate(
                     ['organization_id' => $orgId, 'first_name' => "Usuario {$platform} ({$senderId})"],
-                    ['status' => 'active', 'notes' => "Lead capturado vía {$platform} Messenger ID {$senderId}"]
+                    ['status' => 'active', 'notes' => "Lead capturado vía {$platform} ID {$senderId}"]
                 );
+
+                if ($platform === 'instagram') {
+                    $cf = $contact->custom_fields ?? [];
+                    if (empty($cf['instagram_id'])) {
+                        $cf['instagram_id'] = $senderId;
+                        $contact->update(['custom_fields' => $cf]);
+                    }
+                }
 
                 $conversation = Conversation::firstOrCreate(
                     [
@@ -112,20 +120,20 @@ class SocialCommentController extends Controller
 
                 return response()->json([
                     'status' => 'ok',
-                    'message' => 'Mensaje de Messenger procesado y enviado a la bandeja omnicanal.',
+                    'message' => "Mensaje de {$platform} procesado y enviado a la bandeja omnicanal.",
                 ], 200);
             }
 
-            // B. Comentarios en Publicaciones (Feed Changes)
+            // B. Comentarios en Publicaciones (Feed Changes / Instagram Media Comments)
             if ($changes = data_get($entry, 'changes.0.value')) {
                 $validated = [
                     'organization_id' => $orgId,
                     'platform' => $account?->session_type ?? 'facebook',
-                    'post_id' => (string) data_get($changes, 'post_id', 'post_' . time()),
-                    'comment_id' => (string) data_get($changes, 'comment_id', (string) uniqid()),
-                    'author_name' => (string) data_get($changes, 'from.name', data_get($changes, 'sender_name', 'Usuario Redes')),
+                    'post_id' => (string) data_get($changes, 'post_id', data_get($changes, 'media.id', 'post_' . time())),
+                    'comment_id' => (string) data_get($changes, 'comment_id', data_get($changes, 'id', (string) uniqid())),
+                    'author_name' => (string) data_get($changes, 'from.name', data_get($changes, 'from.username', data_get($changes, 'sender_name', 'Usuario Redes'))),
                     'author_id' => (string) data_get($changes, 'from.id', data_get($changes, 'sender_id')),
-                    'comment_text' => (string) data_get($changes, 'message', 'Comentario en publicación'),
+                    'comment_text' => (string) data_get($changes, 'message', data_get($changes, 'text', 'Comentario en publicación')),
                     'auto_reply_message' => '¡Hola! Te enviamos un mensaje privado con todos los detalles.',
                     'open_dm_ticket' => true,
                 ];
