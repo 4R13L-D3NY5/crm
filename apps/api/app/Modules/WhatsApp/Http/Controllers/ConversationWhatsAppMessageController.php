@@ -21,6 +21,14 @@ class ConversationWhatsAppMessageController
         abort_unless($request->user()?->can('update', $conversation), 403);
         abort_unless($request->user()?->hasPermission('whatsapp.manage'), 403);
 
+        if ($conversation->channel === 'facebook') {
+            return app(\App\Modules\Social\Http\Controllers\SocialCommentController::class)->sendMessage($request, $conversation);
+        }
+
+        if ($conversation->channel === 'instagram') {
+            return app(\App\Modules\Social\Http\Controllers\InstagramController::class)->sendMessage($request, $conversation);
+        }
+
         $message = $sendWhatsAppMessageAction->execute(
             $request->user(),
             $conversation->load('contact'),

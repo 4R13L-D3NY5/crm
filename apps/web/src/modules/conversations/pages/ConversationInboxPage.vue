@@ -20,7 +20,7 @@
       <InboxChatThread
         :conversation="selectedConversation"
         :is-action-loading="isActionPending"
-        :is-sending="mutations.whatsappMessageMutation.isPending.value || mutations.instagramMessageMutation.isPending.value || mutations.messageMutation.isPending.value"
+        :is-sending="mutations.whatsappMessageMutation.isPending.value || mutations.facebookMessageMutation.isPending.value || mutations.instagramMessageMutation.isPending.value || mutations.messageMutation.isPending.value"
         @accept="handleAcceptTicket"
         @transfer="isTransferModalOpen = true"
         @close="handleCloseTicket"
@@ -216,6 +216,12 @@ async function handleSendMessage({ body, is_internal }: { body: string; is_inter
         payload: { body },
       })
       notify.info({ message: 'Nota interna agregada.' })
+    } else if (selectedConversation.value?.channel === 'facebook') {
+      await mutations.facebookMessageMutation.mutateAsync({
+        id: selectedConversationId.value,
+        payload: { body },
+      })
+      notify.success({ message: 'Mensaje enviado a Facebook Messenger.' })
     } else if (selectedConversation.value?.channel === 'instagram') {
       await mutations.instagramMessageMutation.mutateAsync({
         id: selectedConversationId.value,

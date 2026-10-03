@@ -10,6 +10,7 @@ import {
   createInternalMessage,
   createWhatsAppMessage,
   sendInstagramMessage,
+  sendFacebookMessage,
   generateReplySuggestion,
   getConversation,
   getConversationCompanies,
@@ -155,6 +156,17 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     onSuccess: invalidate,
   })
 
+  const facebookMessageMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string
+      payload: { body: string }
+    }) => sendFacebookMessage(id, payload),
+    onSuccess: invalidate,
+  })
+
   const retryWhatsAppMutation = useMutation({
     mutationFn: ({
       conversationId,
@@ -200,6 +212,7 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     messageMutation,
     whatsappMessageMutation,
     instagramMessageMutation,
+    facebookMessageMutation,
     retryWhatsAppMutation,
     aiSuggestionMutation,
     assignMutation,

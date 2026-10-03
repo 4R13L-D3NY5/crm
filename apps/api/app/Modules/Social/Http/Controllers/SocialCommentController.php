@@ -5,6 +5,7 @@ namespace App\Modules\Social\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Contacts\Models\Contact;
 use App\Modules\Conversations\Events\TicketMessageCreatedEvent;
+use App\Modules\Conversations\Http\Resources\MessageResource;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\Social\Models\SocialComment;
@@ -247,8 +248,17 @@ class SocialCommentController extends Controller
 
                 $contact = Contact::firstOrCreate(
                     ['organization_id' => $organization->id, 'first_name' => $senderName],
-                    ['status' => 'active', 'notes' => "Lead de Facebook Messenger ID #{$senderId}"]
+                    [
+                        'status' => 'active',
+                        'notes' => "Lead de Facebook Messenger ID #{$senderId}",
+                        'custom_fields' => ['facebook_id' => $senderId],
+                    ]
                 );
+                if (!data_get($contact->custom_fields, 'facebook_id')) {
+                    $fields = (array) ($contact->custom_fields ?? []);
+                    $fields['facebook_id'] = $senderId;
+                    $contact->update(['custom_fields' => $fields]);
+                }
 
                 $conversation = Conversation::firstOrCreate(
                     [
@@ -288,5 +298,100 @@ class SocialCommentController extends Controller
             'message' => "Sincronización completada. Se importaron {$createdCount} mensajes de Facebook.",
             'imported' => $createdCount,
         ]);
+    }
+
+    /**
+     * Envía un mensaje directo saliente a Facebook Messenger mediante Graph API.
+     * POST https://graph.facebook.com/v21.0/me/messages
+     */
+    public function sendMessage(Request $request, Conversation $conversation): JsonResponse
+    {
+        $validated = $request->validate([
+            'body' => ['required', 'string'],
+        ]);
+
+        $organization = $request->user()->currentOrganization;
+
+        if ($conversation->organization_id !== $organization->id) {
+            abort(403);
+        }
+
+        if ($conversation->channel !== 'facebook') {
+            return response()->json([
+                'message' => 'Esta conversación no pertenece al canal Facebook.',
+            ], 422);
+        }
+
+        $account = WhatsAppAccount::where('organization_id', $organization->id)
+            ->where('session_type', 'facebook')
+            ->first();
+
+        if (!$account || !$account->access_token) {
+            return response()->json([
+                'message' => 'No hay una cuenta de Facebook activa configurada.',
+            ], 422);
+        }
+
+        $contact = $conversation->contact;
+        $recipientId = data_get($contact?->custom_fields, 'facebook_id');
+
+        // Extraer recipient ID de las notas si no está en custom_fields
+        if (!$recipientId && $contact?->notes) {
+            if (preg_match('/ID #?(\d+)/', $contact->notes, $matches)) {
+                $recipientId = $matches[1];
+            }
+        }
+
+        if (!$recipientId) {
+            return response()->json([
+                'message' => 'No se encontró el ID de Facebook Messenger del contacto para enviar el mensaje.',
+            ], 422);
+        }
+
+        $token = $account->access_token;
+        $client = new \GuzzleHttp\Client(['timeout' => 15]);
+
+        try {
+            $response = $client->post('https://graph.facebook.com/v21.0/me/messages', [
+                'headers' => [
+                    'Authorization' => "Bearer {$token}",
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'recipient' => ['id' => $recipientId],
+                    'messaging_type' => 'RESPONSE',
+                    'message' => ['text' => $validated['body']],
+                ],
+            ]);
+
+            $result = json_decode($response->getBody()->getContents(), true);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Error de Meta al enviar mensaje de Messenger: ' . $e->getMessage(),
+            ], 422);
+        }
+
+        // Registrar mensaje saliente en la base de datos
+        $message = Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $conversation->id,
+            'user_id' => $request->user()->id,
+            'direction' => 'outbound',
+            'body' => $validated['body'],
+            'sent_at' => now(),
+            'delivery_status' => 'delivered',
+        ]);
+
+        $conversation->update([
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        event(new TicketMessageCreatedEvent($message));
+
+        return response()->json([
+            'data' => (new MessageResource($message))->resolve(),
+            'message' => 'Mensaje de Messenger enviado con éxito.',
+        ], 201);
     }
 }

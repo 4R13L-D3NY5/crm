@@ -86,6 +86,13 @@ export async function sendInstagramMessage(
   await http.post(`/social/instagram/conversations/${conversationId}/messages`, payload)
 }
 
+export async function sendFacebookMessage(
+  conversationId: string,
+  payload: { body: string },
+): Promise<void> {
+  await http.post(`/social/facebook/conversations/${conversationId}/messages`, payload)
+}
+
 export async function retryWhatsAppMessage(
   conversationId: string,
   messageId: string,
