@@ -253,24 +253,27 @@ watch(
   { immediate: true },
 )
 
-// Auto-sincronización periódica de mensajes de Facebook / Redes cada 6 segundos
+// Auto-sincronización periódica y refresco del chat en vivo cada 3 segundos
 let socialPollingTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   socialPollingTimer = setInterval(async () => {
+    // 1. Refrescar incondicionalmente la conversación activa y la lista de tickets
+    conversationsQuery.refetch()
+    if (selectedConversationId.value) {
+      activeConversationQuery.refetch()
+    }
+
+    // 2. Disparar sincronización silenciosa con Facebook si hay canal activo
     const hasFacebook = allConversations.value.some((c) => c.channel === 'facebook')
     if (hasFacebook) {
       try {
         await syncFacebookMessages()
-        await conversationsQuery.refetch()
-        if (selectedConversationId.value) {
-          await activeConversationQuery.refetch()
-        }
       } catch {
         // Silencioso en segundo plano
       }
     }
-  }, 6000)
+  }, 3000)
 })
 
 onUnmounted(() => {
