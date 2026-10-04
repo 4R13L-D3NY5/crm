@@ -122,11 +122,16 @@ class SyncSocialMessagesCommand extends Command
 
     protected function syncInstagram(Client $client, WhatsAppAccount $account): void
     {
-        $igId = $account->phone_number_id;
+        $fbAccount = WhatsAppAccount::where('organization_id', $account->organization_id)
+            ->where('session_type', 'facebook')
+            ->first();
+
+        $pageId = $fbAccount?->phone_number_id ?? '1417856484734200';
+        $igAccountId = $account->phone_number_id;
         $token = $account->access_token;
 
         try {
-            $url = "https://graph.facebook.com/v21.0/{$igId}/conversations?platform=instagram&fields=id,updated_time,participants{id,username},messages{id,message,from,created_time}&access_token={$token}";
+            $url = "https://graph.facebook.com/v21.0/{$pageId}/conversations?platform=instagram&fields=id,updated_time,participants{id,username},messages{id,message,from,created_time}&access_token={$token}";
             $response = $client->get($url);
             $data = json_decode($response->getBody()->getContents(), true);
         } catch (Throwable $e) {
@@ -134,6 +139,112 @@ class SyncSocialMessagesCommand extends Command
             return;
         }
 
-        $this->info("Instagram [{$account->name}]: sincronización completada.");
+        $imported = 0;
+        $conversationsData = data_get($data, 'data', []);
+
+        foreach ($conversationsData as $conversationData) {
+            $participants = data_get($conversationData, 'participants.data', []);
+            $customerParticipant = collect($participants)->first(function ($p) use ($igAccountId) {
+                return (string) data_get($p, 'id') !== (string) $igAccountId;
+            });
+
+            $customerIgId = (string) data_get($customerParticipant, 'id');
+            $customerUsername = (string) data_get($customerParticipant, 'username', 'Usuario Instagram');
+            $messagesList = data_get($conversationData, 'messages.data', []);
+
+            if (!$customerIgId && !empty($messagesList)) {
+                foreach ($messagesList as $m) {
+                    $mSenderId = (string) data_get($m, 'from.id');
+                    if ($mSenderId !== (string) $igAccountId) {
+                        $customerIgId = $mSenderId;
+                        $customerUsername = (string) data_get($m, 'from.username', data_get($m, 'from.name', 'Usuario Instagram'));
+                        break;
+                    }
+                }
+            }
+
+            if (!$customerIgId) {
+                continue;
+            }
+
+            $contact = Contact::where('organization_id', $account->organization_id)
+                ->where(function ($q) use ($customerIgId, $customerUsername) {
+                    $q->whereJsonContains('custom_fields->instagram_id', $customerIgId)
+                      ->orWhere('first_name', $customerUsername);
+                })
+                ->first();
+
+            if (!$contact) {
+                $contact = Contact::create([
+                    'organization_id' => $account->organization_id,
+                    'first_name' => $customerUsername,
+                    'status' => 'active',
+                    'notes' => "Lead de Instagram Direct @{$customerUsername} (ID #{$customerIgId})",
+                    'custom_fields' => [
+                        'instagram_id' => $customerIgId,
+                        'instagram_username' => $customerUsername,
+                    ],
+                ]);
+            } else {
+                $customFields = (array) ($contact->custom_fields ?? []);
+                if (empty($customFields['instagram_id'])) {
+                    $customFields['instagram_id'] = $customerIgId;
+                    $customFields['instagram_username'] = $customerUsername;
+                    $contact->update(['custom_fields' => $customFields]);
+                }
+            }
+
+            $conversation = Conversation::firstOrCreate(
+                [
+                    'organization_id' => $account->organization_id,
+                    'contact_id' => $contact->id,
+                    'channel' => 'instagram',
+                ],
+                [
+                    'whatsapp_account_id' => $account->id,
+                    'status' => 'pending',
+                    'unread_count' => 0,
+                    'last_message_at' => now(),
+                ]
+            );
+
+            foreach ($messagesList as $msgData) {
+                $msgSenderId = (string) data_get($msgData, 'from.id');
+                $text = (string) data_get($msgData, 'message');
+                $sentAt = Carbon::parse(data_get($msgData, 'created_time', now()));
+
+                if (trim($text) === '') {
+                    continue;
+                }
+
+                $isOutbound = ($msgSenderId === (string) $igAccountId);
+
+                $exists = Message::where('conversation_id', $conversation->id)
+                    ->where('body', $text)
+                    ->where('sent_at', $sentAt)
+                    ->exists();
+
+                if (!$exists) {
+                    $msg = Message::create([
+                        'organization_id' => $account->organization_id,
+                        'conversation_id' => $conversation->id,
+                        'direction' => $isOutbound ? 'outbound' : 'inbound',
+                        'body' => $text,
+                        'sent_at' => $sentAt,
+                        'delivery_status' => $isOutbound ? 'delivered' : 'read',
+                    ]);
+
+                    if (!$isOutbound) {
+                        $conversation->increment('unread_count');
+                    }
+                    $conversation->update(['last_message_at' => $sentAt]);
+                    event(new TicketMessageCreatedEvent($msg));
+                    $imported++;
+                    $this->line(" + [Instagram] Mensaje importado: {$text}");
+                }
+            }
+        }
+
+        $this->info("Instagram [{$account->name}]: {$imported} nuevos mensajes importados.");
     }
 }
