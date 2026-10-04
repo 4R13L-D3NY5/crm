@@ -66,6 +66,36 @@
 
       <q-separator dark class="q-my-md" style="border-color: var(--crm-color-border)" />
 
+      <!-- Pipeline Comercial & Deals (Fase 3) -->
+      <div class="q-mb-md">
+        <div class="row items-center justify-between q-mb-xs">
+          <span class="text-caption text-weight-bold text-white">Pipeline Comercial</span>
+          <q-btn
+            flat
+            dense
+            round
+            size="xs"
+            color="teal-4"
+            icon="sym_r_open_in_new"
+            to="/app/deals"
+          >
+            <q-tooltip>Abrir Tablero Kanban</q-tooltip>
+          </q-btn>
+        </div>
+        <q-btn
+          outline
+          dense
+          no-caps
+          color="teal-4"
+          icon="sym_r_view_kanban"
+          label="Ver en Tablero Kanban"
+          class="full-width q-py-xs"
+          to="/app/deals"
+        />
+      </div>
+
+      <q-separator dark class="q-my-md" style="border-color: var(--crm-color-border)" />
+
       <!-- Acciones de Gestión -->
       <div class="q-gutter-y-xs">
         <q-btn

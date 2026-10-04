@@ -45,7 +45,7 @@ class WhatsAppAccountController
             'name' => $validated['name'],
             'session_type' => $sessionType,
             'display_phone_number' => $validated['display_phone_number'] ?? null,
-            'phone_number_id' => $validated['phone_number_id'] ?? null,
+            'phone_number_id' => $validated['phone_number_id'] ?? ($validated['business_account_id'] ?? ($validated['display_phone_number'] ?? 'chan_' . time())),
             'business_account_id' => $validated['business_account_id'] ?? null,
             'access_token' => $validated['access_token'] ?? null,
             'verify_token' => $validated['verify_token'] ?? \Illuminate\Support\Str::random(32),

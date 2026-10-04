@@ -138,6 +138,23 @@ class WhatsAppQrSessionController extends Controller
                     ],
                 ]
             );
+        } elseif ($channel === 'tiktok') {
+            $username = ltrim($validated['from_phone'], '@');
+            $contact = Contact::firstOrCreate(
+                [
+                    'organization_id' => $organization->id,
+                    'first_name' => $validated['from_name'] ?: "@{$username}",
+                ],
+                [
+                    'phone' => filled($cleanPhone) ? $cleanPhone : null,
+                    'status' => 'active',
+                    'notes' => "Lead simulado de TikTok Business @{$username}",
+                    'custom_fields' => [
+                        'tiktok_id' => 'sim_' . time(),
+                        'tiktok_username' => $username,
+                    ],
+                ]
+            );
         } else {
             $contact = Contact::firstOrCreate(
                 ['organization_id' => $organization->id, 'phone' => filled($cleanPhone) ? $cleanPhone : null],
@@ -145,20 +162,25 @@ class WhatsAppQrSessionController extends Controller
             );
         }
 
-        // 2. Buscar conversación abierta o crear nueva
-        $conversation = Conversation::firstOrCreate(
-            [
+        // 2. Buscar conversación activa existente o crear nueva
+        $conversation = Conversation::where('organization_id', $organization->id)
+            ->where('contact_id', $contact->id)
+            ->where('channel', $channel)
+            ->whereIn('status', ['pending', 'open'])
+            ->latest('last_message_at')
+            ->first();
+
+        if (!$conversation) {
+            $conversation = Conversation::create([
                 'organization_id' => $organization->id,
                 'contact_id' => $contact->id,
-                'status' => 'pending',
-            ],
-            [
                 'channel' => $channel,
                 'whatsapp_account_id' => $account->id,
+                'status' => 'pending',
                 'unread_count' => 0,
                 'last_message_at' => Carbon::now(),
-            ]
-        );
+            ]);
+        }
 
         $conversation->increment('unread_count');
         $conversation->update(['last_message_at' => Carbon::now()]);
