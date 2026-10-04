@@ -9,3 +9,4 @@ Route::post('social/facebook/sync', [SocialCommentController::class, 'syncFacebo
 Route::post('social/instagram/sync', [InstagramController::class, 'sync'])->name('social.instagram.sync');
 Route::post('social/instagram/conversations/{conversation}/messages', [InstagramController::class, 'sendMessage'])->name('social.instagram.messages.send');
 Route::post('social/facebook/conversations/{conversation}/messages', [SocialCommentController::class, 'sendMessage'])->name('social.facebook.messages.send');
+Route::post('social/tiktok/conversations/{conversation}/messages', [SocialCommentController::class, 'sendTikTokMessage'])->name('social.tiktok.messages.send');

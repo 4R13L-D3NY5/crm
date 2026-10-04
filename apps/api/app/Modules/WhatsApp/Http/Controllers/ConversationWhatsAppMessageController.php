@@ -29,6 +29,10 @@ class ConversationWhatsAppMessageController
             return app(\App\Modules\Social\Http\Controllers\InstagramController::class)->sendMessage($request, $conversation);
         }
 
+        if ($conversation->channel === 'tiktok') {
+            return app(\App\Modules\Social\Http\Controllers\SocialCommentController::class)->sendTikTokMessage($request, $conversation);
+        }
+
         $message = $sendWhatsAppMessageAction->execute(
             $request->user(),
             $conversation->load('contact'),

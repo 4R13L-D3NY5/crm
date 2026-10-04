@@ -228,6 +228,12 @@ async function handleSendMessage({ body, is_internal }: { body: string; is_inter
         payload: { body },
       })
       notify.success({ message: 'Mensaje directo enviado a Instagram.' })
+    } else if (selectedConversation.value?.channel === 'tiktok') {
+      await mutations.whatsappMessageMutation.mutateAsync({
+        id: selectedConversationId.value,
+        payload: { body },
+      })
+      notify.success({ message: 'Respuesta enviada a TikTok.' })
     } else {
       await mutations.whatsappMessageMutation.mutateAsync({
         id: selectedConversationId.value,

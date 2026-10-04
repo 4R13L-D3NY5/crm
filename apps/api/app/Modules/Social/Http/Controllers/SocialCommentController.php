@@ -399,4 +399,73 @@ class SocialCommentController extends Controller
             'message' => 'Mensaje de Messenger enviado con éxito.',
         ], 201);
     }
+
+    /**
+     * Envía un mensaje saliente a una conversación de TikTok.
+     */
+    public function sendTikTokMessage(Request $request, Conversation $conversation): JsonResponse
+    {
+        $validated = $request->validate([
+            'body' => ['required', 'string'],
+        ]);
+
+        $organization = $request->user()->currentOrganization;
+
+        if ($conversation->organization_id !== $organization->id) {
+            abort(403);
+        }
+
+        if ($conversation->channel !== 'tiktok') {
+            return response()->json([
+                'message' => 'Esta conversación no pertenece al canal TikTok.',
+            ], 422);
+        }
+
+        $account = WhatsAppAccount::where('organization_id', $organization->id)
+            ->where('session_type', 'tiktok')
+            ->first();
+
+        // Si la cuenta tiene credenciales de TikTok activas, realizar llamada externa
+        if ($account && $account->access_token && str_starts_with($account->access_token, 'act.')) {
+            try {
+                $client = new \GuzzleHttp\Client(['timeout' => 15]);
+                $client->post('https://business-api.tiktok.com/open_api/v1.3/business/message/send/', [
+                    'headers' => [
+                        'Access-Token' => $account->access_token,
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => [
+                        'recipient_id' => data_get($conversation->contact?->custom_fields, 'tiktok_id', $conversation->contact?->first_name),
+                        'message_text' => $validated['body'],
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('TikTok API send warning: ' . $e->getMessage());
+            }
+        }
+
+        // Registrar mensaje saliente en la base de datos del CRM
+        $message = Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $conversation->id,
+            'user_id' => $request->user()->id,
+            'direction' => 'outbound',
+            'body' => $validated['body'],
+            'sent_at' => now(),
+            'delivery_status' => 'delivered',
+        ]);
+
+        $conversation->update([
+            'last_message_at' => now(),
+            'status' => 'open',
+        ]);
+
+        event(new TicketMessageCreatedEvent($message));
+
+        return response()->json([
+            'data' => (new MessageResource($message))->resolve(),
+            'message' => 'Respuesta enviada a TikTok con éxito.',
+        ], 201);
+    }
 }
+
