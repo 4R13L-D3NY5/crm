@@ -121,10 +121,29 @@ class WhatsAppQrSessionController extends Controller
         };
 
         // 1. Buscar o crear contacto
-        $contact = Contact::firstOrCreate(
-            ['organization_id' => $organization->id, 'phone' => $cleanPhone],
-            ['first_name' => $validated['from_name'] ?? 'Usuario ' . ucfirst($channel), 'status' => 'active']
-        );
+        if ($channel === 'instagram') {
+            $username = ltrim($validated['from_phone'], '@');
+            $contact = Contact::firstOrCreate(
+                [
+                    'organization_id' => $organization->id,
+                    'first_name' => $validated['from_name'] ?: "@{$username}",
+                ],
+                [
+                    'phone' => filled($cleanPhone) ? $cleanPhone : null,
+                    'status' => 'active',
+                    'notes' => "Lead simulado de Instagram Direct @{$username}",
+                    'custom_fields' => [
+                        'instagram_id' => 'sim_' . time(),
+                        'instagram_username' => $username,
+                    ],
+                ]
+            );
+        } else {
+            $contact = Contact::firstOrCreate(
+                ['organization_id' => $organization->id, 'phone' => filled($cleanPhone) ? $cleanPhone : null],
+                ['first_name' => $validated['from_name'] ?? 'Usuario ' . ucfirst($channel), 'status' => 'active']
+            );
+        }
 
         // 2. Buscar conversación abierta o crear nueva
         $conversation = Conversation::firstOrCreate(
