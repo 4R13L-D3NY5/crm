@@ -40,6 +40,7 @@ export function useConversations(filters: MaybeRefOrGetter<ConversationFilters>)
     queryFn: () => getConversations(toValue(filters)),
     refetchInterval: 3000,
     refetchIntervalInBackground: true,
+    staleTime: 0,
   })
 }
 
@@ -50,6 +51,7 @@ export function useConversation(conversationId: MaybeRefOrGetter<string>) {
     enabled: computed(() => Boolean(toValue(conversationId))),
     refetchInterval: 2500,
     refetchIntervalInBackground: true,
+    staleTime: 0,
   })
 }
 

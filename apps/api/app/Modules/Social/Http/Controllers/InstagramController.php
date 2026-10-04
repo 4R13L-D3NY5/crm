@@ -40,13 +40,14 @@ class InstagramController extends Controller
             ], 404);
         }
 
-        $token = $account->access_token;
+        [$pageToken, $pageId] = $this->resolvePageTokenAndId($account, $organization->id);
         $igAccountId = $account->phone_number_id; // Instagram Business Account ID
 
         $client = new Client(['timeout' => 15]);
 
         try {
-            $url = "https://graph.facebook.com/v21.0/{$igAccountId}/conversations?platform=instagram&fields=id,updated_time,participants{id,username},messages{id,message,from,created_time}&access_token={$token}";
+            // Meta Graph API gestiona las conversaciones de Instagram a través del nodo de la Página con ?platform=instagram
+            $url = "https://graph.facebook.com/v21.0/{$pageId}/conversations?platform=instagram&fields=id,updated_time,participants{id,username},messages{id,message,from,created_time}&access_token={$pageToken}";
             $response = $client->get($url);
             $data = json_decode($response->getBody()->getContents(), true);
         } catch (Throwable $e) {
@@ -220,17 +221,12 @@ class InstagramController extends Controller
             ], 422);
         }
 
-        $token = $account->access_token;
-        $igAccountId = $account->phone_number_id;
+        [$pageToken, $pageId] = $this->resolvePageTokenAndId($account, $organization->id);
 
         $client = new Client(['timeout' => 15]);
 
         try {
-            $response = $client->post("https://graph.facebook.com/v21.0/{$igAccountId}/messages", [
-                'headers' => [
-                    'Authorization' => "Bearer {$token}",
-                    'Content-Type' => 'application/json',
-                ],
+            $response = $client->post("https://graph.facebook.com/v21.0/me/messages?access_token={$pageToken}", [
                 'json' => [
                     'recipient' => ['id' => $recipientId],
                     'message' => ['text' => $validated['body']],
@@ -267,5 +263,30 @@ class InstagramController extends Controller
             'message' => 'Mensaje directo enviado a Instagram exitosamente.',
             'meta' => $result,
         ], 201);
+    }
+
+    /**
+     * Resuelve el Page Access Token y el ID de página de Facebook vinculado para llamadas a Graph API.
+     */
+    private function resolvePageTokenAndId(WhatsAppAccount $account, string $orgId): array
+    {
+        $token = $account->access_token;
+        $fbAccount = WhatsAppAccount::where('organization_id', $orgId)
+            ->where('session_type', 'facebook')
+            ->first();
+
+        $pageId = $fbAccount?->phone_number_id ?? $fbAccount?->business_account_id ?? '1417856484734200';
+
+        $client = new Client(['timeout' => 10, 'http_errors' => false]);
+        try {
+            $res = $client->get("https://graph.facebook.com/v21.0/{$pageId}?fields=access_token&access_token={$token}");
+            $data = json_decode($res->getBody()->getContents(), true);
+            if (!empty($data['access_token'])) {
+                return [$data['access_token'], $pageId];
+            }
+        } catch (Throwable) {
+        }
+
+        return [$token, $pageId];
     }
 }

@@ -73,7 +73,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
-import { syncFacebookMessages } from '@/modules/whatsapp/api/whatsapp.api'
 import {
   useConversation,
   useConversationFormOptions,
@@ -253,32 +252,21 @@ watch(
   { immediate: true },
 )
 
-// Auto-sincronización periódica y refresco del chat en vivo cada 3 segundos
-let socialPollingTimer: ReturnType<typeof setInterval> | null = null
+// Auto-refresco del chat en vivo cada 2.5 segundos
+let chatPollingTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
-  socialPollingTimer = setInterval(async () => {
-    // 1. Refrescar incondicionalmente la conversación activa y la lista de tickets
+  chatPollingTimer = setInterval(() => {
     conversationsQuery.refetch()
     if (selectedConversationId.value) {
       activeConversationQuery.refetch()
     }
-
-    // 2. Disparar sincronización silenciosa con Facebook si hay canal activo
-    const hasFacebook = allConversations.value.some((c) => c.channel === 'facebook')
-    if (hasFacebook) {
-      try {
-        await syncFacebookMessages()
-      } catch {
-        // Silencioso en segundo plano
-      }
-    }
-  }, 3000)
+  }, 2500)
 })
 
 onUnmounted(() => {
-  if (socialPollingTimer) {
-    clearInterval(socialPollingTimer)
+  if (chatPollingTimer) {
+    clearInterval(chatPollingTimer)
   }
 })
 </script>
