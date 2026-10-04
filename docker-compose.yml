@@ -72,6 +72,27 @@ services:
       redis:
         condition: service_healthy
 
+  social-sync:
+    image: crm-api:latest
+    container_name: crm-social-sync
+    restart: unless-stopped
+    volumes:
+      - ./apps/api:/var/www/html
+    environment:
+      APP_NAME: "CRM Social Sync"
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: crm
+      DB_USERNAME: crm
+      DB_PASSWORD: crm
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; sleep 3; done"]
+
   web:
     image: crm-web:latest
     build:
