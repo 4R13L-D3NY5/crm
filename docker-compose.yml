@@ -136,8 +136,10 @@ services:
       - "3001:3000"
     environment:
       PORT: 3000
-      LARAVEL_WEBHOOK_URL: http://api:8010/api/v1/whatsapp/baileys/webhook
+      LARAVEL_WEBHOOK_URL: http://api:8010/api/whatsapp/baileys/webhook
     volumes:
+      - ./apps/whatsapp-service:/app
+      - /app/node_modules
       - baileys_data:/app/sessions
     depends_on:
       - api

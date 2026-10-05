@@ -8,3 +8,4 @@ Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'receive'])
     ->middleware('throttle:whatsapp-webhook');
 
 Route::post('/whatsapp/baileys/webhook', [\App\Modules\WhatsApp\Http\Controllers\BaileysWebhookController::class, 'handleWebhook']);
+Route::post('/v1/whatsapp/baileys/webhook', [\App\Modules\WhatsApp\Http\Controllers\BaileysWebhookController::class, 'handleWebhook']);

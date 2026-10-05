@@ -42,6 +42,14 @@ export async function simulateScan(id: string, phoneNumber?: string): Promise<Wh
   return response.data.data
 }
 
+export async function getWhatsAppPairingCode(id: string, phone: string): Promise<string> {
+  const response = await http.post<{ data: { pairing_code: string }; message: string }>(
+    `/whatsapp/accounts/${id}/pairing-code`,
+    { phone },
+  )
+  return response.data.data.pairing_code
+}
+
 export async function disconnectWhatsApp(id: string): Promise<void> {
   await http.post(`/whatsapp/accounts/${id}/disconnect`)
 }

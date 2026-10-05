@@ -16,13 +16,15 @@ const {
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  Browsers,
+  makeCacheableSignalKeyStore,
 } = baileys;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const LARAVEL_WEBHOOK_URL =
   process.env.LARAVEL_WEBHOOK_URL ||
-  'http://api:8010/api/v1/whatsapp/baileys/webhook';
+  'http://api:8010/api/whatsapp/baileys/webhook';
 const SESSIONS_DIR = path.resolve(__dirname, '../sessions');
 
 if (!fs.existsSync(SESSIONS_DIR)) {
@@ -57,7 +59,7 @@ async function initSession(sessionId) {
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-  let version = [2, 3000, 1015901307];
+  let version = [2, 3000, 1043857760];
   try {
     const fetched = await fetchLatestBaileysVersion();
     version = fetched.version;
@@ -71,10 +73,14 @@ async function initSession(sessionId) {
     version,
     logger,
     printQRInTerminal: false,
-    auth: state,
-    browser: ['XpertiFlow CRM', 'Chrome', '120.0.0'],
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, logger),
+    },
+    browser: Browsers ? Browsers.macOS('Desktop') : ['Mac OS', 'Desktop', '14.4.1'],
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
+    defaultQueryTimeoutMs: undefined,
   });
 
   sessions[sessionId] = {
@@ -142,6 +148,14 @@ async function initSession(sessionId) {
         `[WhatsApp Connection Closed] account=${sessionId} statusCode=${statusCode} shouldReconnect=${shouldReconnect}`,
       );
 
+      // Remover el socket inerte para permitir reconexión limpia
+      if (sessions[sessionId]?.sock) {
+        try {
+          sessions[sessionId].sock.ws?.close?.();
+        } catch (_) {}
+        delete sessions[sessionId].sock;
+      }
+
       if (!shouldReconnect) {
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'DISCONNECTED';
@@ -162,12 +176,15 @@ async function initSession(sessionId) {
       } else {
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'CONNECTING';
+          sessions[sessionId].qrRaw = null;
+          sessions[sessionId].qrImage = null;
         }
+        const delay = statusCode === DisconnectReason.restartRequired ? 50 : 1500;
         setTimeout(() => {
           if (!sessions[sessionId]?.sock) {
             initSession(sessionId).catch(console.error);
           }
-        }, 3000);
+        }, delay);
       }
     }
   });
@@ -269,6 +286,31 @@ app.get('/sessions/:sessionId/qr', (req, res) => {
   });
 });
 
+app.post('/sessions/:sessionId/pairing-code', async (req, res) => {
+  const { sessionId } = req.params;
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).json({ error: 'Número de teléfono es requerido' });
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  try {
+    const session = await initSession(sessionId);
+    if (!session || !session.sock) {
+      return res.status(500).json({ error: 'Socket no disponible' });
+    }
+
+    // Esperar un momento a que el socket complete la negociación de inicio
+    await new Promise((r) => setTimeout(r, 1200));
+    const code = await session.sock.requestPairingCode(cleanPhone);
+    res.json({ success: true, pairing_code: code });
+  } catch (err) {
+    console.error(`[Pairing Code Error] ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/sessions/:sessionId/send-message', async (req, res) => {
   const { sessionId } = req.params;
   const { to, text } = req.body;
@@ -317,13 +359,14 @@ app.post('/sessions/:sessionId/logout', async (req, res) => {
   res.json({ success: true, message: 'Sesión cerrada correctamente' });
 });
 
-// Auto-restaurar sesiones guardadas al reiniciar
+// Auto-restaurar sesiones guardadas al reiniciar (solo si ya tenían credenciales vinculadas)
 fs.readdir(SESSIONS_DIR, (err, files) => {
   if (!err && files) {
     for (const dir of files) {
       const fullPath = path.join(SESSIONS_DIR, dir);
-      if (fs.statSync(fullPath).isDirectory()) {
-        console.log(`[Auto-restoring Session] ${dir}`);
+      const credsPath = path.join(fullPath, 'creds.json');
+      if (fs.statSync(fullPath).isDirectory() && fs.existsSync(credsPath)) {
+        console.log(`[Auto-restoring Active Session] ${dir}`);
         initSession(dir).catch((e) =>
           console.error(`[Auto-restore Failed] ${dir}: ${e.message}`),
         );

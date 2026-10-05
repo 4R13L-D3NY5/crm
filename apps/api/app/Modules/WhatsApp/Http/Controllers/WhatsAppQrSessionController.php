@@ -262,4 +262,45 @@ class WhatsAppQrSessionController extends Controller
             'message' => 'Mensaje entrante procesado y emitido por WebSockets en vivo.',
         ], 201);
     }
+
+    /**
+     * Solicita código de 8 dígitos para vincular con número de teléfono
+     */
+    public function getPairingCode(Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $account = WhatsAppAccount::where('organization_id', $organization->id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'phone' => ['required', 'string'],
+        ]);
+
+        $baileysUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
+        try {
+            $response = Http::baseUrl($baileysUrl)
+                ->timeout(12)
+                ->acceptJson()
+                ->post("/sessions/{$account->id}/pairing-code", [
+                    'phone' => $validated['phone'],
+                ]);
+
+            if ($response->successful() && $response->json('pairing_code')) {
+                return response()->json([
+                    'data' => [
+                        'pairing_code' => $response->json('pairing_code'),
+                        'account_id' => $account->id,
+                    ],
+                    'message' => 'Código de vinculación generado exitosamente.',
+                ]);
+            }
+
+            return response()->json([
+                'error' => $response->json('error') ?? 'No se pudo generar el código.',
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Error al comunicar con el motor de WhatsApp: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

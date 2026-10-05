@@ -23,3 +23,4 @@ Route::get('whatsapp/accounts/{id}/qr', [WhatsAppQrSessionController::class, 'ge
 Route::post('whatsapp/accounts/{id}/simulate-scan', [WhatsAppQrSessionController::class, 'simulateScan'])->name('whatsapp.simulate-scan');
 Route::post('whatsapp/accounts/{id}/disconnect', [WhatsAppQrSessionController::class, 'disconnect'])->name('whatsapp.disconnect');
 Route::post('whatsapp/accounts/{id}/simulate-incoming', [WhatsAppQrSessionController::class, 'simulateIncoming'])->name('whatsapp.simulate-incoming');
+Route::post('whatsapp/accounts/{id}/pairing-code', [WhatsAppQrSessionController::class, 'getPairingCode'])->name('whatsapp.pairing-code');

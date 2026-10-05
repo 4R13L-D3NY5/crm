@@ -1,7 +1,7 @@
 import type { Paginated } from '@/shared/types/pagination.types'
 
 export type WhatsAppStatus = 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED'
-export type WhatsAppSessionType = 'baileys_qr' | 'meta_cloud' | 'facebook' | 'instagram' | 'tiktok'
+export type WhatsAppSessionType = 'baileys_qr' | 'qr_baileys' | 'qr' | 'meta_cloud' | 'facebook' | 'instagram' | 'tiktok'
 
 export interface WhatsAppAccount {
   id: string
