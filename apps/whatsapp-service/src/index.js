@@ -18,7 +18,16 @@ const {
   fetchLatestBaileysVersion,
   Browsers,
   makeCacheableSignalKeyStore,
+  extractMessageContent,
+  jidNormalizedUser,
 } = baileys;
+
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Process Unhandled Rejection Ignored]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Process Uncaught Exception Handled]', err.message);
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -213,25 +222,52 @@ async function initSession(sessionId) {
   // Listener para mensajes entrantes de WhatsApp
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (!Array.isArray(messages)) return;
+    console.log(`[messages.upsert] account=${sessionId} type=${type} total=${messages.length}`);
 
     for (const msg of messages) {
-      if (!msg.key || msg.key.remoteJid === 'status@broadcast') continue;
+      if (!msg.key) continue;
+      if (msg.key.remoteJid === 'status@broadcast') continue;
       // No reinyectar mensajes enviados por el CRM
       if (msg.key.fromMe) continue;
 
       const remoteJid = msg.key.remoteJid || '';
-      if (!remoteJid.endsWith('@s.whatsapp.net')) {
+      if (remoteJid.includes('broadcast') || remoteJid.includes('newsletter')) {
         continue;
       }
 
-      const rawPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-      const cleanPhone = `+${rawPhone}`;
+      console.log(`[Processing Message] id=${msg.key.id} remoteJid=${remoteJid} participant=${msg.key.participant || 'none'}`);
 
+      // Normalizar número de teléfono emisor
+      let cleanPhone = '';
+      if (remoteJid.endsWith('@s.whatsapp.net')) {
+        cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(remoteJid) : remoteJid).split('@')[0].split(':')[0];
+      } else if (msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
+        cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(msg.key.participant) : msg.key.participant).split('@')[0].split(':')[0];
+      } else if (remoteJid.endsWith('@lid') || (msg.key.participant && msg.key.participant.endsWith('@lid'))) {
+        const rawId = (msg.key.participant || remoteJid).split('@')[0].split(':')[0];
+        cleanPhone = `+${rawId}`;
+      } else {
+        cleanPhone = `+${remoteJid.split('@')[0].split(':')[0]}`;
+      }
+
+      // Desempaquetar contenido de mensaje (efímero, viewOnce, documento, captions, texto)
+      const content = (extractMessageContent ? extractMessageContent(msg.message) : null) || msg.message || {};
       const body =
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        msg.message?.imageMessage?.caption ||
-        msg.message?.videoMessage?.caption ||
+        content.conversation ||
+        content.extendedTextMessage?.text ||
+        content.imageMessage?.caption ||
+        content.videoMessage?.caption ||
+        content.documentMessage?.caption ||
+        content.buttonsResponseMessage?.selectedButtonId ||
+        content.listResponseMessage?.singleSelectReply?.selectedRowId ||
+        content.templateButtonReplyMessage?.selectedId ||
+        (content.imageMessage ? '[Imagen]' : '') ||
+        (content.audioMessage ? '[Nota de voz / Audio]' : '') ||
+        (content.videoMessage ? '[Video]' : '') ||
+        (content.documentMessage ? `[Documento: ${content.documentMessage?.fileName || 'archivo'}]` : '') ||
+        (content.stickerMessage ? '[Sticker]' : '') ||
+        (content.contactMessage ? '[Contacto]' : '') ||
+        (content.locationMessage ? '[Ubicación]' : '') ||
         '';
 
       if (body && body.trim().length > 0) {
@@ -246,6 +282,8 @@ async function initSession(sessionId) {
           body: body.trim(),
           timestamp: msg.messageTimestamp,
         });
+      } else {
+        console.log(`[Inbound Message Skipped: Empty Body] rawKeys=`, Object.keys(msg.message || {}));
       }
     }
   });
