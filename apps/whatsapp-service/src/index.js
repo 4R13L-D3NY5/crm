@@ -144,10 +144,9 @@ async function initSession(sessionId) {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const wasConnected = sessions[sessionId]?.status === 'CONNECTED';
       const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-      const shouldReconnect = !isLoggedOut || !wasConnected;
 
       console.log(
-        `[WhatsApp Connection Closed] account=${sessionId} statusCode=${statusCode} wasConnected=${wasConnected} shouldReconnect=${shouldReconnect}`,
+        `[WhatsApp Connection Closed] account=${sessionId} statusCode=${statusCode} wasConnected=${wasConnected} isLoggedOut=${isLoggedOut}`,
       );
 
       // Remover el socket inerte para permitir reconexión limpia
@@ -158,33 +157,50 @@ async function initSession(sessionId) {
         delete sessions[sessionId].sock;
       }
 
-      if (!shouldReconnect) {
-        // Usuario desconectó activamente su WhatsApp ya vinculado desde su teléfono
-        if (sessions[sessionId]) {
-          sessions[sessionId].status = 'DISCONNECTED';
-          sessions[sessionId].qrRaw = null;
-          sessions[sessionId].qrImage = null;
-          delete sessions[sessionId];
-        }
-
+      if (isLoggedOut) {
+        // 401: Credenciales rechazadas por WhatsApp o sesión cerrada en el celular
+        // Limpiamos los archivos para evitar bucles con credenciales caducadas
         try {
           fs.rmSync(sessionPath, { recursive: true, force: true });
         } catch (_) {}
 
-        await notifyLaravel({
-          event: 'disconnected',
-          account_id: sessionId,
-          reason: 'logged_out',
-        });
+        if (wasConnected) {
+          if (sessions[sessionId]) {
+            sessions[sessionId].status = 'DISCONNECTED';
+            sessions[sessionId].qrRaw = null;
+            sessions[sessionId].qrImage = null;
+            delete sessions[sessionId];
+          }
+
+          await notifyLaravel({
+            event: 'disconnected',
+            account_id: sessionId,
+            reason: 'logged_out',
+          });
+        } else {
+          // Si nunca estuvo conectado, reiniciar con credenciales limpias tras 3s
+          if (sessions[sessionId]) {
+            sessions[sessionId].status = 'CONNECTING';
+            sessions[sessionId].qrRaw = null;
+            sessions[sessionId].qrImage = null;
+          }
+
+          setTimeout(() => {
+            if (!sessions[sessionId]?.sock) {
+              initSession(sessionId).catch(console.error);
+            }
+          }, 3000);
+        }
       } else {
+        // Desconexión temporal (ej: 515 restartRequired, 408 timeout de QR, desconexión de red)
+        // PRESERVAR credenciales en disco (vital para completar el emparejamiento 515)
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'CONNECTING';
           sessions[sessionId].qrRaw = null;
           sessions[sessionId].qrImage = null;
         }
 
-        // Si es 515 (restartRequired), damos 1000ms para asegurar que las credenciales recién escritas por Baileys estén completamente en disco
-        const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 1500;
+        const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 2000;
         setTimeout(() => {
           if (!sessions[sessionId]?.sock) {
             initSession(sessionId).catch(console.error);
@@ -312,25 +328,44 @@ app.post('/sessions/:sessionId/pairing-code', async (req, res) => {
 
   const cleanPhone = phone.replace(/[^0-9]/g, '');
   try {
-    const session = await initSession(sessionId);
-    if (!session || !session.sock) {
-      return res.status(500).json({ error: 'Socket no disponible' });
+    const sessionPath = path.join(SESSIONS_DIR, sessionId);
+    const wasConnected = sessions[sessionId]?.status === 'CONNECTED';
+
+    // Si aún no está vinculado, cerramos cualquier socket previo y limpiamos credenciales residuales
+    if (!wasConnected) {
+      if (sessions[sessionId]?.sock) {
+        try {
+          sessions[sessionId].sock.ws?.close?.();
+        } catch (_) {}
+        delete sessions[sessionId].sock;
+      }
+      try {
+        fs.rmSync(sessionPath, { recursive: true, force: true });
+      } catch (_) {}
+      delete sessions[sessionId];
     }
 
-    // Esperar a que el socket de WhatsApp esté completamente conectado
+    const session = await initSession(sessionId);
+
+    // Esperar a que el WebSocket de WhatsApp esté completamente conectado
     let waitReady = 0;
-    while (waitReady < 20 && (!session.sock?.ws || session.sock.ws.readyState !== 1)) {
+    while (waitReady < 25 && (!sessions[sessionId]?.sock?.ws || sessions[sessionId].sock.ws.readyState !== 1)) {
       await new Promise((r) => setTimeout(r, 200));
       waitReady++;
     }
 
+    const currentSock = sessions[sessionId]?.sock;
+    if (!currentSock) {
+      return res.status(500).json({ error: 'Socket no disponible. Por favor intenta de nuevo.' });
+    }
+
     await new Promise((r) => setTimeout(r, 800));
-    const code = await session.sock.requestPairingCode(cleanPhone);
+    const code = await currentSock.requestPairingCode(cleanPhone);
     console.log(`[Pairing Code Generated] account=${sessionId} phone=${cleanPhone} code=${code}`);
     res.json({ success: true, pairing_code: code });
   } catch (err) {
     console.error(`[Pairing Code Error] ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Error al solicitar el código de vinculación' });
   }
 });
 
