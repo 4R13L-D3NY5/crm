@@ -38,10 +38,35 @@ class SendWhatsAppMessageJob implements ShouldQueue
             return;
         }
 
-        $account = WhatsAppAccount::query()
-            ->where('organization_id', $message->organization_id)
-            ->where('is_active', true)
-            ->first();
+        $accountId = WhatsAppMessageMapping::query()
+            ->where('conversation_id', $message->conversation_id)
+            ->whereNotNull('whatsapp_account_id')
+            ->latest()
+            ->value('whatsapp_account_id');
+
+        $account = null;
+        if ($accountId) {
+            $account = WhatsAppAccount::query()
+                ->where('organization_id', $message->organization_id)
+                ->where('id', $accountId)
+                ->first();
+        }
+
+        if (! $account) {
+            $account = WhatsAppAccount::query()
+                ->where('organization_id', $message->organization_id)
+                ->where('is_active', true)
+                ->where('status', 'CONNECTED')
+                ->latest('last_connected_at')
+                ->first();
+        }
+
+        if (! $account) {
+            $account = WhatsAppAccount::query()
+                ->where('organization_id', $message->organization_id)
+                ->where('is_active', true)
+                ->first();
+        }
 
         if (! $account) {
             $message->forceFill([

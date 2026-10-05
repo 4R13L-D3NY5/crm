@@ -422,9 +422,17 @@ app.post('/sessions/:sessionId/send-message', async (req, res) => {
 
   try {
     const cleanTo = to.replace(/[^0-9]/g, '');
-    const jid = `${cleanTo}@s.whatsapp.net`;
+    let jid;
+    if (to.includes('@lid') || cleanTo.length >= 14) {
+      jid = `${cleanTo}@lid`;
+    } else {
+      jid = `${cleanTo}@s.whatsapp.net`;
+    }
 
+    console.log(`[Sending Outbound Message] account=${sessionId} to=${jid} text=${text}`);
     const sent = await session.sock.sendMessage(jid, { text });
+    console.log(`[Outbound Message Sent] account=${sessionId} messageId=${sent?.key?.id}`);
+
     res.json({
       success: true,
       messageId: sent?.key?.id,
