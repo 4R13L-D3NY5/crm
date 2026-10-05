@@ -161,9 +161,11 @@ function selectRole(demoEmail: string, _roleLabel: string) {
 async function submit() {
   try {
     await authStore.login(email.value, password.value)
-    await router.replace({ name: 'contacts.index' })
-  } catch {
-    // Error message handled in authStore
+    await router.replace('/app/contacts')
+  } catch (error: any) {
+    if (!authStore.errorMessage) {
+      authStore.errorMessage = error?.message || 'Error al conectar o iniciar sesión.'
+    }
   }
 }
 </script>

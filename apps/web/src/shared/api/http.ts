@@ -39,6 +39,7 @@ async function ensureCsrfCookie(): Promise<void> {
   try {
     await axios.get(`${appOrigin}/sanctum/csrf-cookie`, {
       withCredentials: true,
+      timeout: 5000,
       headers: {
         Accept: 'application/json',
         'X-Requested-With': 'XMLHttpRequest',

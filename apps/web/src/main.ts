@@ -1,4 +1,4 @@
-import { Notify, Quasar } from 'quasar'
+import { Dark, Notify, Quasar } from 'quasar'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createApp } from 'vue'
 import iconSet from 'quasar/icon-set/svg-material-symbols-rounded'
@@ -11,6 +11,23 @@ import router from './app/router'
 import { queryClient } from './app/plugins/query-client'
 import './css/app.scss'
 
+// Configuración de tema por defecto: MODO OSCURO (Obsidian & Refined Emerald)
+const savedTheme = localStorage.getItem('whaticket_theme')
+const isDark = savedTheme !== 'light'
+
+Dark.set(isDark)
+if (typeof document !== 'undefined') {
+  if (isDark) {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    document.body.classList.add('body--dark')
+    document.body.classList.remove('body--light')
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light')
+    document.body.classList.add('body--light')
+    document.body.classList.remove('body--dark')
+  }
+}
+
 const app = createApp(App)
 
 app.use(pinia)
@@ -18,9 +35,11 @@ app.use(router)
 app.use(Quasar, {
   plugins: {
     Notify,
+    Dark,
   },
   iconSet,
   config: {
+    dark: isDark,
     brand: {
       primary: '#1f4e5f',
       secondary: '#b57a44',
