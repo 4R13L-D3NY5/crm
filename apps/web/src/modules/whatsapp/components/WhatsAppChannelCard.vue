@@ -87,7 +87,7 @@
                 <q-item-section>Desconectar</q-item-section>
               </q-item>
               <q-item
-                v-else-if="account.session_type === 'baileys_qr'"
+                v-else-if="account.session_type === 'baileys_qr' || account.session_type === 'qr_baileys' || account.session_type === 'qr'"
                 clickable
                 v-close-popup
                 class="text-teal-4"
@@ -188,7 +188,7 @@
           @click="emit('disconnect', account.id)"
         />
         <q-btn
-          v-else-if="account.session_type === 'baileys_qr'"
+          v-else-if="account.session_type === 'baileys_qr' || account.session_type === 'qr_baileys' || account.session_type === 'qr'"
           unelevated
           dense
           size="sm"

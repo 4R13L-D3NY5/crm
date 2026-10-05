@@ -28,7 +28,8 @@ class WhatsAppQrSessionController extends Controller
         $status = 'CONNECTING';
 
         // Intentar conectar con el microservicio Baileys si es sesión QR
-        if (($account->session_type ?? 'qr_baileys') === 'qr_baileys') {
+        $isBaileys = in_array($account->session_type, ['baileys_qr', 'qr_baileys', 'qr', 'baileys'], true) || blank($account->session_type);
+        if ($isBaileys) {
             try {
                 $baileysUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
                 $response = Http::baseUrl($baileysUrl)
