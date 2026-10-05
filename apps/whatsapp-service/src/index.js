@@ -142,10 +142,11 @@ async function initSession(sessionId) {
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      const wasConnected = sessions[sessionId]?.status === 'CONNECTED';
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut || !wasConnected;
 
       console.log(
-        `[WhatsApp Connection Closed] account=${sessionId} statusCode=${statusCode} shouldReconnect=${shouldReconnect}`,
+        `[WhatsApp Connection Closed] account=${sessionId} statusCode=${statusCode} wasConnected=${wasConnected} shouldReconnect=${shouldReconnect}`,
       );
 
       // Remover el socket inerte para permitir reconexión limpia
@@ -157,6 +158,7 @@ async function initSession(sessionId) {
       }
 
       if (!shouldReconnect) {
+        // Usuario desconectó activamente su WhatsApp ya vinculado
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'DISCONNECTED';
           sessions[sessionId].qrRaw = null;
@@ -174,12 +176,20 @@ async function initSession(sessionId) {
           reason: 'logged_out',
         });
       } else {
+        // Si expiró el QR (401 o 408) sin haberse vinculado aún, limpiamos credenciales residuales
+        if (!wasConnected) {
+          try {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+          } catch (_) {}
+        }
+
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'CONNECTING';
           sessions[sessionId].qrRaw = null;
           sessions[sessionId].qrImage = null;
         }
-        const delay = statusCode === DisconnectReason.restartRequired ? 50 : 1500;
+
+        const delay = statusCode === DisconnectReason.restartRequired ? 50 : 1200;
         setTimeout(() => {
           if (!sessions[sessionId]?.sock) {
             initSession(sessionId).catch(console.error);
@@ -269,11 +279,22 @@ app.post('/sessions/:sessionId/start', async (req, res) => {
   }
 });
 
-app.get('/sessions/:sessionId/qr', (req, res) => {
+app.get('/sessions/:sessionId/qr', async (req, res) => {
   const { sessionId } = req.params;
-  const session = sessions[sessionId];
-  if (!session) {
-    return res.status(404).json({ error: 'Sesión no iniciada' });
+  let session = sessions[sessionId];
+
+  if (!session || !session.sock) {
+    try {
+      await initSession(sessionId);
+      let tries = 0;
+      while (tries < 10 && !sessions[sessionId]?.qrRaw && sessions[sessionId]?.status === 'CONNECTING') {
+        await new Promise((r) => setTimeout(r, 200));
+        tries++;
+      }
+      session = sessions[sessionId] || { status: 'CONNECTING' };
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   }
 
   res.json({

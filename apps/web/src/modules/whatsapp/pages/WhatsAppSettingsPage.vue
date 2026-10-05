@@ -74,6 +74,7 @@
     <WhatsAppQrModal
       v-model="isQrModalOpen"
       :account-id="activeAccount?.id"
+      :default-phone="activeAccount?.display_phone_number"
       :qr-data="currentQrCode"
       :loading="qrLoading"
       :scan-loading="mutations.simulateScanMutation.isPending.value"

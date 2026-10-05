@@ -68,9 +68,21 @@
               </svg>
             </div>
 
-            <div class="row items-center q-gutter-x-xs text-caption text-grey-4 q-mt-sm">
-              <q-icon name="sym_r_timer" size="14px" color="teal-4" />
-              <span>Actualización en <strong>{{ countdown }}s</strong></span>
+            <div class="row items-center justify-between full-width q-px-md q-mt-sm">
+              <div class="row items-center q-gutter-x-xs text-caption text-grey-4">
+                <q-icon name="sym_r_timer" size="14px" color="teal-4" />
+                <span>Expira en <strong>{{ countdown }}s</strong></span>
+              </div>
+              <q-btn
+                flat
+                dense
+                no-caps
+                size="sm"
+                icon="sym_r_refresh"
+                label="Nuevo QR"
+                color="teal-4"
+                @click="emit('refresh')"
+              />
             </div>
           </div>
         </div>
@@ -79,10 +91,10 @@
       <!-- TAB 2: CÓDIGO DE 8 DÍGITOS (SIN CÁMARA) -->
       <div v-else class="q-py-sm">
         <p class="text-caption text-grey-4 text-left q-mb-sm">
-          Si tu cámara o la red presentan fallas al escanear, usa la opción oficial <strong>«Vincular con el número de teléfono»</strong> que aparece abajo en WhatsApp:
+          Si el escaneo por cámara falla, usa <strong>«Vincular con el número de teléfono»</strong> en WhatsApp:
         </p>
 
-        <div class="row q-gutter-sm items-center q-mb-md">
+        <div class="row q-gutter-sm items-center q-mb-sm">
           <q-input
             v-model="inputPhoneNumber"
             outlined
@@ -92,6 +104,7 @@
             class="col"
             label="Número con código de país"
             :disable="isRequestingCode"
+            @keyup.enter="handleRequestPairingCode"
           >
             <template #prepend>
               <q-icon name="sym_r_phone" size="18px" color="teal-4" />
@@ -110,28 +123,33 @@
           />
         </div>
 
+        <div class="text-caption text-grey-5 text-left q-mb-md" style="font-size: 0.75rem">
+          💡 Puedes escribir directamente tu número de 8 dígitos (ej: <code>63921086</code>) y el sistema agregará <code>+591</code>.
+        </div>
+
         <!-- Muestra del Código de 8 Dígitos -->
         <div v-if="pairingCodeResult" class="pairing-code-box q-pa-md q-mb-md">
-          <div class="text-caption text-grey-4 q-mb-xs">Tu código de vinculación:</div>
+          <div class="text-caption text-grey-4 q-mb-xs">Tu código de vinculación en WhatsApp:</div>
           <div class="text-h4 text-bold text-teal-3 tracking-widest q-my-xs letter-spacing-lg">
             {{ formatPairingCode(pairingCodeResult) }}
           </div>
           <q-btn
-            flat
+            unelevated
             dense
             size="sm"
             icon="sym_r_content_copy"
             label="Copiar código"
-            color="grey-4"
-            class="q-mt-xs"
+            color="teal-7"
+            class="q-mt-xs q-px-sm"
             @click="copyCode(pairingCodeResult)"
           />
 
-          <div class="text-caption text-grey-4 text-left q-mt-md" style="font-size: 0.76rem; line-height: 1.4">
-            1. En WhatsApp en tu celular ve a: <strong>Dispositivos vinculados</strong>.<br/>
+          <div class="text-caption text-grey-3 text-left q-mt-md q-pa-sm" style="background: rgba(0,0,0,0.25); border-radius: 6px; font-size: 0.78rem; line-height: 1.5">
+            <strong>Instrucciones en tu celular:</strong><br/>
+            1. En WhatsApp ve a: <strong>Dispositivos vinculados</strong>.<br/>
             2. Toca <strong>Vincular un dispositivo</strong>.<br/>
-            3. En la parte inferior presiona <strong>«Vincular con el número de teléfono»</strong>.<br/>
-            4. Escribe el código de 8 letras/números mostrado arriba.
+            3. En la parte inferior toca <strong>«Vincular con el número de teléfono»</strong>.<br/>
+            4. Ingresa el código: <strong>{{ formatPairingCode(pairingCodeResult) }}</strong>.
           </div>
         </div>
       </div>
@@ -163,6 +181,7 @@ import { useAppNotify } from '@/shared/composables/useAppNotify'
 const props = defineProps<{
   modelValue: boolean
   accountId?: string
+  defaultPhone?: string | null
   qrData?: string | null
   loading?: boolean
   scanLoading?: boolean
@@ -188,19 +207,45 @@ const emit = defineEmits<{
 const countdown = ref(60)
 let timer: any = null
 
+function initPhoneNumber() {
+  if (props.defaultPhone && props.defaultPhone.trim()) {
+    let clean = props.defaultPhone.trim().replace(/[^0-9]/g, '')
+    if (clean.length === 8) {
+      clean = '591' + clean
+    }
+    inputPhoneNumber.value = `+${clean}`
+  } else if (!inputPhoneNumber.value) {
+    inputPhoneNumber.value = '+591'
+  }
+}
+
 async function handleRequestPairingCode() {
   if (!props.accountId) {
     notify.error({ message: 'No hay cuenta seleccionada para generar código.' })
     return
   }
-  if (!inputPhoneNumber.value || inputPhoneNumber.value.replace(/[^0-9]/g, '').length < 8) {
+
+  let raw = (inputPhoneNumber.value || '').trim().replace(/[^0-9]/g, '')
+  if (!raw) {
+    notify.error({ message: 'Por favor ingresa un número de teléfono.' })
+    return
+  }
+
+  // Si ingresó número local boliviano de 8 dígitos (ej: 63921086), anteponemos 591
+  if (raw.length === 8) {
+    raw = '591' + raw
+  }
+
+  if (raw.length < 9) {
     notify.error({ message: 'Por favor ingresa un número de teléfono válido con código de país (ej: +59163921086).' })
     return
   }
 
+  inputPhoneNumber.value = `+${raw}`
   isRequestingCode.value = true
+
   try {
-    const code = await getWhatsAppPairingCode(props.accountId, inputPhoneNumber.value)
+    const code = await getWhatsAppPairingCode(props.accountId, raw)
     pairingCodeResult.value = code
     notify.success({ message: '¡Código de 8 dígitos generado! Ingrésalo en tu celular.' })
   } catch (err: any) {
@@ -230,6 +275,7 @@ watch(
     if (open) {
       countdown.value = 60
       pairingCodeResult.value = null
+      initPhoneNumber()
       clearInterval(timer)
       timer = setInterval(() => {
         if (countdown.value > 1) {
@@ -248,6 +294,7 @@ watch(
 onMounted(() => {
   if (props.modelValue) {
     countdown.value = 60
+    initPhoneNumber()
   }
 })
 

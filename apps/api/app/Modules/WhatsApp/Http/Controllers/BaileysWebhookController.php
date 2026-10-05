@@ -28,8 +28,8 @@ class BaileysWebhookController extends Controller
         $account = WhatsAppAccount::find($accountId);
 
         if (! $account) {
-            Log::warning("Baileys webhook received for unknown account: {$accountId}");
-            return response()->json(['error' => 'Account not found'], 404);
+            Log::info("Baileys webhook received for unknown/deleted account: {$accountId}");
+            return response()->json(['status' => 'ignored', 'message' => 'Account not found'], 200);
         }
 
         match ($event) {
