@@ -84,6 +84,23 @@ flowchart LR
 
 ---
 
+---
+
+### 💡 Notas Técnicas y Resolución de Problemas (Troubleshooting)
+
+1. **Tokens Encriptados en Backend:**
+   - En XpertiFlow CRM, el `access_token` de WhatsApp se almacena de forma encriptada en la base de datos mediante el cast `'access_token' => 'encrypted'` de Laravel. Siempre debe guardarse a través de la interfaz web del CRM o mediante Eloquent (`$account->access_token = $token; $account->save();`) para que se encripte con la `APP_KEY`.
+2. **Bloqueo de SMS Internacionales en Bolivia (Entel, Tigo, Viva):**
+   - Cuando Meta solicita verificar tu identidad mediante un código de 6 dígitos por SMS (checkpoint `facebook.com/checkpoint`), los operadores bolivianos suelen bloquear o no entregar los SMS internacionales.
+   - **Solución comprobada:** 
+     1. Abre Facebook en tu celular (donde tu sesión esté activa) y ve a *Settings > Accounts Center > Login and security > Where you're logged in* para aprobar la sesión de la computadora.
+     2. O al registrar un número en WhatsApp, solicita el código mediante **"Llamarme"** (llamada de voz automatizada), la cual sí ingresa sin problemas en Bolivia. Una vez activo WhatsApp, Meta permite enviar códigos de seguridad directamente por chat de WhatsApp.
+3. **Flujo de Recepción en Tiempo Real (Inbound):**
+   - Meta envía el payload al Webhook `/api/whatsapp/webhook`.
+   - El sistema busca la cuenta por `phone_number_id`, registra el evento en `whatsapp_webhook_events`, crea el contacto si no existe y genera o actualiza la conversación en la bandeja omnicanal (`/app/conversations`).
+
+---
+
 ## 🟢 Modalidad 2: WhatsApp Web (Código QR)
 
 *Ideal para probar flujos locales o conectar un número personal sin pasar por Meta Cloud API.*
