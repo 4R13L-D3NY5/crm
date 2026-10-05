@@ -1,0 +1,19 @@
+{
+  "name": "crm-whatsapp-service",
+  "version": "1.0.0",
+  "description": "WhatsApp Baileys Microservice for XpertiFlow CRM",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.12",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4"
+  }
+}

@@ -73,6 +73,7 @@
     <!-- Modales Dumb Desacoplados -->
     <WhatsAppQrModal
       v-model="isQrModalOpen"
+      :qr-data="currentQrCode"
       :loading="qrLoading"
       :scan-loading="mutations.simulateScanMutation.isPending.value"
       @scan="handleSimulateScan"
@@ -95,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import {
   useWhatsAppAccounts,
@@ -126,6 +127,47 @@ const isSimulateModalOpen = ref(false)
 
 const activeAccount = ref<WhatsAppAccount | null>(null)
 const qrLoading = ref(false)
+const currentQrCode = ref<string | null>(null)
+let qrPollTimer: any = null
+
+function stopQrPolling() {
+  if (qrPollTimer) {
+    clearInterval(qrPollTimer)
+    qrPollTimer = null
+  }
+}
+
+function startQrPolling() {
+  stopQrPolling()
+  qrPollTimer = setInterval(async () => {
+    if (!isQrModalOpen.value || !activeAccount.value) {
+      stopQrPolling()
+      return
+    }
+    try {
+      const res = await getWhatsAppQr(activeAccount.value.id)
+      currentQrCode.value = res.qrcode_raw || null
+      if (res.status === 'CONNECTED') {
+        stopQrPolling()
+        isQrModalOpen.value = false
+        notify.success({ message: '¡Dispositivo WhatsApp vinculado y conectado exitosamente!' })
+        await accountsQuery.refetch()
+      }
+    } catch {
+      // ignorar error transitorio de polling
+    }
+  }, 3500)
+}
+
+watch(isQrModalOpen, (open) => {
+  if (!open) {
+    stopQrPolling()
+  }
+})
+
+onUnmounted(() => {
+  stopQrPolling()
+})
 
 async function handleCreateAccount(payload: CreateWhatsAppAccountPayload) {
   try {
@@ -145,13 +187,20 @@ async function openConnectQr(acc: WhatsAppAccount) {
   activeAccount.value = acc
   isQrModalOpen.value = true
   await loadQrCode()
+  startQrPolling()
 }
 
 async function loadQrCode() {
   if (!activeAccount.value) return
   qrLoading.value = true
   try {
-    await getWhatsAppQr(activeAccount.value.id)
+    const res = await getWhatsAppQr(activeAccount.value.id)
+    currentQrCode.value = res.qrcode_raw || null
+    if (res.status === 'CONNECTED') {
+      stopQrPolling()
+      isQrModalOpen.value = false
+      notify.success({ message: '¡Dispositivo WhatsApp ya está conectado!' })
+    }
     await accountsQuery.refetch()
   } catch {
     notify.error({ message: 'Error al generar el código QR.' })

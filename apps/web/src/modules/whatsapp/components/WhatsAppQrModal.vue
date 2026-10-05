@@ -21,7 +21,13 @@
         </div>
         <div v-else class="column items-center">
           <div class="qr-canvas-wrap">
-            <svg width="180" height="180" viewBox="0 0 200 200" fill="none">
+            <img
+              v-if="isImageQr"
+              :src="qrData!"
+              alt="Código QR WhatsApp"
+              style="width: 200px; height: 200px; object-fit: contain; display: block;"
+            />
+            <svg v-else width="180" height="180" viewBox="0 0 200 200" fill="none">
               <rect width="200" height="200" rx="8" fill="white" />
               <!-- Esquinas -->
               <rect x="20" y="20" width="45" height="45" fill="#090d16" rx="4" />
@@ -54,7 +60,7 @@
 
           <div class="row items-center q-gutter-x-xs text-caption text-grey-4 q-mt-sm">
             <q-icon name="sym_r_timer" size="14px" color="teal-4" />
-            <span>Expira en <strong>{{ countdown }}s</strong></span>
+            <span>Actualización en <strong>{{ countdown }}s</strong></span>
           </div>
         </div>
       </div>
@@ -62,11 +68,13 @@
       <!-- Botones de Acción -->
       <q-card-actions align="center" class="q-gutter-sm q-mt-sm">
         <q-btn
-          unelevated
+          flat
+          dense
           no-caps
-          label="Simular Escaneo Exitoso"
-          icon="sym_r_qr_code_scanner"
-          class="xf-btn-primary"
+          label="Simular Escaneo (Modo Dev)"
+          icon="sym_r_developer_mode"
+          color="grey-4"
+          size="sm"
           :loading="scanLoading"
           @click="emit('scan')"
         />
@@ -77,13 +85,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: boolean
+  qrData?: string | null
   loading?: boolean
   scanLoading?: boolean
 }>()
+
+const isImageQr = computed(() => {
+  return typeof props.qrData === 'string' && (props.qrData.startsWith('data:image/') || props.qrData.startsWith('http'))
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
