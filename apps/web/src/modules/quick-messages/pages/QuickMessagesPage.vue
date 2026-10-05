@@ -1,401 +1,402 @@
 <template>
-  <div class="whaticket-quick-messages-page">
-    <!-- Header -->
-    <div class="q-mb-md">
-      <h1 class="text-h5 text-bold text-white q-my-none">Respuestas Rápidas</h1>
-      <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
-        Mensajes listos que el equipo inserta en el chat escribiendo "/" seguido del atajo.
-      </p>
-    </div>
+  <AppPage
+    eyebrow="Productividad"
+    title="Respuestas rápidas"
+    description="Configura atajos (ej: /precios, /bienvenida) para responder al instante en tus chats sin redactar el mismo mensaje repetidas veces."
+  >
+    <template #actions>
+      <q-input
+        v-model="search"
+        outlined
+        dense
+        clearable
+        placeholder="Buscar atajo o texto..."
+        class="quick-messages__search"
+      >
+        <template #prepend>
+          <q-icon name="sym_r_search" size="18px" />
+        </template>
+      </q-input>
 
-    <!-- Filtros Superiores -->
-    <div class="row items-center justify-between q-col-gutter-sm q-mb-md">
-      <div class="col-12 col-sm-8 row items-center q-gutter-sm">
-        <q-input
-          v-model="search"
-          dense
-          outlined
-          dark
-          placeholder="Buscar por atajo o mensaje"
-          class="whaticket-filter-input"
-        >
-          <template #prepend>
-            <q-icon name="sym_r_search" size="18px" color="grey-5" />
-          </template>
-        </q-input>
+      <q-btn
+        color="primary"
+        label="Nueva respuesta rápida"
+        icon="sym_r_add"
+        unelevated
+        @click="openCreateDialog"
+      />
+    </template>
 
-        <q-select
-          v-model="selectedDepartment"
-          :options="departmentOptions"
-          emit-value
-          map-options
-          dense
-          outlined
-          dark
-          class="whaticket-filter-select"
-        />
-      </div>
+    <q-banner
+      v-if="quickMessagesQuery.isError.value"
+      rounded
+      class="quick-messages__banner bg-red-1 text-negative q-mb-md"
+    >
+      No se pudieron cargar las respuestas rápidas desde el servidor.
+    </q-banner>
 
-      <!-- Acciones Derecha -->
-      <div class="col-12 col-sm-4 row items-center justify-end q-gutter-sm">
-        <div class="whaticket-view-toggle">
-          <button class="whaticket-view-btn whaticket-view-btn--active">
-            <q-icon name="sym_r_list" size="18px" />
-          </button>
-        </div>
+    <AppLoadingState
+      v-if="quickMessagesQuery.isLoading.value"
+      title="Cargando respuestas rápidas"
+      description="Obteniendo la lista de atajos y plantillas configuradas..."
+    />
 
-        <q-btn
-          color="primary"
-          label="+ Añadir respuesta rápida"
-          unelevated
-          no-caps
-          class="whaticket-btn-primary"
-          @click="openCreateDialog"
-        />
-      </div>
-    </div>
-
-    <!-- Tabla de Respuestas Rápidas -->
-    <q-card flat bordered class="whaticket-table-card">
-      <q-markup-table flat dark class="whaticket-table">
-        <thead>
-          <tr>
-            <th class="text-left" style="width: 220px">ATAJO</th>
-            <th class="text-left">MENSAJE</th>
-            <th class="text-left" style="width: 180px">DEPARTAMENTOS</th>
-            <th class="text-right" style="width: 120px">ACCIONES</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in filteredQuickMessages" :key="item.id" class="whaticket-table-row">
-            <td class="text-left text-bold text-primary">
-              {{ item.shortcut.startsWith('/') ? item.shortcut : `/${item.shortcut}` }}
-            </td>
-            <td class="text-left text-grey-3 ellipsis-2-lines">
-              {{ item.message }}
-            </td>
-            <td class="text-left text-caption text-grey-5 italic">
-              {{ item.department || 'Sin departamento' }}
-            </td>
-            <td class="text-right">
-              <div class="row justify-end q-gutter-xs">
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="sym_r_edit"
-                  color="grey-4"
-                  size="sm"
-                  @click="editItem(item)"
-                />
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="sym_r_delete"
-                  color="negative"
-                  size="sm"
-                  @click="deleteItem(item.id)"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </q-markup-table>
-    </q-card>
-
-    <!-- Modal Crear / Editar -->
-    <q-dialog v-model="isDialogOpen">
-      <q-card style="width: 580px; max-width: 95vw" class="whaticket-modal-card q-pa-md">
-        <q-card-section>
-          <div class="text-h6 text-bold text-white">
-            {{ currentItem ? 'Editar Respuesta Rápida' : 'Añadir Respuesta Rápida' }}
+    <div
+      v-else-if="filteredQuickMessages.length > 0"
+      class="quick-messages__grid"
+    >
+      <q-card
+        v-for="item in filteredQuickMessages"
+        :key="item.id"
+        flat
+        bordered
+        class="quick-messages__card"
+      >
+        <q-card-section class="quick-messages__card-header">
+          <div class="row items-center q-gutter-x-sm">
+            <q-badge
+              color="teal-10"
+              text-color="teal-2"
+              class="quick-messages__badge text-weight-bold"
+            >
+              /{{ item.shortcut.replace(/^\/+/, '') }}
+            </q-badge>
+            <q-badge
+              :color="item.is_general ? 'blue-9' : 'purple-9'"
+              outline
+              class="text-caption"
+            >
+              {{ item.is_general ? 'General' : 'Personal' }}
+            </q-badge>
           </div>
-          <div class="text-caption text-grey-4">
-            Usa atajos como <code>/bienvenida</code> para insertar este texto al chatear.
+
+          <div class="row items-center q-gutter-x-xs">
+            <q-btn
+              flat
+              round
+              dense
+              size="sm"
+              icon="sym_r_edit"
+              color="grey-4"
+              @click="openEditDialog(item)"
+            >
+              <q-tooltip>Editar plantilla</q-tooltip>
+            </q-btn>
+            <q-btn
+              flat
+              round
+              dense
+              size="sm"
+              icon="sym_r_delete"
+              color="negative"
+              @click="promptDelete(item)"
+            >
+              <q-tooltip>Eliminar</q-tooltip>
+            </q-btn>
           </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-separator dark class="quick-messages__card-separator" />
+
+        <q-card-section class="quick-messages__card-body">
+          <p class="quick-messages__card-text">
+            {{ item.message }}
+          </p>
+        </q-card-section>
+      </q-card>
+    </div>
+
+    <AppEmptyState
+      v-else-if="search"
+      title="Sin coincidencias"
+      description="No encontramos respuestas rápidas que coincidan con tu búsqueda."
+      icon="sym_r_search_off"
+      class="quick-messages__empty"
+    />
+
+    <AppEmptyState
+      v-else
+      title="No hay respuestas rápidas configuradas"
+      description="Crea tu primer atajo para responder con un solo clic o escribiendo / desde la bandeja de WhatsApp."
+      icon="sym_r_bolt"
+      class="quick-messages__empty"
+    />
+
+    <!-- Diálogo Crear / Editar -->
+    <q-dialog v-model="isDialogOpen" persistent>
+      <q-card style="width: 540px; max-width: 95vw" class="quick-messages__dialog-card">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="text-subtitle1 text-weight-bold text-white">
+            {{ editingItem ? 'Editar respuesta rápida' : 'Nueva respuesta rápida' }}
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-gutter-y-md q-pt-md">
           <q-input
             v-model="form.shortcut"
-            label="Atajo (ej. precios, horarios, promo)"
+            label="Atajo *"
             prefix="/"
             outlined
-            dark
             dense
+            placeholder="ej: precios, bienvenida, soporte"
+            hint="Escribe este atajo en el chat para insertar la plantilla."
+            :rules="[val => !!val?.trim() || 'El atajo es requerido']"
           />
 
-          <q-input
-            v-model="form.message"
-            label="Mensaje completo"
-            type="textarea"
-            rows="4"
-            outlined
-            dark
-          />
+          <div>
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-grey-4">Variables dinámicas:</span>
+              <div class="row q-gutter-x-xs">
+                <q-chip
+                  clickable
+                  dense
+                  outline
+                  color="teal-4"
+                  size="sm"
+                  @click="insertVariable('{{name}}')"
+                >
+                  &#123;&#123;name&#125;&#125;
+                </q-chip>
+                <q-chip
+                  clickable
+                  dense
+                  outline
+                  color="teal-4"
+                  size="sm"
+                  @click="insertVariable('{{phone}}')"
+                >
+                  &#123;&#123;phone&#125;&#125;
+                </q-chip>
+              </div>
+            </div>
 
-          <div class="row q-gutter-xs">
-            <span class="text-caption text-grey-4">Insertar variable:</span>
-            <q-chip clickable dense dark color="dark" @click="form.message += ' {{name}}'">&#123;&#123;name&#125;&#125;</q-chip>
-            <q-chip clickable dense dark color="dark" @click="form.message += ' {{phone}}'">&#123;&#123;phone&#125;&#125;</q-chip>
-            <q-chip clickable dense dark color="dark" @click="form.message += ' {{greeting}}'">&#123;&#123;greeting&#125;&#125;</q-chip>
+            <q-input
+              v-model="form.message"
+              label="Mensaje completo *"
+              type="textarea"
+              outlined
+              dense
+              rows="4"
+              placeholder="Escribe el texto que se enviará al cliente..."
+              :rules="[val => !!val?.trim() || 'El mensaje es requerido']"
+            />
           </div>
 
-          <q-select
-            v-model="form.department"
-            :options="['Sin departamento', 'Ventas', 'Soporte', 'Admisiones']"
-            label="Departamento / Fila"
-            outlined
-            dark
-            dense
+          <q-toggle
+            v-model="form.is_general"
+            label="Compartir con todo el equipo (General)"
+            color="primary"
+            class="text-grey-3"
           />
         </q-card-section>
 
-        <q-card-actions align="right">
-          <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat label="Cancelar" color="grey-4" v-close-popup />
           <q-btn
             unelevated
-            label="Guardar"
+            label="Guardar respuesta"
             color="primary"
-            no-caps
-            class="whaticket-btn-primary"
-            @click="saveItem"
+            :loading="isSubmitting"
+            @click="handleSubmit"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </div>
+
+    <!-- Diálogo Confirmar Eliminación -->
+    <AppConfirmDialog
+      v-model="isDeleteDialogOpen"
+      title="Eliminar respuesta rápida"
+      message="¿Seguro que deseas eliminar este atajo? Los asesores ya no podrán utilizarlo en la bandeja."
+      confirm-label="Eliminar"
+      :loading="deleteMutation.isPending.value"
+      @confirm="handleConfirmDelete"
+    />
+  </AppPage>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { http } from '@/shared/api/http'
+import { computed, reactive, ref } from 'vue'
+import AppPage from '@/shared/components/AppPage.vue'
+import AppLoadingState from '@/shared/components/AppLoadingState.vue'
+import AppEmptyState from '@/shared/components/AppEmptyState.vue'
+import AppConfirmDialog from '@/shared/components/AppConfirmDialog.vue'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { useQuickMessageMutations, useQuickMessages } from '../composables/useQuickMessages'
+import type { QuickMessage } from '../types/quick-message.types'
 
 const notify = useAppNotify()
-
-interface QuickMessageItem {
-  id: string
-  shortcut: string
-  message: string
-  department: string | null
-}
+const quickMessagesQuery = useQuickMessages()
+const { createMutation, updateMutation, deleteMutation } = useQuickMessageMutations()
 
 const search = ref('')
-const selectedDepartment = ref('all')
 const isDialogOpen = ref(false)
-const currentItem = ref<QuickMessageItem | null>(null)
-
-const departmentOptions = [
-  { label: 'Departamentos (Todos)', value: 'all' },
-  { label: 'Ventas', value: 'Ventas' },
-  { label: 'Soporte', value: 'Soporte' },
-  { label: 'Admisiones', value: 'Admisiones' },
-]
+const isDeleteDialogOpen = ref(false)
+const editingItem = ref<QuickMessage | null>(null)
+const itemToDelete = ref<QuickMessage | null>(null)
 
 const form = reactive({
   shortcut: '',
   message: '',
-  department: 'Sin departamento',
+  is_general: true,
 })
 
-const quickMessages = ref<QuickMessageItem[]>([
-  { id: '1', shortcut: '/25% agosto', message: '🎁 *¡Gran Promoción!* Inscríbete con un *25% de descuento por 4 semestres* en la carrera que elijas.', department: null },
-  { id: '2', shortcut: '/amable', message: 'Sería tan amable de brindarme su nombre completo y número de celular para poder registrar su solicitud.', department: null },
-  { id: '3', shortcut: '/a que sede', message: '¿En qué ciudad deseas estudiar? Contamos con campus en: Cochabamba, La Paz, El Alto, Santa Cruz, Cobija, Puerto Quijarro.', department: null },
-  { id: '4', shortcut: '/becas', message: '*Contamos con diferentes modalidades de Becas:* Beca Patriota, Beca Deportiva y Talento Artístico.', department: null },
-])
-
-onMounted(async () => {
-  try {
-    const response = await http.get('/quick-messages')
-    if (response.data?.data && response.data.data.length > 0) {
-      quickMessages.value = response.data.data.map((q: any) => ({
-        id: q.id,
-        shortcut: q.shortcode || q.shortcut,
-        message: q.message,
-        department: q.queue?.name ?? null,
-      }))
-    }
-  } catch {
-    // Mantener datos demo
-  }
-})
+const isSubmitting = computed(
+  () => createMutation.isPending.value || updateMutation.isPending.value,
+)
 
 const filteredQuickMessages = computed(() => {
-  return quickMessages.value.filter((item) => {
-    const matchSearch =
-      !search.value ||
-      item.shortcut.toLowerCase().includes(search.value.toLowerCase()) ||
-      item.message.toLowerCase().includes(search.value.toLowerCase())
+  const list = quickMessagesQuery.data.value ?? []
+  const query = search.value.trim().toLowerCase()
 
-    const matchDept =
-      selectedDepartment.value === 'all' ||
-      item.department === selectedDepartment.value
+  if (!query) return list
 
-    return matchSearch && matchDept
+  return list.filter((item) => {
+    return (
+      item.shortcut.toLowerCase().includes(query) ||
+      item.message.toLowerCase().includes(query)
+    )
   })
 })
 
 function openCreateDialog() {
-  currentItem.value = null
+  editingItem.value = null
   form.shortcut = ''
   form.message = ''
-  form.department = 'Sin departamento'
+  form.is_general = true
   isDialogOpen.value = true
 }
 
-function editItem(item: QuickMessageItem) {
-  currentItem.value = item
+function openEditDialog(item: QuickMessage) {
+  editingItem.value = item
   form.shortcut = item.shortcut.replace(/^\/+/, '')
   form.message = item.message
-  form.department = item.department || 'Sin departamento'
+  form.is_general = item.is_general
   isDialogOpen.value = true
 }
 
-async function saveItem() {
-  if (!form.shortcut.trim() || !form.message.trim()) return
-
-  const cleanShortcut = `/${form.shortcut.trim().replace(/^\/+/, '')}`
-
-  try {
-    if (currentItem.value) {
-      await http.put(`/quick-messages/${currentItem.value.id}`, {
-        shortcode: cleanShortcut,
-        message: form.message,
-      })
-      currentItem.value.shortcut = cleanShortcut
-      currentItem.value.message = form.message
-      currentItem.value.department = form.department === 'Sin departamento' ? null : form.department
-      notify.success({ message: 'Respuesta rápida actualizada.' })
-    } else {
-      const response = await http.post('/quick-messages', {
-        shortcode: cleanShortcut,
-        message: form.message,
-      })
-      const created = response.data?.data
-      quickMessages.value.unshift({
-        id: created?.id ?? Date.now().toString(),
-        shortcut: cleanShortcut,
-        message: form.message,
-        department: form.department === 'Sin departamento' ? null : form.department,
-      })
-      notify.success({ message: 'Respuesta rápida creada.' })
-    }
-  } catch {
-    if (currentItem.value) {
-      currentItem.value.shortcut = cleanShortcut
-      currentItem.value.message = form.message
-    } else {
-      quickMessages.value.unshift({
-        id: Date.now().toString(),
-        shortcut: cleanShortcut,
-        message: form.message,
-        department: form.department === 'Sin departamento' ? null : form.department,
-      })
-    }
-    notify.success({ message: 'Guardado localmente.' })
-  }
-
-  isDialogOpen.value = false
+function insertVariable(variable: string) {
+  form.message += ` ${variable} `
 }
 
-async function deleteItem(id: string) {
-  try {
-    await http.delete(`/quick-messages/${id}`)
-    notify.warning({ message: 'Respuesta rápida eliminada.' })
-  } catch {
-    notify.warning({ message: 'Eliminada localmente.' })
+async function handleSubmit() {
+  const cleanShortcut = form.shortcut.trim().replace(/^\/+/, '')
+  const cleanMessage = form.message.trim()
+
+  if (!cleanShortcut || !cleanMessage) {
+    notify.error('Datos incompletos', 'Completa el atajo y el mensaje.')
+    return
   }
-  quickMessages.value = quickMessages.value.filter((q) => q.id !== id)
+
+  try {
+    if (editingItem.value) {
+      await updateMutation.mutateAsync({
+        id: editingItem.value.id,
+        payload: {
+          shortcut: cleanShortcut,
+          message: cleanMessage,
+          is_general: form.is_general,
+        },
+      })
+      notify.success('Respuesta rápida actualizada', `/${cleanShortcut} se guardó correctamente.`)
+    } else {
+      await createMutation.mutateAsync({
+        shortcut: cleanShortcut,
+        message: cleanMessage,
+        is_general: form.is_general,
+      })
+      notify.success('Respuesta rápida creada', `/${cleanShortcut} ya está disponible para el equipo.`)
+    }
+
+    isDialogOpen.value = false
+  } catch (error) {
+    notify.fromError(error, 'No se pudo guardar la respuesta rápida.')
+  }
+}
+
+function promptDelete(item: QuickMessage) {
+  itemToDelete.value = item
+  isDeleteDialogOpen.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!itemToDelete.value) return
+
+  try {
+    await deleteMutation.mutateAsync(itemToDelete.value.id)
+    notify.info('Respuesta rápida eliminada', `El atajo /${itemToDelete.value.shortcut} fue retirado.`)
+    itemToDelete.value = null
+    isDeleteDialogOpen.value = false
+  } catch (error) {
+    notify.fromError(error, 'No se pudo eliminar la respuesta rápida.')
+  }
 }
 </script>
 
 <style scoped lang="scss">
-.whaticket-quick-messages-page {
-  padding: 24px 32px;
-  background-color: var(--crm-bg-app);
-  min-height: calc(100vh - 52px);
+.quick-messages__search {
+  min-width: 260px;
 }
 
-.whaticket-filter-input,
-.whaticket-filter-select {
-  min-width: 200px;
-  .q-field__control {
-    background: #182229 !important;
-    border-radius: 8px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-    font-size: 0.85rem;
+.quick-messages__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.quick-messages__card {
+  border-radius: var(--crm-radius-card, 16px);
+  background: var(--crm-bg-card, #0f1c2b);
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    border-color: rgba(77, 208, 225, 0.35);
   }
 }
 
-.whaticket-view-toggle {
-  display: flex;
-  background: #182229;
-  border-radius: 8px;
-  padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.whaticket-view-btn {
-  background: transparent;
-  border: none;
-  color: #8696a0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
+.quick-messages__card-header {
   display: flex;
   align-items: center;
-
-  &--active {
-    background: #202c33;
-    color: #ffffff;
-  }
+  justify-content: space-between;
+  padding: 12px 16px;
 }
 
-.whaticket-btn-primary {
-  background-color: #00a884 !important;
-  color: #ffffff !important;
-  font-weight: 600;
-  border-radius: 8px;
-  height: 36px;
+.quick-messages__card-separator {
+  border-color: var(--crm-color-border, rgba(255, 255, 255, 0.06));
 }
 
-.whaticket-table-card {
-  background-color: #182229 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
+.quick-messages__card-body {
+  padding: 14px 16px;
+  flex: 1;
 }
 
-.whaticket-table {
-  background-color: transparent !important;
-
-  thead tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    th {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: #8696a0;
-      padding: 12px 16px;
-    }
-  }
-
-  tbody tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    td {
-      padding: 12px 16px;
-      font-size: 0.85rem;
-    }
-  }
+.quick-messages__card-text {
+  margin: 0;
+  color: var(--crm-color-ink, #e0e6ed);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: pre-line;
 }
 
-.whaticket-modal-card {
-  background-color: #111b21 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 16px !important;
+.quick-messages__badge {
+  font-family: monospace;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.quick-messages__dialog-card {
+  background: var(--crm-bg-card, #101e2e);
+  border-radius: 16px;
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.1));
+}
+
+.quick-messages__empty,
+.quick-messages__banner {
+  border-radius: var(--crm-radius-card, 16px);
 }
 </style>

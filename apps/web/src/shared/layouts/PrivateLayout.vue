@@ -31,7 +31,7 @@
           <!-- Pill Indicador de Fase Activa -->
           <div class="phase-active-pill q-ml-sm gt-xs">
             <span class="phase-active-dot"></span>
-            <span>Fase 3: Pipeline Comercial & Tablero Kanban</span>
+            <span>Fase 4: Productividad & Respuestas Rápidas</span>
           </div>
         </div>
 
@@ -65,7 +65,7 @@
               <div class="q-pa-md">
                 <div class="text-weight-bold text-white">{{ authStore.user?.name ?? 'Admin' }}</div>
                 <div class="text-caption text-grey-4">{{ authStore.user?.email ?? 'admin@crm.local' }}</div>
-                <div class="xf-user-role-badge q-mt-xs">Fase 3 • Superadmin</div>
+                <div class="xf-user-role-badge q-mt-xs">Fase 4 • Superadmin</div>
               </div>
               <q-separator dark class="q-my-xs" />
               <q-list dense>
@@ -80,7 +80,7 @@
       </q-toolbar>
     </q-header>
 
-    <!-- Sidebar Lateral Minimalista — Fase 2 Activa -->
+    <!-- Sidebar Lateral Minimalista — Fase 4 Activa -->
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
@@ -93,7 +93,7 @@
           <!-- Encabezado de Navegación de Fase -->
           <div class="xf-nav-section-header">
             <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
-              Fase 3 • Módulos Activos
+              Fase 4 • Módulos Activos
             </div>
           </div>
 
@@ -151,7 +151,20 @@
               <q-item-section>Pipeline Comercial</q-item-section>
             </q-item>
 
-            <!-- 5. Audiencia & Contactos -->
+            <!-- 5. Respuestas Rápidas & Snippets (Fase 4) -->
+            <q-item
+              clickable
+              to="/app/quick-messages"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_bolt" size="18px" />
+              </q-item-section>
+              <q-item-section>Respuestas Rápidas</q-item-section>
+            </q-item>
+
+            <!-- 6. Audiencia & Contactos -->
             <q-item
               clickable
               to="/app/contacts"
@@ -164,7 +177,7 @@
               <q-item-section>Contactos & Audiencia</q-item-section>
             </q-item>
 
-            <!-- 6. Etiquetas & Segmentos -->
+            <!-- 7. Etiquetas & Segmentos -->
             <q-item
               clickable
               to="/app/tags"
@@ -177,7 +190,7 @@
               <q-item-section>Etiquetas & Segmentos</q-item-section>
             </q-item>
 
-            <!-- 7. Empresas & Cuentas -->
+            <!-- 8. Empresas & Cuentas -->
             <q-item
               clickable
               to="/app/companies"
@@ -195,12 +208,12 @@
           <div class="xf-roadmap-card q-mx-sm q-mt-md">
             <div class="row items-center justify-between q-mb-xs">
               <span class="text-caption text-weight-bold text-white">Roadmap V2</span>
-              <span class="text-caption text-teal-4 text-weight-medium">Fase 3 / 6</span>
+              <span class="text-caption text-teal-4 text-weight-medium">Fase 4 / 6</span>
             </div>
             <p class="text-caption text-grey-5 q-mb-xs roadmap-text">
-              Fase 4 (Productividad & Respuestas Rápidas) se desbloqueará en su etapa.
+              Fase 5 (Hentle-AI Copilot & RAG) se desbloqueará en su etapa.
             </p>
-            <q-linear-progress :value="0.50" color="positive" track-color="grey-9" rounded size="4px" />
+            <q-linear-progress :value="0.66" color="positive" track-color="grey-9" rounded size="4px" />
           </div>
 
         </div>

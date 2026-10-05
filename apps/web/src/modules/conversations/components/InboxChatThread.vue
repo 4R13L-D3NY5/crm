@@ -153,6 +153,19 @@
             <q-icon name="sym_r_lock" size="14px" />
             <span>Nota Interna</span>
           </button>
+
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="teal-4"
+            icon="sym_r_bolt"
+            label="Respuestas Rápidas (/)"
+            class="q-px-xs"
+            @click="showQuickMessagesModal = true"
+          >
+            <q-tooltip>Atajos de respuesta rápida</q-tooltip>
+          </q-btn>
         </div>
 
         <span class="text-caption text-grey-5" style="font-size: 0.7rem">
@@ -169,7 +182,7 @@
           outlined
           dark
           :rows="1"
-          :placeholder="composerMode === 'whatsapp' ? 'Escribe una respuesta para el cliente...' : 'Escribe una nota interna para los supervisores...'"
+          :placeholder="composerMode === 'whatsapp' ? 'Escribe una respuesta para el cliente... (o / para atajos)' : 'Escribe una nota interna para los supervisores...'"
           class="composer-textarea col"
           @keydown.enter.exact.prevent="handleSend"
         />
@@ -186,11 +199,64 @@
         />
       </div>
     </footer>
+
+    <!-- Modal Seleccionar Respuesta Rápida -->
+    <q-dialog v-model="showQuickMessagesModal">
+      <q-card style="min-width: 440px; max-width: 95vw" class="quick-messages-picker-card">
+        <q-card-section class="q-pb-none">
+          <div class="row items-center justify-between">
+            <div class="text-subtitle1 text-weight-bold text-white row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_bolt" color="teal-4" size="20px" />
+              <span>Respuestas Rápidas</span>
+            </div>
+            <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+          </div>
+          <q-input
+            v-model="quickSearch"
+            dense
+            outlined
+            dark
+            placeholder="Filtrar por atajo o mensaje..."
+            class="q-mt-sm"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_search" size="18px" />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-section style="max-height: 340px" class="scroll q-py-sm">
+          <div v-if="filteredQuickMessages.length === 0" class="text-center text-grey-5 q-py-md">
+            No se encontraron atajos disponibles.
+          </div>
+          <q-list v-else separator dark>
+            <q-item
+              v-for="qm in filteredQuickMessages"
+              :key="qm.id"
+              clickable
+              class="rounded-borders q-my-xs quick-message-item"
+              @click="applyQuickMessage(qm.message)"
+            >
+              <q-item-section>
+                <div class="row items-center q-gutter-x-sm">
+                  <span class="text-weight-bold text-teal-4 font-mono">/{{ qm.shortcut.replace(/^\/+/, '') }}</span>
+                  <q-badge v-if="qm.is_general" outline color="blue-6" size="xs">General</q-badge>
+                </div>
+                <div class="text-caption text-grey-3 q-mt-xs ellipsis-2-lines">
+                  {{ qm.message }}
+                </div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
 import type { Conversation } from '../types/conversation.types'
 
 const props = defineProps<{
@@ -207,9 +273,53 @@ const emit = defineEmits<{
   (e: 'send-message', payload: { body: string; is_internal: boolean }): void
 }>()
 
+const quickMessagesQuery = useQuickMessages()
+const showQuickMessagesModal = ref(false)
+const quickSearch = ref('')
+
 const messagesContainer = ref<HTMLElement | null>(null)
 const composerMode = ref<'whatsapp' | 'internal'>('whatsapp')
 const composerText = ref('')
+
+const filteredQuickMessages = computed(() => {
+  const list = quickMessagesQuery.data.value ?? []
+  const query = quickSearch.value.trim().toLowerCase()
+  if (!query) return list
+  return list.filter(
+    (item) =>
+      item.shortcut.toLowerCase().includes(query) ||
+      item.message.toLowerCase().includes(query),
+  )
+})
+
+function applyQuickMessage(template: string) {
+  const contactName = props.conversation.contact?.name || 'cliente'
+  const contactPhone = props.conversation.contact?.phone || ''
+
+  const result = template
+    .replace(/\{\{\s*name\s*\}\}/gi, contactName)
+    .replace(/\{\{\s*phone\s*\}\}/gi, contactPhone)
+    .replace(/\{\{\s*greeting\s*\}\}/gi, 'Hola')
+
+  if (composerText.value.startsWith('/')) {
+    composerText.value = result
+  } else if (composerText.value.trim()) {
+    composerText.value += '\n' + result
+  } else {
+    composerText.value = result
+  }
+
+  showQuickMessagesModal.value = false
+}
+
+watch(
+  () => composerText.value,
+  (val) => {
+    if (val === '/') {
+      showQuickMessagesModal.value = true
+    }
+  },
+)
 
 const statusBadgeColor = computed(() => {
   switch (props.conversation.status) {
@@ -420,6 +530,19 @@ onMounted(() => scrollToBottom())
   :deep(.q-field__control) {
     border-radius: 8px;
     font-size: 0.85rem;
+  }
+}
+
+.quick-messages-picker-card {
+  background: var(--crm-bg-card, #101e2e) !important;
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.1)) !important;
+  border-radius: 16px !important;
+}
+
+.quick-message-item {
+  transition: background-color var(--crm-transition-fast, 0.15s ease);
+  &:hover {
+    background-color: rgba(77, 208, 225, 0.08) !important;
   }
 }
 </style>
