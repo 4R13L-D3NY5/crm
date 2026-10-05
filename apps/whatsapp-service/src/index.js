@@ -77,7 +77,7 @@ async function initSession(sessionId) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, logger),
     },
-    browser: Browsers ? Browsers.macOS('Desktop') : ['Mac OS', 'Desktop', '14.4.1'],
+    browser: Browsers ? Browsers.ubuntu('Chrome') : ['Ubuntu', 'Chrome', '22.04.4'],
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     defaultQueryTimeoutMs: undefined,
@@ -143,7 +143,8 @@ async function initSession(sessionId) {
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const wasConnected = sessions[sessionId]?.status === 'CONNECTED';
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut || !wasConnected;
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+      const shouldReconnect = !isLoggedOut || !wasConnected;
 
       console.log(
         `[WhatsApp Connection Closed] account=${sessionId} statusCode=${statusCode} wasConnected=${wasConnected} shouldReconnect=${shouldReconnect}`,
@@ -158,7 +159,7 @@ async function initSession(sessionId) {
       }
 
       if (!shouldReconnect) {
-        // Usuario desconectó activamente su WhatsApp ya vinculado
+        // Usuario desconectó activamente su WhatsApp ya vinculado desde su teléfono
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'DISCONNECTED';
           sessions[sessionId].qrRaw = null;
@@ -176,20 +177,14 @@ async function initSession(sessionId) {
           reason: 'logged_out',
         });
       } else {
-        // Si expiró el QR (401 o 408) sin haberse vinculado aún, limpiamos credenciales residuales
-        if (!wasConnected) {
-          try {
-            fs.rmSync(sessionPath, { recursive: true, force: true });
-          } catch (_) {}
-        }
-
         if (sessions[sessionId]) {
           sessions[sessionId].status = 'CONNECTING';
           sessions[sessionId].qrRaw = null;
           sessions[sessionId].qrImage = null;
         }
 
-        const delay = statusCode === DisconnectReason.restartRequired ? 50 : 1200;
+        // Si es 515 (restartRequired), damos 1000ms para asegurar que las credenciales recién escritas por Baileys estén completamente en disco
+        const delay = statusCode === DisconnectReason.restartRequired ? 1000 : 1500;
         setTimeout(() => {
           if (!sessions[sessionId]?.sock) {
             initSession(sessionId).catch(console.error);
@@ -322,9 +317,16 @@ app.post('/sessions/:sessionId/pairing-code', async (req, res) => {
       return res.status(500).json({ error: 'Socket no disponible' });
     }
 
-    // Esperar un momento a que el socket complete la negociación de inicio
-    await new Promise((r) => setTimeout(r, 1200));
+    // Esperar a que el socket de WhatsApp esté completamente conectado
+    let waitReady = 0;
+    while (waitReady < 20 && (!session.sock?.ws || session.sock.ws.readyState !== 1)) {
+      await new Promise((r) => setTimeout(r, 200));
+      waitReady++;
+    }
+
+    await new Promise((r) => setTimeout(r, 800));
     const code = await session.sock.requestPairingCode(cleanPhone);
+    console.log(`[Pairing Code Generated] account=${sessionId} phone=${cleanPhone} code=${code}`);
     res.json({ success: true, pairing_code: code });
   } catch (err) {
     console.error(`[Pairing Code Error] ${err.message}`);
