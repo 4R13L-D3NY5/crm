@@ -20,6 +20,7 @@ const {
   makeCacheableSignalKeyStore,
   extractMessageContent,
   jidNormalizedUser,
+  downloadMediaMessage,
 } = baileys;
 
 process.on('unhandledRejection', (reason) => {
@@ -41,7 +42,7 @@ if (!fs.existsSync(SESSIONS_DIR)) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // In-memory sessions store
 // sessions[id] = { sock, qrRaw, qrImage, status, phone, name }
@@ -49,7 +50,11 @@ const sessions = {};
 
 async function notifyLaravel(payload) {
   try {
-    await axios.post(LARAVEL_WEBHOOK_URL, payload, { timeout: 6000 });
+    await axios.post(LARAVEL_WEBHOOK_URL, payload, {
+      timeout: 30000,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    });
   } catch (err) {
     console.error(
       `[Webhook Notification Failed] event=${payload.event} error=${err.message}`,
@@ -252,6 +257,60 @@ async function initSession(sessionId) {
 
       // Desempaquetar contenido de mensaje (efímero, viewOnce, documento, captions, texto)
       const content = (extractMessageContent ? extractMessageContent(msg.message) : null) || msg.message || {};
+
+      // Detectar tipo multimedia
+      let mediaType = null;
+      let mimeType = null;
+      let durationSeconds = null;
+      let fileName = null;
+
+      if (content.imageMessage) {
+        mediaType = 'image';
+        mimeType = content.imageMessage.mimetype || 'image/jpeg';
+      } else if (content.audioMessage) {
+        mediaType = 'audio';
+        mimeType = content.audioMessage.mimetype || 'audio/ogg';
+        durationSeconds = content.audioMessage.seconds || null;
+      } else if (content.videoMessage) {
+        mediaType = 'video';
+        mimeType = content.videoMessage.mimetype || 'video/mp4';
+        durationSeconds = content.videoMessage.seconds || null;
+      } else if (content.documentMessage) {
+        mediaType = 'document';
+        mimeType = content.documentMessage.mimetype || 'application/pdf';
+        fileName = content.documentMessage.fileName || 'documento';
+      }
+
+      let mediaBuffer = null;
+      if (mediaType && downloadMediaMessage) {
+        try {
+          mediaBuffer = await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            {
+              logger,
+              reuploadRequest: sock ? (m) => sock.updateMediaMessage(m) : undefined,
+            }
+          );
+          if (mediaBuffer && mediaBuffer.length > 0) {
+            console.log(`[Media Downloaded] type=${mediaType} bytes=${mediaBuffer.length}`);
+          }
+        } catch (downloadErr) {
+          console.warn(`[Media Download Fallback] id=${msg.key.id}: ${downloadErr.message}`);
+          try {
+            mediaBuffer = await downloadMediaMessage(
+              { key: msg.key, message: content },
+              'buffer',
+              {},
+              { logger }
+            );
+          } catch (e2) {
+            console.warn(`[Media Download Fallback 2 Failed] ${e2.message}`);
+          }
+        }
+      }
+
       const body =
         content.conversation ||
         content.extendedTextMessage?.text ||
@@ -270,8 +329,12 @@ async function initSession(sessionId) {
         (content.locationMessage ? '[Ubicación]' : '') ||
         '';
 
-      if (body && body.trim().length > 0) {
-        console.log(`[Inbound Message Received] account=${sessionId} from=${cleanPhone} body=${body}`);
+      const effectiveBody = (body && body.trim().length > 0)
+        ? body.trim()
+        : (mediaType === 'image' ? '[Imagen]' : (mediaType === 'audio' ? '[Nota de voz / Audio]' : ''));
+
+      if (effectiveBody && effectiveBody.length > 0) {
+        console.log(`[Inbound Message Received] account=${sessionId} from=${cleanPhone} type=${mediaType || 'text'} body=${effectiveBody}`);
 
         await notifyLaravel({
           event: 'message',
@@ -279,8 +342,13 @@ async function initSession(sessionId) {
           provider_message_id: msg.key.id,
           from_phone: cleanPhone,
           from_name: msg.pushName || cleanPhone,
-          body: body.trim(),
+          body: effectiveBody,
           timestamp: msg.messageTimestamp,
+          media_type: mediaType,
+          media_base64: mediaBuffer ? mediaBuffer.toString('base64') : null,
+          mime_type: mimeType,
+          media_duration_seconds: durationSeconds,
+          file_name: fileName,
         });
       } else {
         console.log(`[Inbound Message Skipped: Empty Body] rawKeys=`, Object.keys(msg.message || {}));

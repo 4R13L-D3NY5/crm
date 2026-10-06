@@ -12,10 +12,10 @@
 
 | ID | Tarea / Requerimiento | Módulo / Área | Prioridad | Estado | Próximo Paso |
 |:---:|---|:---:|:---:|:---:|---|
-| **TASK-001** | **Descarga y renderizado multimedia en Chat (Imágenes y Notas de Voz)** | WhatsApp / Inbox | 🔴 Alta | 📋 **PENDIENTE** | Implementar `downloadMediaMessage` en Baileys y reproductor/visor en `InboxChatThread.vue` |
+| **TASK-001** | **Descarga y renderizado multimedia en Chat (Imágenes, Audios y Emojis)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (descarga base64, visor zoom, audio player y selector emojis) |
 | **TASK-002** | **Balanceador y enrutador inteligente de WhatsApp (Abaratar costos)** | Canales / Salida | 🟡 Media | 📋 **PENDIENTE** | Diseñar router híbrido (Baileys QR $0 vs Meta Cloud API vs Round-Robin multichip) |
-| **TASK-003** | **Fase 5: Hentle-AI Copilot & Base de Conocimiento RAG (`pgvector`)** | Copilot / IA | 🟡 Media | 📋 **PENDIENTE** | Conectar `WabotKnowledgePage.vue` con API real y activar botón en el chat |
-| **TASK-004** | **Fase 6: Bot Flows, Colas por Departamento y Campañas de Difusión** | Automatizaciones | 🟢 Normal | 📋 **PENDIENTE** | Flujos de chatbot numérico y difusiones con tasa escalonada anti-ban |
+| **TASK-004** | **Fase 6: Bot Flows, Colas por Departamento y Campañas de Difusión** | Automatizaciones | 🔴 Alta | ⏳ **EN PROGRESO** | Activar enrutamiento de colas, bot numérico y difusiones escalonadas |
+| **TASK-003** | **Fase 5: Hentle-AI Copilot & Base de Conocimiento RAG (`pgvector`)** | Copilot / IA | ⚪ Pausado | ⏸️ **EN ESPERA** | Pausado temporalmente hasta disponer de API Key (Gemini u OpenAI) |
 | **TASK-005** | **Fase 4: Productividad & Respuestas Rápidas (Atajos `/`)** | Mensajería | 🟢 Normal | ✅ **COMPLETADO** | Verificado en frontend y backend (12 tests pasando) |
 | **TASK-006** | **Fase 3: Pipeline Comercial & Tablero Kanban (Purga de datos demo)** | Ventas / Deals | 🟢 Normal | ✅ **COMPLETADO** | Limpieza total de fakes y persistencia relacional en PostgreSQL |
 | **TASK-007** | **Conexión WhatsApp Web QR Baileys & Inbound/Outbound bidireccional** | WhatsApp Service | 🔴 Alta | ✅ **COMPLETADO** | Conexión estable con preservación de sesión y guía documentada |
@@ -70,6 +70,7 @@
 ---
 
 ## 📈 Historial de Hitos Completados
+- [x] **TASK-001**: Descarga y visualización de imágenes, notas de voz (`<audio>`), visor modal zoom y selector de emojis integrado en Inbox.
 - [x] **TASK-009**: Arquitectura base, multi-tenancy y control de roles.
 - [x] **TASK-008**: Directorio de contactos y sincronización con PostgreSQL.
 - [x] **TASK-007**: Baileys WhatsApp QR Service: reconexión automática 515, soporte LID y envío saliente verificado.

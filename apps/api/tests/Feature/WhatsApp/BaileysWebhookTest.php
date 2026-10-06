@@ -9,6 +9,7 @@ use App\Modules\Tenancy\Models\Organization;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class BaileysWebhookTest extends TestCase
@@ -119,5 +120,104 @@ class BaileysWebhookTest extends TestCase
         ]);
 
         Event::assertDispatched(TicketMessageCreatedEvent::class);
+    }
+
+    public function test_baileys_inbound_image_message_stores_media_file_and_sets_image_type(): void
+    {
+        Storage::fake('public');
+        Event::fake([TicketMessageCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_004',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $dummyImageData = base64_encode('fake-binary-image-data-png');
+
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_img_001',
+            'from_phone' => '+59170011223',
+            'from_name' => 'Comprador Imagen',
+            'body' => 'Mira este comprobante',
+            'media_type' => 'image',
+            'media_base64' => $dummyImageData,
+            'mime_type' => 'image/png',
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        $conversation = Conversation::where('organization_id', $organization->id)->first();
+        $this->assertNotNull($conversation);
+
+        $message = Message::where('conversation_id', $conversation->id)->first();
+        $this->assertNotNull($message);
+        $this->assertSame('image', $message->message_type);
+        $this->assertSame('image', $message->media_type);
+        $this->assertSame('Mira este comprobante', $message->body);
+        $this->assertNotNull($message->media_url);
+        $this->assertStringStartsWith('/storage/whatsapp_media/', $message->media_url);
+        $this->assertStringEndsWith('.png', $message->media_url);
+
+        $storedPath = str_replace('/storage/', '', $message->media_url);
+        Storage::disk('public')->assertExists($storedPath);
+    }
+
+    public function test_baileys_inbound_audio_voice_note_stores_media_file_and_sets_duration(): void
+    {
+        Storage::fake('public');
+        Event::fake([TicketMessageCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_005',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $dummyAudioData = base64_encode('fake-opus-voice-note');
+
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_audio_001',
+            'from_phone' => '+59170011223',
+            'from_name' => 'Cliente Audio',
+            'body' => '[Nota de voz / Audio]',
+            'media_type' => 'audio',
+            'media_base64' => $dummyAudioData,
+            'mime_type' => 'audio/ogg; codecs=opus',
+            'media_duration_seconds' => 14,
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        $conversation = Conversation::where('organization_id', $organization->id)->first();
+        $this->assertNotNull($conversation);
+
+        $message = Message::where('conversation_id', $conversation->id)->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('audio', $message->message_type);
+        $this->assertSame('audio', $message->media_type);
+        $this->assertSame(14, $message->media_duration_seconds);
+        $this->assertNotNull($message->media_url);
+        $this->assertStringStartsWith('/storage/whatsapp_media/', $message->media_url);
+        $this->assertStringEndsWith('.ogg', $message->media_url);
+
+        $storedPath = str_replace('/storage/', '', $message->media_url);
+        Storage::disk('public')->assertExists($storedPath);
     }
 }

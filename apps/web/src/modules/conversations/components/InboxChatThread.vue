@@ -115,7 +115,46 @@
             <span v-if="msg.user?.name" class="text-grey-4">• {{ msg.user.name }}</span>
           </div>
 
-          <div class="message-body">{{ msg.body }}</div>
+          <!-- Imagen Adjunta -->
+          <div v-if="msg.media_url && msg.media_type === 'image'" class="message-media-container q-mb-xs">
+            <img
+              :src="resolveMediaUrl(msg.media_url)"
+              alt="Imagen adjunta"
+              class="message-img-thumb"
+              loading="lazy"
+              @click="openImageModal(resolveMediaUrl(msg.media_url))"
+            />
+          </div>
+
+          <!-- Audio / Nota de voz -->
+          <div v-if="msg.media_url && (msg.media_type === 'audio' || msg.message_type === 'audio')" class="message-media-container q-mb-xs">
+            <div class="row items-center q-gutter-x-xs q-mb-xs text-caption" style="opacity: 0.9">
+              <q-icon name="sym_r_mic" size="14px" color="teal-3" />
+              <span>Nota de voz</span>
+              <span v-if="msg.media_duration_seconds" class="text-grey-4">• {{ formatDuration(msg.media_duration_seconds) }}</span>
+            </div>
+            <audio controls class="message-audio-player" preload="metadata">
+              <source :src="resolveMediaUrl(msg.media_url)">
+              Tu navegador no soporta el reproductor de audio.
+            </audio>
+          </div>
+
+          <!-- Documento Adjunto -->
+          <div v-if="msg.media_url && msg.media_type === 'document'" class="message-media-doc q-mb-xs">
+            <a :href="resolveMediaUrl(msg.media_url)" target="_blank" download class="message-doc-link row items-center q-gutter-x-sm">
+              <q-icon name="sym_r_description" size="20px" color="teal-4" />
+              <span class="text-caption ellipsis text-white">{{ msg.body && !isPureMediaPlaceholder(msg) ? msg.body : 'Descargar documento' }}</span>
+              <q-icon name="sym_r_download" size="15px" color="grey-4" />
+            </a>
+          </div>
+
+          <!-- Texto / Caption -->
+          <div
+            v-if="msg.body && !isPureMediaPlaceholder(msg)"
+            class="message-body"
+          >
+            {{ msg.body }}
+          </div>
 
           <div class="message-footer row items-center justify-end q-gutter-x-xs q-mt-xs">
             <span class="message-time">{{ formatMessageTime(msg.sent_at || msg.created_at) }}</span>
@@ -165,6 +204,35 @@
             @click="showQuickMessagesModal = true"
           >
             <q-tooltip>Atajos de respuesta rápida</q-tooltip>
+          </q-btn>
+
+          <!-- Selector de Emojis -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="amber-4"
+            icon="sym_r_sentiment_satisfied"
+            label="Emojis"
+            class="q-px-xs"
+          >
+            <q-tooltip>Insertar Emoji</q-tooltip>
+            <q-menu anchor="top start" self="bottom start" :offset="[0, 8]" class="emoji-menu-popover">
+              <div class="emoji-picker-container q-pa-sm">
+                <div class="text-caption text-weight-bold text-grey-4 q-mb-xs">Emojis Frecuentes</div>
+                <div class="emoji-grid">
+                  <button
+                    v-for="emoji in popularEmojis"
+                    :key="emoji"
+                    type="button"
+                    class="emoji-grid-btn"
+                    @click="insertEmoji(emoji)"
+                  >
+                    {{ emoji }}
+                  </button>
+                </div>
+              </div>
+            </q-menu>
           </q-btn>
         </div>
 
@@ -251,13 +319,43 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Modal Zoom de Imagen -->
+    <q-dialog v-model="showImageModal">
+      <q-card class="image-zoom-card">
+        <div class="row items-center justify-between q-pa-sm image-zoom-header">
+          <div class="row items-center q-gutter-x-xs text-caption text-white">
+            <q-icon name="sym_r_image" size="18px" color="teal-4" />
+            <span>Vista Previa de Imagen</span>
+          </div>
+          <div class="row items-center q-gutter-x-xs">
+            <q-btn
+              flat
+              round
+              dense
+              icon="sym_r_download"
+              color="grey-4"
+              :href="activeImageUrl"
+              download
+              target="_blank"
+            >
+              <q-tooltip>Descargar original</q-tooltip>
+            </q-btn>
+            <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+          </div>
+        </div>
+        <div class="image-zoom-body flex flex-center q-pa-md">
+          <img :src="activeImageUrl" alt="Visualización completa" class="image-zoom-img" />
+        </div>
+      </q-card>
+    </q-dialog>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
-import type { Conversation } from '../types/conversation.types'
+import type { Conversation, ConversationMessage } from '../types/conversation.types'
 
 const props = defineProps<{
   conversation: Conversation
@@ -276,6 +374,56 @@ const emit = defineEmits<{
 const quickMessagesQuery = useQuickMessages()
 const showQuickMessagesModal = ref(false)
 const quickSearch = ref('')
+
+const showImageModal = ref(false)
+const activeImageUrl = ref('')
+
+const popularEmojis = [
+  '😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
+  '😇', '🙂', '😉', '😍', '🥰', '😘', '🤩', '🥳',
+  '👍', '👎', '👌', '✌️', '🤞', '👏', '🙌', '🙏',
+  '🤝', '💪', '🔥', '✨', '⭐', '❤️', '💯', '🎯',
+  '💼', '💰', '📦', '🚀', '📞', '💬', '📍', '✅',
+  '⚠️', '⏳', '📌', '🎉', '💡', '📝', '🔒', '👋',
+]
+
+function insertEmoji(emoji: string) {
+  composerText.value += emoji
+}
+
+function openImageModal(url: string) {
+  activeImageUrl.value = url
+  showImageModal.value = true
+}
+
+function resolveMediaUrl(url?: string | null): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8010/api').replace(/\/api\/?$/, '')
+  return `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+function formatDuration(seconds?: number | null): string {
+  if (!seconds || seconds <= 0) return '0:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
+}
+
+function isPureMediaPlaceholder(msg: ConversationMessage): boolean {
+  if (!msg.media_url) return false
+  const trimmed = (msg.body || '').trim()
+  return (
+    trimmed === '[Imagen]' ||
+    trimmed === '[Nota de voz / Audio]' ||
+    trimmed === '[Audio]' ||
+    trimmed === '[Video]' ||
+    trimmed === '[Documento]' ||
+    trimmed === '[Multimedia]'
+  )
+}
 
 const messagesContainer = ref<HTMLElement | null>(null)
 const composerMode = ref<'whatsapp' | 'internal'>('whatsapp')
@@ -544,5 +692,108 @@ onMounted(() => scrollToBottom())
   &:hover {
     background-color: rgba(77, 208, 225, 0.08) !important;
   }
+}
+
+.message-img-thumb {
+  max-width: 280px;
+  max-height: 260px;
+  border-radius: 8px;
+  object-fit: cover;
+  cursor: pointer;
+  display: block;
+  transition: transform var(--crm-transition-fast, 0.15s ease), filter var(--crm-transition-fast, 0.15s ease);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  &:hover {
+    transform: scale(1.02);
+    filter: brightness(1.08);
+  }
+}
+
+.message-audio-player {
+  width: 260px;
+  max-width: 100%;
+  height: 38px;
+  border-radius: 20px;
+  outline: none;
+}
+
+.message-media-doc {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.message-doc-link {
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.emoji-menu-popover {
+  background: var(--crm-bg-surface-elevated, #1a2332) !important;
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.1)) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.emoji-picker-container {
+  width: 280px;
+  max-width: 90vw;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.emoji-grid-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 6px 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--crm-transition-fast, 0.15s ease), transform var(--crm-transition-fast, 0.15s ease);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.2);
+  }
+}
+
+.image-zoom-card {
+  background: #0b1120 !important;
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.15));
+  border-radius: 14px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.image-zoom-header {
+  background: #070b14;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.image-zoom-body {
+  overflow: auto;
+  max-height: calc(90vh - 54px);
+}
+
+.image-zoom-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
 }
 </style>

@@ -13,6 +13,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class BaileysWebhookController extends Controller
 {
@@ -84,12 +86,63 @@ class BaileysWebhookController extends Controller
         $fromName = $request->input('from_name');
         $body = $request->input('body');
         $providerMessageId = $request->input('provider_message_id');
+        $mediaBase64 = $request->input('media_base64');
+        $mediaType = $request->input('media_type');
+        $mimeType = $request->input('mime_type');
+        $durationSeconds = $request->input('media_duration_seconds');
+
+        if (blank($body) && filled($mediaType)) {
+            $body = match ($mediaType) {
+                'image' => '[Imagen]',
+                'audio' => '[Nota de voz / Audio]',
+                'video' => '[Video]',
+                'document' => '[Documento]',
+                default => '[Multimedia]',
+            };
+        }
 
         if (blank($body) || blank($fromPhone)) {
             return;
         }
 
         $cleanPhone = preg_replace('/[^0-9+]/', '', $fromPhone);
+
+        // Almacenar multimedia si viene adjunto
+        $mediaUrl = null;
+        if (filled($mediaBase64)) {
+            try {
+                $binary = base64_decode((string) $mediaBase64);
+                if ($binary !== false && strlen($binary) > 0) {
+                    $extension = match ($mediaType) {
+                        'image' => match ($mimeType) {
+                            'image/png' => 'png',
+                            'image/webp' => 'webp',
+                            'image/gif' => 'gif',
+                            default => 'jpg',
+                        },
+                        'audio' => match (true) {
+                            str_contains((string) $mimeType, 'mp4') || str_contains((string) $mimeType, 'm4a') => 'm4a',
+                            str_contains((string) $mimeType, 'mp3') => 'mp3',
+                            default => 'ogg',
+                        },
+                        'video' => 'mp4',
+                        'document' => match ($mimeType) {
+                            'application/pdf' => 'pdf',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                            'application/msword' => 'doc',
+                            default => 'bin',
+                        },
+                        default => 'bin',
+                    };
+
+                    $filename = (string) Str::ulid() . '.' . $extension;
+                    Storage::disk('public')->put("whatsapp_media/{$filename}", $binary);
+                    $mediaUrl = "/storage/whatsapp_media/{$filename}";
+                }
+            } catch (\Throwable $e) {
+                Log::error("Failed to store Baileys media: " . $e->getMessage());
+            }
+        }
 
         // 1. Contacto
         $contact = Contact::firstOrCreate(
@@ -131,9 +184,12 @@ class BaileysWebhookController extends Controller
             'organization_id' => $account->organization_id,
             'conversation_id' => $conversation->id,
             'direction' => 'inbound',
-            'message_type' => 'text',
+            'message_type' => $mediaType ?: 'text',
             'message_status' => 'delivered',
             'body' => $body,
+            'media_url' => $mediaUrl,
+            'media_type' => $mediaType,
+            'media_duration_seconds' => filled($durationSeconds) ? (int) $durationSeconds : null,
             'sent_at' => Carbon::now(),
         ]);
 
