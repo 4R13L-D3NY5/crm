@@ -332,6 +332,21 @@ class DemoCrmSeeder extends Seeder
             ],
         );
 
+        WhatsAppAccount::query()->updateOrCreate(
+            ['id' => '01m46cfaxqzf6fpamx6bg3rfzm'],
+            [
+                'organization_id' => $organization->getKey(),
+                'name' => 'WhatsApp Baileys Línea Principal',
+                'phone_number_id' => '+59179326793',
+                'display_phone_number' => '+591 79326793',
+                'verify_token' => 'baileys_token_secret',
+                'session_type' => 'qr_baileys',
+                'status' => 'CONNECTED',
+                'is_active' => true,
+                'last_connected_at' => now(),
+            ],
+        );
+
         $messageCarlosInbound = Message::query()->where('conversation_id', $conversations['WhatsApp: Carlos Mendoza']->getKey())->where('direction', 'inbound')->oldest('created_at')->first();
         $messageCarlosOutbound = Message::query()->where('conversation_id', $conversations['WhatsApp: Carlos Mendoza']->getKey())->where('direction', 'outbound')->first();
         $messageSofiaFailed = Message::query()->where('conversation_id', $conversations['WhatsApp: Sofia Vargas']->getKey())->where('direction', 'outbound')->first();
