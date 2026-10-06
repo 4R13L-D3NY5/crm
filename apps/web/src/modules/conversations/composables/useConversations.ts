@@ -144,7 +144,7 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
       payload,
     }: {
       id: string
-      payload: WhatsAppMessagePayload
+      payload: WhatsAppMessagePayload | FormData
     }) => createWhatsAppMessage(id, payload),
     onSuccess: invalidate,
   })

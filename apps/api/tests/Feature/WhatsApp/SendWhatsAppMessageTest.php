@@ -9,7 +9,9 @@ use App\Modules\Conversations\Models\Message;
 use App\Modules\Tenancy\Models\Organization;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SendWhatsAppMessageTest extends TestCase
@@ -58,7 +60,7 @@ class SendWhatsAppMessageTest extends TestCase
 
         $message = Message::query()->latest()->first();
         $this->assertNotNull($message);
-        $this->assertSame('sent', $message->message_status);
+        $this->assertSame('sent', $message->message_status, (string) $message->error_message);
 
         $this->assertDatabaseHas('whatsapp_message_mappings', [
             'message_id' => $message->getKey(),
@@ -120,6 +122,111 @@ class SendWhatsAppMessageTest extends TestCase
         $message->refresh();
         $this->assertNull($message->error_message);
         $this->assertSame('sent', $message->message_status);
+    }
+
+    public function test_user_can_send_outbound_media_image_file_to_baileys(): void
+    {
+        Storage::fake('public');
+        [$user, $organization] = $this->createMembership();
+
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => 'baileys_outbound_01',
+            'session_type' => 'qr_baileys',
+            'access_token' => null,
+            'is_active' => true,
+            'status' => 'CONNECTED',
+        ]);
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone' => '59179326793',
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->getKey(),
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+
+        Http::fake([
+            'http://whatsapp-service:3000/sessions/*/send-media' => Http::response([
+                'success' => true,
+                'messageId' => 'baileys_outbound_msg_999',
+            ], 200),
+        ]);
+
+        $file = UploadedFile::fake()->create('comprobante.jpg', 120, 'image/jpeg');
+
+        $response = $this->actingAs($user)->post("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'body' => 'Aquí tienes el comprobante de pago',
+            'file' => $file,
+            'media_type' => 'image',
+        ]);
+
+        $response->assertCreated();
+
+        $message = Message::query()->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertSame('image', $message->message_type);
+        $this->assertSame('image', $message->media_type);
+        $this->assertNotNull($message->media_url);
+        $this->assertStringStartsWith('/storage/whatsapp_media/', $message->media_url);
+        $this->assertSame('sent', $message->message_status, (string) $message->error_message);
+    }
+
+    public function test_user_can_send_outbound_media_audio_voice_note_to_baileys(): void
+    {
+        Storage::fake('public');
+        [$user, $organization] = $this->createMembership();
+
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => 'baileys_outbound_audio',
+            'session_type' => 'qr_baileys',
+            'access_token' => null,
+            'is_active' => true,
+            'status' => 'CONNECTED',
+        ]);
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone' => '59179326793',
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->getKey(),
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+
+        Http::fake([
+            'http://whatsapp-service:3000/sessions/*/send-media' => Http::response([
+                'success' => true,
+                'messageId' => 'baileys_outbound_audio_999',
+            ], 200),
+        ]);
+
+        $file = UploadedFile::fake()->create('nota_voz.ogg', 80, 'audio/ogg');
+
+        $response = $this->actingAs($user)->post("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'file' => $file,
+            'media_type' => 'audio',
+        ]);
+
+        $response->assertCreated();
+
+        $message = Message::query()->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertSame('audio', $message->message_type);
+        $this->assertSame('audio', $message->media_type);
+        $this->assertNotNull($message->media_url);
+        $this->assertSame('[Nota de voz / Audio]', $message->body);
+        $this->assertSame('sent', $message->message_status, (string) $message->error_message);
     }
 
     private function createMembership(): array

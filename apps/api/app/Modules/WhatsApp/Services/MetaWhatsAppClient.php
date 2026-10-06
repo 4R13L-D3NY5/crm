@@ -32,4 +32,38 @@ class MetaWhatsAppClient implements WhatsAppClient
 
         return $response->json();
     }
+
+    public function sendMediaMessage(WhatsAppAccount $account, string $to, string $mediaUrl, string $mediaType, ?string $caption = null): array
+    {
+        $baseUrl = rtrim((string) config('services.whatsapp.base_url', 'https://graph.facebook.com/v23.0'), '/');
+
+        $typeKey = match ($mediaType) {
+            'image' => 'image',
+            'audio' => 'audio',
+            'document' => 'document',
+            default => 'image',
+        };
+
+        $mediaPayload = ['link' => $mediaUrl];
+        if ($caption && in_array($typeKey, ['image', 'document'])) {
+            $mediaPayload['caption'] = $caption;
+        }
+
+        $response = Http::baseUrl($baseUrl)
+            ->withToken((string) $account->access_token)
+            ->acceptJson()
+            ->post("/{$account->phone_number_id}/messages", [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'to' => $to,
+                'type' => $typeKey,
+                $typeKey => $mediaPayload,
+            ]);
+
+        if ($response->failed()) {
+            throw new RequestException($response);
+        }
+
+        return $response->json();
+    }
 }

@@ -74,7 +74,7 @@ export async function createInternalMessage(
 
 export async function createWhatsAppMessage(
   conversationId: string,
-  payload: WhatsAppMessagePayload,
+  payload: WhatsAppMessagePayload | FormData,
 ): Promise<void> {
   await http.post(`/conversations/${conversationId}/messages/whatsapp`, payload)
 }

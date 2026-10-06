@@ -18,7 +18,10 @@ class SendWhatsAppMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'string', 'max:5000', 'required_without_all:file,media_url'],
+            'file' => ['nullable', 'file', 'max:51200'],
+            'media_url' => ['nullable', 'string', 'max:2000'],
+            'media_type' => ['nullable', 'string', 'in:image,audio,document,video'],
         ];
     }
 }

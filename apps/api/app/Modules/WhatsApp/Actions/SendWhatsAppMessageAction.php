@@ -15,14 +15,44 @@ class SendWhatsAppMessageAction
         abort_unless($conversation->channel === 'whatsapp', 422, 'La conversacion no pertenece al canal WhatsApp.');
         abort_unless(filled($conversation->contact?->phone), 422, 'La conversacion no tiene un telefono valido.');
 
+        $mediaUrl = $payload['media_url'] ?? null;
+        $mediaType = $payload['media_type'] ?? null;
+
+        if (isset($payload['file']) && $payload['file'] instanceof \Illuminate\Http\UploadedFile) {
+            $file = $payload['file'];
+            $mime = (string) $file->getMimeType();
+            if (! $mediaType) {
+                $mediaType = match (true) {
+                    str_starts_with($mime, 'image/') => 'image',
+                    str_starts_with($mime, 'audio/') || str_contains($mime, 'ogg') || str_contains($mime, 'webm') => 'audio',
+                    default => 'document',
+                };
+            }
+
+            $storedPath = $file->store('whatsapp_media', 'public');
+            $mediaUrl = '/storage/' . $storedPath;
+        }
+
+        $body = $payload['body'] ?? '';
+        if (blank($body) && filled($mediaType)) {
+            $body = match ($mediaType) {
+                'image' => '[Imagen]',
+                'audio' => '[Nota de voz / Audio]',
+                'document' => '[Documento]',
+                default => '[Multimedia]',
+            };
+        }
+
         $message = Message::query()->create([
             'organization_id' => $conversation->organization_id,
             'conversation_id' => $conversation->getKey(),
             'user_id' => $user->getKey(),
             'direction' => 'outbound',
-            'message_type' => 'text',
+            'message_type' => $mediaType ?: 'text',
+            'media_url' => $mediaUrl,
+            'media_type' => $mediaType,
             'message_status' => 'pending',
-            'body' => $payload['body'],
+            'body' => $body,
             'sent_at' => null,
         ]);
 

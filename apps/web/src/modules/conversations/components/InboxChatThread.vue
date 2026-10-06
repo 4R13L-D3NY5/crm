@@ -234,11 +234,113 @@
               </div>
             </q-menu>
           </q-btn>
+
+          <!-- Adjuntar Archivo / Imagen -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="light-blue-4"
+            icon="sym_r_attach_file"
+            label="Adjuntar"
+            class="q-px-xs"
+            @click="triggerFileInput"
+          >
+            <q-tooltip>Adjuntar imagen o archivo</q-tooltip>
+          </q-btn>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*,audio/*,application/pdf"
+            style="display: none"
+            @change="handleFileSelected"
+          />
+
+          <!-- Grabar Nota de Voz -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            :color="isRecordingVoice ? 'negative' : 'teal-3'"
+            :icon="isRecordingVoice ? 'sym_r_stop_circle' : 'sym_r_mic'"
+            :label="isRecordingVoice ? formatRecordTimer(recordingSeconds) : 'Audio'"
+            class="q-px-xs"
+            :class="{ 'pulse-recording': isRecordingVoice }"
+            @click="toggleVoiceRecording"
+          >
+            <q-tooltip>{{ isRecordingVoice ? 'Detener grabación de audio' : 'Grabar nota de voz con micrófono' }}</q-tooltip>
+          </q-btn>
         </div>
 
         <span class="text-caption text-grey-5" style="font-size: 0.7rem">
           Presiona <strong>Enter</strong> para enviar
         </span>
+      </div>
+
+      <!-- Barra en vivo de grabación de voz -->
+      <div v-if="isRecordingVoice" class="voice-recording-banner row items-center justify-between q-pa-sm q-mb-xs">
+        <div class="row items-center q-gutter-x-sm">
+          <span class="recording-dot"></span>
+          <span class="text-caption text-weight-bold text-negative">Grabando nota de voz...</span>
+          <span class="text-caption font-mono text-white">{{ formatRecordTimer(recordingSeconds) }}</span>
+        </div>
+        <div class="row items-center q-gutter-x-xs">
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="grey-4"
+            icon="sym_r_delete"
+            label="Descartar"
+            @click="cancelVoiceRecording"
+          />
+          <q-btn
+            unelevated
+            dense
+            size="sm"
+            color="teal-7"
+            icon="sym_r_check"
+            label="Listo"
+            @click="stopVoiceRecording(true)"
+          />
+        </div>
+      </div>
+
+      <!-- Chip / Preview de archivo adjunto pendiente de envío -->
+      <div v-if="pendingFile" class="pending-media-chip row items-center justify-between q-pa-xs q-mb-xs">
+        <div class="row items-center q-gutter-x-sm">
+          <img
+            v-if="pendingFilePreview && pendingFileType === 'image'"
+            :src="pendingFilePreview"
+            alt="Preview"
+            class="pending-thumb"
+          />
+          <q-icon
+            v-else
+            :name="pendingFileType === 'audio' ? 'sym_r_mic' : 'sym_r_description'"
+            size="24px"
+            :color="pendingFileType === 'audio' ? 'teal-4' : 'blue-4'"
+          />
+          <div>
+            <div class="text-caption text-weight-bold text-white ellipsis" style="max-width: 240px">
+              {{ pendingFile.name }}
+            </div>
+            <div class="text-caption text-grey-4" style="font-size: 0.7rem">
+              {{ formatFileSize(pendingFile.size) }}
+            </div>
+          </div>
+        </div>
+        <q-btn
+          flat
+          round
+          dense
+          size="sm"
+          icon="sym_r_close"
+          color="grey-4"
+          @click="clearPendingFile"
+        >
+          <q-tooltip>Quitar archivo adjunto</q-tooltip>
+        </q-btn>
       </div>
 
       <div class="row items-end q-gutter-x-sm">
@@ -262,7 +364,7 @@
           :color="composerMode === 'whatsapp' ? 'primary' : 'amber-8'"
           icon="sym_r_send"
           :loading="isSending"
-          :disable="!composerText.trim()"
+          :disable="!composerText.trim() && !pendingFile"
           @click="handleSend"
         />
       </div>
@@ -368,8 +470,134 @@ const emit = defineEmits<{
   (e: 'transfer'): void
   (e: 'close'): void
   (e: 'toggle-profile'): void
-  (e: 'send-message', payload: { body: string; is_internal: boolean }): void
+  (e: 'send-message', payload: {
+    body: string
+    is_internal: boolean
+    file?: File | null
+    media_type?: string | null
+  }): void
 }>()
+
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const pendingFile = ref<File | null>(null)
+const pendingFileType = ref<'image' | 'audio' | 'document' | null>(null)
+const pendingFilePreview = ref<string>('')
+
+const isRecordingVoice = ref(false)
+const recordingSeconds = ref(0)
+let recordingTimer: any = null
+let mediaRecorder: MediaRecorder | null = null
+let audioChunks: Blob[] = []
+
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+function handleFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (!target.files || target.files.length === 0) return
+  const file = target.files[0]
+  pendingFile.value = file
+
+  if (file.type.startsWith('image/')) {
+    pendingFileType.value = 'image'
+    pendingFilePreview.value = URL.createObjectURL(file)
+  } else if (file.type.startsWith('audio/')) {
+    pendingFileType.value = 'audio'
+    pendingFilePreview.value = ''
+  } else {
+    pendingFileType.value = 'document'
+    pendingFilePreview.value = ''
+  }
+  target.value = ''
+}
+
+function clearPendingFile() {
+  if (pendingFilePreview.value) {
+    URL.revokeObjectURL(pendingFilePreview.value)
+  }
+  pendingFile.value = null
+  pendingFileType.value = null
+  pendingFilePreview.value = ''
+}
+
+async function toggleVoiceRecording() {
+  if (isRecordingVoice.value) {
+    stopVoiceRecording(true)
+  } else {
+    await startVoiceRecording()
+  }
+}
+
+async function startVoiceRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioChunks = []
+
+    let mimeType = 'audio/webm'
+    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+      mimeType = 'audio/mp4'
+    } else if (MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')) {
+      mimeType = 'audio/ogg; codecs=opus'
+    } else if (MediaRecorder.isTypeSupported('audio/webm; codecs=opus')) {
+      mimeType = 'audio/webm; codecs=opus'
+    }
+
+    mediaRecorder = new MediaRecorder(stream, { mimeType })
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data)
+    }
+    mediaRecorder.start(100)
+    isRecordingVoice.value = true
+    recordingSeconds.value = 0
+    recordingTimer = setInterval(() => {
+      recordingSeconds.value++
+    }, 1000)
+  } catch (err: any) {
+    console.error('Error accediendo al micrófono:', err)
+  }
+}
+
+function stopVoiceRecording(keepAudio = true) {
+  if (!mediaRecorder) return
+  if (recordingTimer) {
+    clearInterval(recordingTimer)
+    recordingTimer = null
+  }
+  isRecordingVoice.value = false
+
+  mediaRecorder.onstop = () => {
+    mediaRecorder?.stream.getTracks().forEach((t) => t.stop())
+    if (keepAudio && audioChunks.length > 0) {
+      const mime = mediaRecorder?.mimeType || 'audio/webm'
+      const ext = mime.includes('mp4') ? 'm4a' : (mime.includes('ogg') ? 'ogg' : 'webm')
+      const blob = new Blob(audioChunks, { type: mime })
+      const voiceFile = new File([blob], `nota_de_voz_${Date.now()}.${ext}`, { type: mime })
+      pendingFile.value = voiceFile
+      pendingFileType.value = 'audio'
+      pendingFilePreview.value = ''
+    }
+  }
+  mediaRecorder.stop()
+}
+
+function cancelVoiceRecording() {
+  stopVoiceRecording(false)
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
+}
+
+function formatRecordTimer(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`
+}
 
 const quickMessagesQuery = useQuickMessages()
 const showQuickMessagesModal = ref(false)
@@ -529,12 +757,15 @@ function getChannelLabel(channel?: string) {
 }
 
 function handleSend() {
-  if (!composerText.value.trim()) return
+  if (!composerText.value.trim() && !pendingFile.value) return
   emit('send-message', {
     body: composerText.value.trim(),
     is_internal: composerMode.value === 'internal',
+    file: pendingFile.value,
+    media_type: pendingFileType.value,
   })
   composerText.value = ''
+  clearPendingFile()
 }
 
 function scrollToBottom() {
@@ -795,5 +1026,50 @@ onMounted(() => scrollToBottom())
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.pending-media-chip {
+  background: var(--crm-bg-surface-elevated, #162032);
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+}
+
+.pending-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.voice-recording-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+}
+
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+
+.pulse-recording {
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 </style>

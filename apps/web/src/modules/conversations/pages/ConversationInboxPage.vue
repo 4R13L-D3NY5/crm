@@ -207,7 +207,17 @@ async function handleTicketSubmit(payload: CreateConversationPayload) {
 }
 
 
-async function handleSendMessage({ body, is_internal }: { body: string; is_internal: boolean }) {
+async function handleSendMessage({
+  body,
+  is_internal,
+  file,
+  media_type,
+}: {
+  body: string
+  is_internal: boolean
+  file?: File | null
+  media_type?: string | null
+}) {
   if (!selectedConversationId.value) return
   try {
     if (is_internal) {
@@ -235,10 +245,21 @@ async function handleSendMessage({ body, is_internal }: { body: string; is_inter
       })
       notify.success({ message: 'Respuesta enviada a TikTok.' })
     } else {
-      await mutations.whatsappMessageMutation.mutateAsync({
-        id: selectedConversationId.value,
-        payload: { body },
-      })
+      if (file) {
+        const formData = new FormData()
+        if (body) formData.append('body', body)
+        formData.append('file', file)
+        if (media_type) formData.append('media_type', media_type)
+        await mutations.whatsappMessageMutation.mutateAsync({
+          id: selectedConversationId.value,
+          payload: formData,
+        })
+      } else {
+        await mutations.whatsappMessageMutation.mutateAsync({
+          id: selectedConversationId.value,
+          payload: { body },
+        })
+      }
     }
   } catch (err: any) {
     const errorMsg = err?.response?.data?.message || 'Error al enviar el mensaje.'

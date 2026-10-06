@@ -124,9 +124,10 @@ export interface InternalMessagePayload {
 }
 
 export interface WhatsAppMessagePayload {
-  body: string
+  body?: string
   media_url?: string | null
   media_type?: string | null
+  file?: File | null
 }
 
 export type PaginatedConversations = Paginated<Conversation>

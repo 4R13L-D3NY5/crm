@@ -18,6 +18,7 @@ class WhatsAppAccountFactory extends Factory
         return [
             'organization_id' => Organization::factory(),
             'name' => 'WhatsApp Demo',
+            'session_type' => 'meta_cloud',
             'phone_number_id' => (string) fake()->unique()->numberBetween(1000000000, 9999999999),
             'display_phone_number' => '+59170000001',
             'business_account_id' => (string) fake()->numberBetween(1000000000, 9999999999),

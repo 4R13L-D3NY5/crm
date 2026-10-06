@@ -512,6 +512,79 @@ app.post('/sessions/:sessionId/send-message', async (req, res) => {
   }
 });
 
+app.post('/sessions/:sessionId/send-media', async (req, res) => {
+  const { sessionId } = req.params;
+  const { to, media_url, media_type, caption, file_name, media_base64, mime_type } = req.body;
+
+  if (!to || (!media_url && !media_base64)) {
+    return res.status(400).json({ error: 'Parámetros "to" y "media_url" o "media_base64" son requeridos' });
+  }
+
+  const session = sessions[sessionId];
+  if (!session || !session.sock || session.status !== 'CONNECTED') {
+    return res.status(400).json({ error: 'La sesión no está conectada a WhatsApp' });
+  }
+
+  try {
+    const cleanTo = to.replace(/[^0-9]/g, '');
+    let jid;
+    if (to.includes('@lid') || cleanTo.length >= 14) {
+      jid = `${cleanTo}@lid`;
+    } else {
+      jid = `${cleanTo}@s.whatsapp.net`;
+    }
+
+    console.log(`[Sending Outbound Media] account=${sessionId} to=${jid} type=${media_type} url=${media_url ? media_url.slice(0, 60) : 'base64'}`);
+
+    let mediaSource;
+    if (media_base64) {
+      mediaSource = Buffer.from(media_base64, 'base64');
+    } else {
+      mediaSource = { url: media_url };
+    }
+
+    let messagePayload;
+    const cleanCaption = (caption && caption !== '[Imagen]' && caption !== '[Nota de voz / Audio]' && caption !== '[Documento]') ? caption : '';
+
+    if (media_type === 'image') {
+      messagePayload = {
+        image: mediaSource,
+        caption: cleanCaption,
+      };
+    } else if (media_type === 'audio') {
+      messagePayload = {
+        audio: mediaSource,
+        mimetype: mime_type || 'audio/mp4',
+        ptt: true,
+      };
+    } else if (media_type === 'document') {
+      messagePayload = {
+        document: mediaSource,
+        mimetype: mime_type || 'application/pdf',
+        fileName: file_name || 'documento.pdf',
+        caption: cleanCaption,
+      };
+    } else {
+      messagePayload = {
+        image: mediaSource,
+        caption: cleanCaption,
+      };
+    }
+
+    const sent = await session.sock.sendMessage(jid, messagePayload);
+    console.log(`[Outbound Media Sent Success] account=${sessionId} messageId=${sent?.key?.id}`);
+
+    res.json({
+      success: true,
+      messageId: sent?.key?.id,
+      timestamp: sent?.messageTimestamp,
+    });
+  } catch (err) {
+    console.error(`[Error Sending Media] ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/sessions/:sessionId/logout', async (req, res) => {
   const { sessionId } = req.params;
   const session = sessions[sessionId];

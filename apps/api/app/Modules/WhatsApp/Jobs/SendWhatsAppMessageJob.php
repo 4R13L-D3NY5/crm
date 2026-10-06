@@ -89,13 +89,23 @@ class SendWhatsAppMessageJob implements ShouldQueue
         }
 
         try {
-            $isMetaCloud = $account->session_type === 'meta_cloud' || (filled($account->access_token) && filled($account->phone_number_id));
+            $isMetaCloud = $account->session_type !== 'qr_baileys' && ($account->session_type === 'meta_cloud' || (filled($account->access_token) && filled($account->phone_number_id)));
+
+            $hasMedia = filled($message->media_url) && filled($message->media_type) && $message->media_type !== 'text';
 
             if ($isMetaCloud) {
-                $response = $client->sendTextMessage($account, $to, $message->body);
+                if ($hasMedia) {
+                    $response = $client->sendMediaMessage($account, $to, (string) $message->media_url, (string) $message->media_type, $message->body);
+                } else {
+                    $response = $client->sendTextMessage($account, $to, (string) $message->body);
+                }
             } else {
                 $baileysClient = app(\App\Modules\WhatsApp\Services\BaileysWhatsAppClient::class);
-                $response = $baileysClient->sendTextMessage($account, $to, $message->body);
+                if ($hasMedia) {
+                    $response = $baileysClient->sendMediaMessage($account, $to, (string) $message->media_url, (string) $message->media_type, $message->body);
+                } else {
+                    $response = $baileysClient->sendTextMessage($account, $to, (string) $message->body);
+                }
             }
 
             $providerMessageId = data_get($response, 'messages.0.id');
