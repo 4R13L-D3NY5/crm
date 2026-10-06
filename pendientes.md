@@ -12,7 +12,7 @@
 
 | ID | Tarea / Requerimiento | Módulo / Área | Prioridad | Estado | Próximo Paso |
 |:---:|---|:---:|:---:|:---:|---|
-| **TASK-010** | **Envío de multimedia saliente (Adjuntar imágenes, docs y grabador de voz 🎙️)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (botón 📎, grabador MediaRecorder 🎙️ y endpoint send-media en Baileys) |
+| **TASK-010** | **Envío de multimedia saliente (Adjuntar archivos, pegar capturas `Ctrl+V` y grabador 🎙️)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (botón 📎, pegado directo desde portapapeles `Ctrl+V`, grabador 🎙️ y endpoint `send-media`) |
 | **TASK-001** | **Descarga y renderizado multimedia en Chat (Imágenes, Audios y Emojis)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (descarga base64, visor zoom, audio player y selector emojis) |
 | **TASK-002** | **Balanceador y enrutador inteligente de WhatsApp (Abaratar costos)** | Canales / Salida | 🟡 Media | 📋 **PENDIENTE** | Diseñar router híbrido (Baileys QR $0 vs Meta Cloud API vs Round-Robin multichip) |
 | **TASK-004** | **Fase 6: Bot Flows, Colas por Departamento y Campañas de Difusión** | Automatizaciones | 🔴 Alta | ⏳ **EN PROGRESO** | Activar enrutamiento de colas, bot numérico y difusiones escalonadas |
@@ -71,7 +71,7 @@
 ---
 
 ## 📈 Historial de Hitos Completados
-- [x] **TASK-010**: Envío de multimedia saliente (selector de archivos 📎, grabador de notas de voz 🎙️ en vivo y endpoint `send-media` en Baileys).
+- [x] **TASK-010**: Envío de multimedia saliente (selector de archivos 📎, pegado directo de imágenes desde portapapeles `Ctrl+V`, grabador de notas de voz 🎙️ en vivo y endpoint `send-media` en Baileys).
 - [x] **TASK-001**: Descarga y visualización de imágenes, notas de voz (`<audio>`), visor modal zoom y selector de emojis integrado en Inbox.
 - [x] **TASK-009**: Arquitectura base, multi-tenancy y control de roles.
 - [x] **TASK-008**: Directorio de contactos y sincronización con PostgreSQL.
