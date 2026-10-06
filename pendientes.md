@@ -12,9 +12,11 @@
 
 | ID | Tarea / Requerimiento | Módulo / Área | Prioridad | Estado | Próximo Paso |
 |:---:|---|:---:|:---:|:---:|---|
+| **TASK-012** | **Stickers WhatsApp (Descarga WebP, visualización sin burbuja, reenvío y conversión 512x512)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Descarga automática en Baileys, almacenamiento .webp, renderizado estilo WhatsApp Web, reenvío instantáneo y conversor canvas 512x512 |
 | **TASK-010** | **Envío de multimedia saliente (Adjuntar archivos, pegar capturas `Ctrl+V` y grabador 🎙️)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (botón 📎, pegado directo desde portapapeles `Ctrl+V`, grabador 🎙️ y endpoint `send-media`) |
 | **TASK-001** | **Descarga y renderizado multimedia en Chat (Imágenes, Audios y Emojis)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (descarga base64, visor zoom, audio player y selector emojis) |
 | **TASK-002** | **Balanceador y enrutador inteligente de WhatsApp (Abaratar costos)** | Canales / Salida | 🟡 Media | 📋 **PENDIENTE** | Diseñar router híbrido (Baileys QR $0 vs Meta Cloud API vs Round-Robin multichip) |
+| **TASK-011** | **Contador de mensajes salientes WhatsApp Cloud API (Balanceo y ahorro de costos)** | Canales / Salida | 🟡 Media | 📋 **PENDIENTE** | Modelar contadores de consumo por canal y selector de enrutamiento por cuotas |
 | **TASK-004** | **Fase 6: Bot Flows, Colas por Departamento y Campañas de Difusión** | Automatizaciones | 🔴 Alta | ⏳ **EN PROGRESO** | Activar enrutamiento de colas, bot numérico y difusiones escalonadas |
 | **TASK-003** | **Fase 5: Hentle-AI Copilot & Base de Conocimiento RAG (`pgvector`)** | Copilot / IA | ⚪ Pausado | ⏸️ **EN ESPERA** | Pausado temporalmente hasta disponer de API Key (Gemini u OpenAI) |
 | **TASK-005** | **Fase 4: Productividad & Respuestas Rápidas (Atajos `/`)** | Mensajería | 🟢 Normal | ✅ **COMPLETADO** | Verificado en frontend y backend (12 tests pasando) |
@@ -70,7 +72,27 @@
 
 ---
 
+### 🟡 TASK-011: Contador de Mensajes Salientes WhatsApp Cloud API (Balanceador y Ahorro de Costos)
+- **Objetivo:** Registrar y contabilizar de forma persistente el volumen de mensajes salientes despachados a través de canales oficiales de WhatsApp Cloud API, permitiendo balancear el tráfico entre múltiples números y tomar decisiones automáticas para optimizar costos y cupos.
+- **Motivación y Casos de Uso:**
+  1. **Control de cuotas y tiers:** Rastrear el consumo por canal frente a los límites diarios o mensuales de Meta (ej. cupos gratuitos de conversaciones de servicio vs. tarifas por categorías de marketing/utilidad).
+  2. **Balanceo multi-canal Cloud API:** Cuando una organización cuenta con varios canales/números de Cloud API configurados, enrutar envíos salientes o difusiones al canal con menor consumo acumulado o mayor cupo disponible (Least-Used / Quota-Aware).
+  3. **Complemento del router de costos (TASK-002):** Coordinar con canales QR Baileys ($0 USD) para redirigir tráfico cuando un canal Cloud API supere su umbral configurado de mensajes o presupuesto.
+- **Plan de resolución propuesto:**
+  - **Base de Datos / Modelo:**
+    - Agregar contadores en `WhatsAppAccount` o tabla de métricas periódicas (`whatsapp_account_usage_metrics` con corte diario/mensual).
+    - Métricas clave: `outbound_messages_count`, `last_message_sent_at`, `monthly_limit`, `daily_limit`.
+  - **Incremento y Registro en Backend:**
+    - Actualizar contador en `SendWhatsAppMessageJob` tras respuesta exitosa de `MetaWhatsAppClient`.
+  - **Lógica de Decisión y Balanceo:**
+    - Desarrollar servicio de selección/enrutador que elija el canal Cloud API óptimo al iniciar un envío saliente cuando existan múltiples cuentas activas.
+  - **Interfaz de Usuario (Frontend):**
+    - Mostrar en `WabotChannelsPage.vue` (o detalles del canal) el número de mensajes enviados en el periodo y su estado/porcentaje de consumo.
+
+---
+
 ## 📈 Historial de Hitos Completados
+- [x] **TASK-012**: Soporte integral de Stickers WhatsApp (descarga automática .webp, visualización transparente estilo WhatsApp Web, botón para reutilizar/reenviar sticker y conversor canvas a 512x512 WebP).
 - [x] **TASK-010**: Envío de multimedia saliente (selector de archivos 📎, pegado directo de imágenes desde portapapeles `Ctrl+V`, grabador de notas de voz 🎙️ en vivo y endpoint `send-media` en Baileys).
 - [x] **TASK-001**: Descarga y visualización de imágenes, notas de voz (`<audio>`), visor modal zoom y selector de emojis integrado en Inbox.
 - [x] **TASK-009**: Arquitectura base, multi-tenancy y control de roles.

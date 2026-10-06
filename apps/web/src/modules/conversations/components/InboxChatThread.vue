@@ -107,7 +107,10 @@
           'message-row--internal': msg.is_internal || msg.direction === 'internal',
         }"
       >
-        <div class="message-bubble">
+        <div
+          class="message-bubble"
+          :class="{ 'message-bubble--sticker': isStickerMessage(msg) }"
+        >
           <!-- Nota Interna Header -->
           <div v-if="msg.is_internal || msg.direction === 'internal'" class="row items-center q-gutter-x-xs text-caption text-amber-4 q-mb-xs">
             <q-icon name="sym_r_lock" size="13px" />
@@ -115,8 +118,47 @@
             <span v-if="msg.user?.name" class="text-grey-4">• {{ msg.user.name }}</span>
           </div>
 
+          <!-- Sticker Adjunto (Visualización real tipo WhatsApp Web) -->
+          <div
+            v-if="msg.media_url && (msg.media_type === 'sticker' || msg.message_type === 'sticker')"
+            class="message-sticker-container relative-position q-mb-xs"
+          >
+            <img
+              :src="resolveMediaUrl(msg.media_url)"
+              alt="Sticker"
+              class="message-sticker-img"
+              loading="lazy"
+              @click="openImageModal(resolveMediaUrl(msg.media_url))"
+            />
+            <div class="sticker-action-overlay row items-center q-gutter-x-xs">
+              <q-btn
+                round
+                dense
+                size="xs"
+                color="teal-8"
+                icon="sym_r_reply"
+                @click.stop="reuseSticker(msg.media_url)"
+              >
+                <q-tooltip>Reenviar este sticker</q-tooltip>
+              </q-btn>
+              <q-btn
+                round
+                dense
+                size="xs"
+                color="grey-8"
+                icon="sym_r_download"
+                :href="resolveMediaUrl(msg.media_url)"
+                download
+                target="_blank"
+                @click.stop
+              >
+                <q-tooltip>Descargar sticker (.webp)</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
           <!-- Imagen Adjunta -->
-          <div v-if="msg.media_url && msg.media_type === 'image'" class="message-media-container q-mb-xs">
+          <div v-else-if="msg.media_url && msg.media_type === 'image'" class="message-media-container q-mb-xs">
             <img
               :src="resolveMediaUrl(msg.media_url)"
               alt="Imagen adjunta"
@@ -153,7 +195,13 @@
             v-if="msg.body && !isPureMediaPlaceholder(msg)"
             class="message-body"
           >
-            {{ msg.body }}
+            <span v-if="msg.body === '[Sticker]' && !msg.media_url" class="row items-center q-gutter-x-xs text-grey-4">
+              <q-icon name="sym_r_sentiment_satisfied" size="16px" color="teal-3" />
+              <span>[Sticker recibido con versión anterior]</span>
+            </span>
+            <template v-else>
+              {{ msg.body }}
+            </template>
           </div>
 
           <div class="message-footer row items-center justify-end q-gutter-x-xs q-mt-xs">
@@ -310,10 +358,11 @@
       <div v-if="pendingFile" class="pending-media-chip row items-center justify-between q-pa-xs q-mb-xs">
         <div class="row items-center q-gutter-x-sm">
           <img
-            v-if="pendingFilePreview && pendingFileType === 'image'"
+            v-if="pendingFilePreview && (pendingFileType === 'image' || pendingFileType === 'sticker')"
             :src="pendingFilePreview"
             alt="Preview"
             class="pending-thumb"
+            :class="{ 'pending-thumb--sticker': pendingFileType === 'sticker' }"
           />
           <q-icon
             v-else
@@ -322,25 +371,67 @@
             :color="pendingFileType === 'audio' ? 'teal-4' : 'blue-4'"
           />
           <div>
-            <div class="text-caption text-weight-bold text-white ellipsis" style="max-width: 240px">
-              {{ pendingFile.name }}
+            <div class="row items-center q-gutter-x-xs">
+              <span class="text-caption text-weight-bold text-white ellipsis" style="max-width: 200px">
+                {{ pendingFile.name }}
+              </span>
+              <q-badge
+                v-if="pendingFileType === 'sticker'"
+                color="teal-8"
+                label="Sticker"
+                rounded
+                class="text-caption text-weight-bold"
+              />
             </div>
             <div class="text-caption text-grey-4" style="font-size: 0.7rem">
               {{ formatFileSize(pendingFile.size) }}
             </div>
           </div>
         </div>
-        <q-btn
-          flat
-          round
-          dense
-          size="sm"
-          icon="sym_r_close"
-          color="grey-4"
-          @click="clearPendingFile"
-        >
-          <q-tooltip>Quitar archivo adjunto</q-tooltip>
-        </q-btn>
+
+        <div class="row items-center q-gutter-x-xs">
+          <!-- Botón convertir a Sticker si es imagen -->
+          <q-btn
+            v-if="pendingFileType === 'image'"
+            flat
+            dense
+            size="sm"
+            color="teal-3"
+            icon="sym_r_auto_awesome"
+            label="Como Sticker"
+            class="q-px-xs"
+            @click="convertPendingImageToSticker"
+          >
+            <q-tooltip>Convertir y enviar como sticker de WhatsApp (512x512 WebP)</q-tooltip>
+          </q-btn>
+
+          <!-- Botón revertir a Imagen si es sticker -->
+          <q-btn
+            v-else-if="pendingFileType === 'sticker'"
+            flat
+            dense
+            size="sm"
+            color="amber-4"
+            icon="sym_r_image"
+            label="Como Foto"
+            class="q-px-xs"
+            @click="pendingFileType = 'image'"
+          >
+            <q-tooltip>Enviar como foto estándar en vez de sticker</q-tooltip>
+          </q-btn>
+
+          <q-btn
+            flat
+            round
+            dense
+            size="sm"
+            icon="sym_r_close"
+            color="grey-4"
+            @click="clearPendingFile"
+          >
+            <q-tooltip>Quitar archivo adjunto</q-tooltip>
+          </q-btn>
+        </div>
       </div>
 
       <div class="row items-end q-gutter-x-sm">
@@ -483,19 +574,86 @@ const emit = defineEmits<{
 const composerInputRef = ref<any>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const pendingFile = ref<File | null>(null)
-const pendingFileType = ref<'image' | 'audio' | 'document' | null>(null)
+const pendingFileType = ref<'image' | 'audio' | 'document' | 'sticker' | null>(null)
 const pendingFilePreview = ref<string>('')
 
-function setPendingFile(file: File, type: 'image' | 'audio' | 'document') {
+function isStickerMessage(msg: ConversationMessage): boolean {
+  return Boolean(
+    msg.media_url &&
+    (msg.media_type === 'sticker' || msg.message_type === 'sticker') &&
+    isPureMediaPlaceholder(msg)
+  )
+}
+
+function setPendingFile(file: File, type: 'image' | 'audio' | 'document' | 'sticker') {
   if (pendingFilePreview.value) {
     URL.revokeObjectURL(pendingFilePreview.value)
   }
   pendingFile.value = file
   pendingFileType.value = type
-  if (type === 'image') {
+  if (type === 'image' || type === 'sticker') {
     pendingFilePreview.value = URL.createObjectURL(file)
   } else {
     pendingFilePreview.value = ''
+  }
+}
+
+async function reuseSticker(url?: string | null) {
+  if (!url) return
+  try {
+    const fullUrl = resolveMediaUrl(url)
+    const res = await fetch(fullUrl)
+    const blob = await res.blob()
+    const stickerFile = new File([blob], `sticker_${Date.now()}.webp`, { type: 'image/webp' })
+    setPendingFile(stickerFile, 'sticker')
+    composerInputRef.value?.focus()
+  } catch (err) {
+    console.error('Error al reutilizar sticker:', err)
+  }
+}
+
+function convertImageToStickerBlob(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      canvas.width = 512
+      canvas.height = 512
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(file)
+        return
+      }
+      ctx.clearRect(0, 0, 512, 512)
+      const scale = Math.min(512 / img.width, 512 / img.height)
+      const w = img.width * scale
+      const h = img.height * scale
+      const x = (512 - w) / 2
+      const y = (512 - h) / 2
+      ctx.drawImage(img, x, y, w, h)
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob)
+        else resolve(file)
+      }, 'image/webp', 0.9)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(file)
+    }
+    img.src = url
+  })
+}
+
+async function convertPendingImageToSticker() {
+  if (!pendingFile.value) return
+  try {
+    const webpBlob = await convertImageToStickerBlob(pendingFile.value)
+    const stickerFile = new File([webpBlob], `sticker_${Date.now()}.webp`, { type: 'image/webp' })
+    setPendingFile(stickerFile, 'sticker')
+  } catch (err) {
+    console.error('Error convirtiendo imagen a sticker:', err)
   }
 }
 
@@ -699,6 +857,7 @@ function isPureMediaPlaceholder(msg: ConversationMessage): boolean {
     trimmed === '[Audio]' ||
     trimmed === '[Video]' ||
     trimmed === '[Documento]' ||
+    trimmed === '[Sticker]' ||
     trimmed === '[Multimedia]'
   )
 }
@@ -887,6 +1046,13 @@ onUnmounted(() => {
       background: var(--crm-bg-surface-elevated);
       color: var(--crm-color-ink);
       border-bottom-left-radius: 2px;
+
+      &.message-bubble--sticker {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 2px !important;
+      }
     }
   }
 
@@ -896,6 +1062,13 @@ onUnmounted(() => {
       background: #065f46;
       color: #ffffff;
       border-bottom-right-radius: 2px;
+
+      &.message-bubble--sticker {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 2px !important;
+      }
     }
   }
 
@@ -1001,6 +1174,51 @@ onUnmounted(() => {
     transform: scale(1.02);
     filter: brightness(1.08);
   }
+}
+
+.message-sticker-container {
+  display: flex;
+  position: relative;
+  width: fit-content;
+
+  &:hover .sticker-action-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.message-sticker-img {
+  max-width: 140px;
+  max-height: 140px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.4));
+  transition: transform var(--crm-transition-fast, 0.15s ease);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+.sticker-action-overlay {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--crm-transition-fast, 0.15s ease);
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 16px;
+  padding: 2px 4px;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.pending-thumb--sticker {
+  border: 1px dashed var(--crm-color-primary) !important;
+  border-radius: 6px;
 }
 
 .message-audio-player {

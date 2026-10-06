@@ -97,6 +97,7 @@ class BaileysWebhookController extends Controller
                 'audio' => '[Nota de voz / Audio]',
                 'video' => '[Video]',
                 'document' => '[Documento]',
+                'sticker' => '[Sticker]',
                 default => '[Multimedia]',
             };
         }
@@ -120,6 +121,7 @@ class BaileysWebhookController extends Controller
                             'image/gif' => 'gif',
                             default => 'jpg',
                         },
+                        'sticker' => 'webp',
                         'audio' => match (true) {
                             str_contains((string) $mimeType, 'mp4') || str_contains((string) $mimeType, 'm4a') => 'm4a',
                             str_contains((string) $mimeType, 'mp3') => 'mp3',

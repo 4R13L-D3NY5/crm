@@ -25,7 +25,7 @@ export interface ConversationMessage {
   error_message?: string | null
   body: string
   media_url?: string | null
-  media_type?: 'image' | 'audio' | 'video' | 'document' | 'ptt' | null
+  media_type?: 'image' | 'audio' | 'video' | 'document' | 'ptt' | 'sticker' | null
   media_duration_seconds?: number | null
   transcription?: string | null
   quoted_message?: {

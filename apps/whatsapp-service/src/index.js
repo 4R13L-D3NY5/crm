@@ -279,6 +279,9 @@ async function initSession(sessionId) {
         mediaType = 'document';
         mimeType = content.documentMessage.mimetype || 'application/pdf';
         fileName = content.documentMessage.fileName || 'documento';
+      } else if (content.stickerMessage) {
+        mediaType = 'sticker';
+        mimeType = content.stickerMessage.mimetype || 'image/webp';
       }
 
       let mediaBuffer = null;
@@ -331,7 +334,7 @@ async function initSession(sessionId) {
 
       const effectiveBody = (body && body.trim().length > 0)
         ? body.trim()
-        : (mediaType === 'image' ? '[Imagen]' : (mediaType === 'audio' ? '[Nota de voz / Audio]' : ''));
+        : (mediaType === 'image' ? '[Imagen]' : (mediaType === 'audio' ? '[Nota de voz / Audio]' : (mediaType === 'sticker' ? '[Sticker]' : '')));
 
       if (effectiveBody && effectiveBody.length > 0) {
         console.log(`[Inbound Message Received] account=${sessionId} from=${cleanPhone} type=${mediaType || 'text'} body=${effectiveBody}`);
@@ -539,12 +542,19 @@ app.post('/sessions/:sessionId/send-media', async (req, res) => {
     let mediaSource;
     if (media_base64) {
       mediaSource = Buffer.from(media_base64, 'base64');
+    } else if (media_type === 'sticker' && media_url) {
+      try {
+        const resp = await axios.get(media_url, { responseType: 'arraybuffer' });
+        mediaSource = Buffer.from(resp.data);
+      } catch (_) {
+        mediaSource = { url: media_url };
+      }
     } else {
       mediaSource = { url: media_url };
     }
 
     let messagePayload;
-    const cleanCaption = (caption && caption !== '[Imagen]' && caption !== '[Nota de voz / Audio]' && caption !== '[Documento]') ? caption : '';
+    const cleanCaption = (caption && caption !== '[Imagen]' && caption !== '[Nota de voz / Audio]' && caption !== '[Documento]' && caption !== '[Sticker]') ? caption : '';
 
     if (media_type === 'image') {
       messagePayload = {
@@ -563,6 +573,10 @@ app.post('/sessions/:sessionId/send-media', async (req, res) => {
         mimetype: mime_type || 'application/pdf',
         fileName: file_name || 'documento.pdf',
         caption: cleanCaption,
+      };
+    } else if (media_type === 'sticker') {
+      messagePayload = {
+        sticker: mediaSource,
       };
     } else {
       messagePayload = {

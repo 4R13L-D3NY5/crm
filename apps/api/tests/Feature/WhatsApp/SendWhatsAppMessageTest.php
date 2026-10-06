@@ -229,6 +229,59 @@ class SendWhatsAppMessageTest extends TestCase
         $this->assertSame('sent', $message->message_status, (string) $message->error_message);
     }
 
+    public function test_user_can_send_outbound_media_sticker_to_baileys(): void
+    {
+        Storage::fake('public');
+        [$user, $organization] = $this->createMembership();
+
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => 'baileys_outbound_stk',
+            'session_type' => 'qr_baileys',
+            'access_token' => null,
+            'is_active' => true,
+            'status' => 'CONNECTED',
+        ]);
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone' => '59179326793',
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->getKey(),
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+
+        Http::fake([
+            'http://whatsapp-service:3000/sessions/*/send-media' => Http::response([
+                'success' => true,
+                'messageId' => 'baileys_outbound_stk_888',
+            ], 200),
+        ]);
+
+        $file = UploadedFile::fake()->create('sticker_animado.webp', 80, 'image/webp');
+
+        $response = $this->actingAs($user)->post("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'body' => '',
+            'file' => $file,
+            'media_type' => 'sticker',
+        ]);
+
+        $response->assertCreated();
+
+        $message = Message::query()->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertSame('sticker', $message->message_type);
+        $this->assertSame('sticker', $message->media_type);
+        $this->assertNotNull($message->media_url);
+        $this->assertSame('[Sticker]', $message->body);
+        $this->assertSame('sent', $message->message_status, (string) $message->error_message);
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();

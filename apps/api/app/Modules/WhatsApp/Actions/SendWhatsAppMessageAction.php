@@ -39,6 +39,7 @@ class SendWhatsAppMessageAction
                 'image' => '[Imagen]',
                 'audio' => '[Nota de voz / Audio]',
                 'document' => '[Documento]',
+                'sticker' => '[Sticker]',
                 default => '[Multimedia]',
             };
         }

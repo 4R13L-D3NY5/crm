@@ -220,4 +220,53 @@ class BaileysWebhookTest extends TestCase
         $storedPath = str_replace('/storage/', '', $message->media_url);
         Storage::disk('public')->assertExists($storedPath);
     }
+
+    public function test_baileys_inbound_sticker_message_stores_webp_media_file_and_sets_sticker_type(): void
+    {
+        Storage::fake('public');
+        Event::fake([TicketMessageCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_006',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $dummyStickerData = base64_encode('fake-binary-webp-sticker-data');
+
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_stk_777',
+            'from_phone' => '+59170099881',
+            'from_name' => 'Cliente Sticker',
+            'body' => '[Sticker]',
+            'media_type' => 'sticker',
+            'media_base64' => $dummyStickerData,
+            'mime_type' => 'image/webp',
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        $conversation = Conversation::where('organization_id', $organization->id)->first();
+        $this->assertNotNull($conversation);
+
+        $message = Message::where('conversation_id', $conversation->id)->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('sticker', $message->message_type);
+        $this->assertSame('sticker', $message->media_type);
+        $this->assertSame('[Sticker]', $message->body);
+        $this->assertNotNull($message->media_url);
+        $this->assertStringStartsWith('/storage/whatsapp_media/', $message->media_url);
+        $this->assertStringEndsWith('.webp', $message->media_url);
+
+        $storedPath = str_replace('/storage/', '', $message->media_url);
+        Storage::disk('public')->assertExists($storedPath);
+    }
 }
