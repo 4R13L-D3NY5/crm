@@ -1,5 +1,5 @@
 <template>
-  <main class="inbox-chat-thread">
+  <main class="inbox-chat-thread" @paste="handlePaste">
     <!-- Top Action Bar del Chat -->
     <header class="inbox-chat-header q-px-md q-py-sm">
       <div class="row items-center justify-between no-wrap">
@@ -170,7 +170,7 @@
     </div>
 
     <!-- Redactor de Respuestas (Composer) -->
-    <footer class="inbox-composer q-pa-sm">
+    <footer class="inbox-composer q-pa-sm" @paste="handlePaste">
       <div class="composer-mode-bar row items-center justify-between q-mb-xs">
         <div class="row items-center q-gutter-x-xs">
           <button
@@ -246,7 +246,7 @@
             class="q-px-xs"
             @click="triggerFileInput"
           >
-            <q-tooltip>Adjuntar imagen o archivo</q-tooltip>
+            <q-tooltip>Adjuntar imagen/archivo o pegar con Ctrl+V</q-tooltip>
           </q-btn>
           <input
             ref="fileInputRef"
@@ -345,6 +345,7 @@
 
       <div class="row items-end q-gutter-x-sm">
         <q-input
+          ref="composerInputRef"
           v-model="composerText"
           type="textarea"
           autogrow
@@ -352,9 +353,10 @@
           outlined
           dark
           :rows="1"
-          :placeholder="composerMode === 'whatsapp' ? 'Escribe una respuesta para el cliente... (o / para atajos)' : 'Escribe una nota interna para los supervisores...'"
+          :placeholder="composerMode === 'whatsapp' ? 'Escribe una respuesta para el cliente... (o pega imagen con Ctrl+V, / para atajos)' : 'Escribe una nota interna para los supervisores...'"
           class="composer-textarea col"
           @keydown.enter.exact.prevent="handleSend"
+          @paste="handlePaste"
         />
 
         <q-btn
@@ -455,7 +457,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
 import type { Conversation, ConversationMessage } from '../types/conversation.types'
 
@@ -478,10 +480,64 @@ const emit = defineEmits<{
   }): void
 }>()
 
+const composerInputRef = ref<any>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const pendingFile = ref<File | null>(null)
 const pendingFileType = ref<'image' | 'audio' | 'document' | null>(null)
 const pendingFilePreview = ref<string>('')
+
+function setPendingFile(file: File, type: 'image' | 'audio' | 'document') {
+  if (pendingFilePreview.value) {
+    URL.revokeObjectURL(pendingFilePreview.value)
+  }
+  pendingFile.value = file
+  pendingFileType.value = type
+  if (type === 'image') {
+    pendingFilePreview.value = URL.createObjectURL(file)
+  } else {
+    pendingFilePreview.value = ''
+  }
+}
+
+function handlePaste(event: ClipboardEvent) {
+  if (event.defaultPrevented) return
+  const clipboardData = event.clipboardData
+  if (!clipboardData) return
+
+  // 1. Archivos copiados desde el explorador de archivos (Ctrl+C en imagen)
+  if (clipboardData.files && clipboardData.files.length > 0) {
+    for (let i = 0; i < clipboardData.files.length; i++) {
+      const file = clipboardData.files[i]
+      if (file.type.startsWith('image/')) {
+        event.preventDefault()
+        setPendingFile(file, 'image')
+        composerInputRef.value?.focus()
+        return
+      }
+    }
+  }
+
+  // 2. Items del portapapeles (captura de pantalla Win+Shift+S / PrtScn / Copiar imagen en navegador)
+  const items = clipboardData.items
+  if (items && items.length > 0) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.startsWith('image/')) {
+        const blob = item.getAsFile()
+        if (blob) {
+          event.preventDefault()
+          const ext = item.type.split('/')[1]?.split(';')[0] || 'png'
+          const defaultName = `captura_${Date.now()}.${ext}`
+          const fileName = (blob.name && blob.name !== 'image.png') ? blob.name : defaultName
+          const file = new File([blob], fileName, { type: item.type })
+          setPendingFile(file, 'image')
+          composerInputRef.value?.focus()
+          return
+        }
+      }
+    }
+  }
+}
 
 const isRecordingVoice = ref(false)
 const recordingSeconds = ref(0)
@@ -497,17 +553,13 @@ function handleFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (!target.files || target.files.length === 0) return
   const file = target.files[0]
-  pendingFile.value = file
 
   if (file.type.startsWith('image/')) {
-    pendingFileType.value = 'image'
-    pendingFilePreview.value = URL.createObjectURL(file)
+    setPendingFile(file, 'image')
   } else if (file.type.startsWith('audio/')) {
-    pendingFileType.value = 'audio'
-    pendingFilePreview.value = ''
+    setPendingFile(file, 'audio')
   } else {
-    pendingFileType.value = 'document'
-    pendingFilePreview.value = ''
+    setPendingFile(file, 'document')
   }
   target.value = ''
 }
@@ -573,9 +625,7 @@ function stopVoiceRecording(keepAudio = true) {
       const ext = mime.includes('mp4') ? 'm4a' : (mime.includes('ogg') ? 'ogg' : 'webm')
       const blob = new Blob(audioChunks, { type: mime })
       const voiceFile = new File([blob], `nota_de_voz_${Date.now()}.${ext}`, { type: mime })
-      pendingFile.value = voiceFile
-      pendingFileType.value = 'audio'
-      pendingFilePreview.value = ''
+      setPendingFile(voiceFile, 'audio')
     }
   }
   mediaRecorder.stop()
@@ -782,6 +832,18 @@ watch(
 )
 
 onMounted(() => scrollToBottom())
+
+onUnmounted(() => {
+  if (pendingFilePreview.value) {
+    URL.revokeObjectURL(pendingFilePreview.value)
+  }
+  if (recordingTimer) {
+    clearInterval(recordingTimer)
+  }
+  if (mediaRecorder && isRecordingVoice.value) {
+    mediaRecorder.stream.getTracks().forEach((t) => t.stop())
+  }
+})
 </script>
 
 <style scoped lang="scss">
