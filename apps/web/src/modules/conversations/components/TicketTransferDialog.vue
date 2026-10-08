@@ -22,6 +22,7 @@
               outlined
               dark
               dense
+              clearable
               label="Seleccionar operador"
             >
               <template #prepend>
@@ -62,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -72,35 +73,40 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
-  (e: 'submit', payload: { assigned_to_user_id?: string | null; transfer_note?: string | null }): void
+  (e: 'submit', payload: {
+    assigned_to_user_id?: string | null
+    transfer_note?: string | null
+    user_id?: string | null
+    note?: string | null
+  }): void
 }>()
 
-const selectedUserId = ref<string>('')
+const selectedUserId = ref<string | null>(null)
 const note = ref('')
 
-const userOptions = ref([
-  { label: 'Jose Claure (Admin)', value: '1' },
-  { label: 'Supervisora Operaciones', value: '2' },
-  { label: 'Agente Atención', value: '3' },
-])
+const userOptions = computed(() => {
+  if (!props.users || props.users.length === 0) return []
+  return props.users.map(u => ({ label: u.name, value: u.id }))
+})
 
 watch(
-  () => props.users,
-  (list) => {
-    if (list && list.length > 0) {
-      userOptions.value = list.map(u => ({ label: u.name, value: u.id }))
+  () => props.modelValue,
+  (isOpen) => {
+    if (!isOpen) {
+      selectedUserId.value = null
+      note.value = ''
     }
   },
-  { immediate: true },
 )
 
 function handleSubmit() {
   emit('submit', {
     assigned_to_user_id: selectedUserId.value || null,
+    user_id: selectedUserId.value || null,
     transfer_note: note.value || null,
+    note: note.value || null,
   })
 }
-
 </script>
 
 <style scoped lang="scss">

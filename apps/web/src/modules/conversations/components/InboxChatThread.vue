@@ -29,8 +29,15 @@
                 {{ statusBadgeLabel }}
               </q-badge>
             </div>
-            <div class="text-caption text-grey-4 ellipsis font-mono" style="font-size: 0.72rem">
-              {{ conversation.contact?.phone || `Canal ${getChannelLabel(conversation.channel)}` }}
+            <div class="row items-center q-gutter-x-sm text-caption text-grey-4 font-mono" style="font-size: 0.72rem">
+              <span>{{ conversation.contact?.phone || `Canal ${getChannelLabel(conversation.channel)}` }}</span>
+              <span>•</span>
+              <span class="row items-center q-gutter-x-xs font-sans">
+                <q-icon name="sym_r_person" size="13px" :color="conversation.assignee ? 'teal-3' : 'grey-5'" />
+                <span :class="conversation.assignee ? 'text-teal-3 text-weight-medium' : 'text-grey-5'">
+                  {{ conversation.assignee ? `Atendido por: ${conversation.assignee.name}` : 'Sin asignar' }}
+                </span>
+              </span>
             </div>
           </div>
         </div>
@@ -205,6 +212,14 @@
           </div>
 
           <div class="message-footer row items-center justify-end q-gutter-x-xs q-mt-xs">
+            <span
+              v-if="msg.direction === 'outbound' && !msg.is_internal && msg.user?.name"
+              class="message-sender-author text-teal-2 q-mr-xs row items-center no-wrap"
+            >
+              <q-icon name="sym_r_person" size="12px" class="q-mr-xs" />
+              <span>{{ msg.user.name }}</span>
+              <span class="q-mx-xs">•</span>
+            </span>
             <span class="message-time">{{ formatMessageTime(msg.sent_at || msg.created_at) }}</span>
             <q-icon
               v-if="msg.direction === 'outbound' && !msg.is_internal"

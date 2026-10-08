@@ -43,23 +43,29 @@ class TicketLifecycleController extends Controller
         $validated = $request->validate([
             'queue_id' => ['nullable', 'string', 'exists:queues,id'],
             'user_id' => ['nullable', 'string', 'exists:users,id'],
+            'assigned_to_user_id' => ['nullable', 'string', 'exists:users,id'],
             'note' => ['nullable', 'string', 'max:500'],
+            'transfer_note' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $targetUserId = $validated['assigned_to_user_id'] ?? $validated['user_id'] ?? null;
+        $transferNote = $validated['transfer_note'] ?? $validated['note'] ?? null;
 
         $ticket->update([
             'queue_id' => $validated['queue_id'] ?? $ticket->queue_id,
-            'assigned_to_user_id' => $validated['user_id'] ?? null,
-            'status' => $validated['user_id'] ? 'open' : 'pending',
+            'assigned_to_user_id' => $targetUserId,
+            'status' => $targetUserId ? 'open' : 'pending',
         ]);
 
         // Registrar nota interna automática si se especificó
-        if (!empty($validated['note'])) {
+        if (!empty($transferNote)) {
             Message::create([
                 'organization_id' => $organization->id,
                 'conversation_id' => $ticket->id,
+                'user_id' => $request->user()->id,
                 'direction' => 'outbound',
                 'is_internal' => true,
-                'body' => "🔄 Transferido: {$validated['note']}",
+                'body' => "🔄 Transferido: {$transferNote}",
                 'sent_at' => Carbon::now(),
             ]);
         }

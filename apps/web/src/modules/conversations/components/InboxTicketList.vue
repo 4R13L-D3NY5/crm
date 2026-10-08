@@ -126,13 +126,22 @@
           </div>
 
           <div class="row items-center justify-between no-wrap q-mt-xs">
-            <span class="ticket-snippet ellipsis">
+            <span class="ticket-snippet ellipsis col">
               {{ item.latest_message?.body || 'Sin mensajes recientes' }}
             </span>
 
-            <span v-if="item.unread_count && item.unread_count > 0" class="unread-badge">
-              {{ item.unread_count }}
-            </span>
+            <div class="row items-center q-gutter-x-xs no-wrap q-ml-xs">
+              <span
+                v-if="item.assignee?.name"
+                class="ticket-assignee-chip ellipsis"
+                :title="`Asignado a: ${item.assignee.name}`"
+              >
+                👤 {{ item.assignee.name }}
+              </span>
+              <span v-if="item.unread_count && item.unread_count > 0" class="unread-badge">
+                {{ item.unread_count }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -347,5 +356,16 @@ function getChannelIcon(channel?: string) {
   padding: 1px 6px;
   border-radius: 99px;
   flex-shrink: 0;
+}
+
+.ticket-assignee-chip {
+  font-size: 0.68rem;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  max-width: 90px;
+  white-space: nowrap;
 }
 </style>

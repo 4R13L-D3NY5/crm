@@ -54,6 +54,7 @@
     <!-- Diálogos Desacoplados -->
     <TicketTransferDialog
       v-model="isTransferModalOpen"
+      :users="formOptions.usersQuery.data.value ?? []"
       :loading="mutations.transferMutation.isPending.value"
       @submit="handleTransferTicket"
     />
