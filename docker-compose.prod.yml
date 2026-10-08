@@ -1,0 +1,149 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ${CRM_INSTANCE_NAME:-crm}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-crm}
+      POSTGRES_USER: ${DB_USERNAME:-crm}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-crm_secret_2026}
+      TZ: America/La_Paz
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-crm} -d ${DB_DATABASE:-crm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - crm-internal
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: ${CRM_INSTANCE_NAME:-crm}-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - crm-internal
+
+  api:
+    image: ${CRM_INSTANCE_NAME:-crm}-api:production
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.prod
+    container_name: ${CRM_INSTANCE_NAME:-crm}-api
+    restart: unless-stopped
+    environment:
+      APP_NAME: "${APP_NAME:-XpertiFlow CRM}"
+      APP_ENV: production
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_KEY: "${APP_KEY:-base64:CyU1JHIJ1c4G7un/AMwKEf76+5Vp8zn9Gatjb8GeqWI=}"
+      APP_URL: "${APP_URL:-https://crm.unitepc.pro}"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-crm}
+      DB_USERNAME: ${DB_USERNAME:-crm}
+      DB_PASSWORD: ${DB_PASSWORD:-crm_secret_2026}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS:-crm.unitepc.pro,unitepc.pro}"
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-https://crm.unitepc.pro,https://unitepc.pro}"
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO: "${SEED_DEMO:-true}"
+      WHATSAPP_API_BASE_URL: "https://graph.facebook.com/v23.0"
+      WHATSAPP_BAILEYS_BASE_URL: "http://whatsapp-service:3000"
+    volumes:
+      - api_storage:/var/www/html/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - crm-internal
+
+  social-sync:
+    image: ${CRM_INSTANCE_NAME:-crm}-api:production
+    container_name: ${CRM_INSTANCE_NAME:-crm}-social-sync
+    restart: unless-stopped
+    environment:
+      APP_NAME: "CRM Social Sync"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: "${APP_KEY:-base64:CyU1JHIJ1c4G7un/AMwKEf76+5Vp8zn9Gatjb8GeqWI=}"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-crm}
+      DB_USERNAME: ${DB_USERNAME:-crm}
+      DB_PASSWORD: ${DB_PASSWORD:-crm_secret_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - crm-internal
+    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; sleep 5; done"]
+
+  whatsapp-service:
+    image: ${CRM_INSTANCE_NAME:-crm}-whatsapp-service:production
+    build:
+      context: ./apps/whatsapp-service
+      dockerfile: Dockerfile
+    container_name: ${CRM_INSTANCE_NAME:-crm}-whatsapp-service
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      LARAVEL_WEBHOOK_URL: http://api:8010/api/whatsapp/baileys/webhook
+    volumes:
+      - baileys_data:/app/sessions
+    depends_on:
+      - api
+    networks:
+      - crm-internal
+
+  web:
+    image: ${CRM_INSTANCE_NAME:-crm}-web:production
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.prod
+      args:
+        - VITE_API_BASE_URL=/api
+    container_name: ${CRM_INSTANCE_NAME:-crm}-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - crm-internal
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ${CRM_INSTANCE_NAME:-crm}-nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    volumes:
+      - ./infra/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - crm-internal
+      - proxy
+
+volumes:
+  postgres_data:
+  redis_data:
+  api_storage:
+  baileys_data:
+
+networks:
+  crm-internal:
+    driver: bridge
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-red-proxy}
