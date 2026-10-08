@@ -9,6 +9,13 @@ class WhatsAppAccountResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $hasAccessToken = false;
+        try {
+            $hasAccessToken = filled($this->access_token);
+        } catch (\Throwable) {
+            $hasAccessToken = filled($this->getRawOriginal('access_token'));
+        }
+
         return [
             'id' => $this->id,
             'organization_id' => $this->organization_id,
@@ -20,7 +27,7 @@ class WhatsAppAccountResource extends JsonResource
             'display_phone_number' => $this->display_phone_number,
             'business_account_id' => $this->business_account_id,
             'verify_token' => $this->verify_token,
-            'has_access_token' => filled($this->access_token),
+            'has_access_token' => $hasAccessToken,
             'is_active' => (bool) $this->is_active,
             'webhook_url' => url('/api/whatsapp/webhook'),
 
