@@ -31,3 +31,23 @@ Route::put('custom-statuses/{id}', [CustomStatusController::class, 'update'])->n
 Route::delete('custom-statuses/{id}', [CustomStatusController::class, 'destroy'])->name('custom-statuses.destroy');
 
 Route::put('conversations/{conversation}/custom-status', [ConversationCustomStatusController::class, 'update'])->name('conversations.custom-status.update');
+
+// Rutas de Reglas de Tiempo & Alertas de Inactividad (SLA)
+use App\Modules\Parameters\Http\Controllers\TimeAlertRuleController;
+
+Route::get('time-alert-rules', [TimeAlertRuleController::class, 'index'])->name('time-alert-rules.index');
+Route::post('time-alert-rules', [TimeAlertRuleController::class, 'store'])->name('time-alert-rules.store');
+Route::post('time-alert-rules/seed-default', [TimeAlertRuleController::class, 'seedDefault'])->name('time-alert-rules.seed-default');
+Route::put('time-alert-rules/{id}', [TimeAlertRuleController::class, 'update'])->name('time-alert-rules.update');
+Route::patch('time-alert-rules/{id}/toggle', [TimeAlertRuleController::class, 'toggleActive'])->name('time-alert-rules.toggle');
+Route::delete('time-alert-rules/{id}', [TimeAlertRuleController::class, 'destroy'])->name('time-alert-rules.destroy');
+
+// Rutas de Horario Laboral & Auto-respuesta fuera de horario
+use App\Modules\Parameters\Http\Controllers\BusinessHoursController;
+
+Route::get('business-hours', [BusinessHoursController::class, 'show'])->name('business-hours.show');
+Route::put('business-hours', [BusinessHoursController::class, 'update'])->name('business-hours.update');
+Route::patch('business-hours/toggle', [BusinessHoursController::class, 'toggleActive'])->name('business-hours.toggle');
+Route::patch('business-hours/toggle-auto-reply', [BusinessHoursController::class, 'toggleAutoReply'])->name('business-hours.toggle-auto-reply');
+Route::get('business-hours/status', [BusinessHoursController::class, 'status'])->name('business-hours.status');
+

@@ -53,6 +53,16 @@
         <q-icon name="sym_r_toggle_on" size="18px" />
         <span>Estados Personalizados</span>
       </button>
+
+      <button
+        class="xf-subnav-btn"
+        :class="{ 'xf-subnav-btn--active': activeTab === 'time' }"
+        @click="activeTab = 'time'"
+      >
+        <q-icon name="sym_r_timer" size="18px" />
+        <span>Tiempo & Reglas de Inactividad</span>
+        <q-badge color="amber-9" text-color="amber-2" class="q-ml-xs text-bold">SLA</q-badge>
+      </button>
     </div>
 
     <!-- TAB 1: CATEGORÍAS & SUBCATEGORÍAS -->
@@ -421,6 +431,11 @@
         </div>
       </div>
       </div>
+    </div>
+
+    <!-- TAB 3: TIEMPO & REGLAS DE INACTIVIDAD (SLA) -->
+    <div v-else-if="activeTab === 'time'">
+      <TimeAlertRulesTab :custom-statuses="statuses" />
     </div>
 
     <!-- DIÁLOGO 1: CREAR / EDITAR CATEGORÍA -->
@@ -825,10 +840,11 @@ import { http } from '@/shared/api/http'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import CategoryTreeNode from '../components/CategoryTreeNode.vue'
 import StatusFlowDiagram from '../components/StatusFlowDiagram.vue'
+import TimeAlertRulesTab from '../components/TimeAlertRulesTab.vue'
 
 const notify = useAppNotify()
 
-const activeTab = ref<'categories' | 'statuses'>('categories')
+const activeTab = ref<'categories' | 'statuses' | 'time'>('categories')
 const statusViewMode = ref<'diagram' | 'cards'>('diagram')
 const loading = ref(false)
 const saving = ref(false)
