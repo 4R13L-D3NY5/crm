@@ -6,5 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/reports/dashboard', DashboardReportController::class)->name('api.reports.dashboard');
 Route::get('/reports/analytics', [ReportsAnalyticsController::class, 'analytics'])->name('api.reports.analytics');
+Route::get('/reports/agents', [ReportsAnalyticsController::class, 'agents'])->name('api.reports.agents');
+Route::get('/reports/categories', [ReportsAnalyticsController::class, 'categories'])->name('api.reports.categories');
 Route::get('/reports/csat', [ReportsAnalyticsController::class, 'csat'])->name('api.reports.csat');
 Route::get('/reports/export', [ReportsAnalyticsController::class, 'export'])->name('api.reports.export');

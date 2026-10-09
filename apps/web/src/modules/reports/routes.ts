@@ -1,12 +1,12 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-import ReportsPage from './pages/ReportsPage.vue'
+import ReportsOverviewPage from './pages/ReportsOverviewPage.vue'
 
 export const reportsRoutes: RouteRecordRaw[] = [
   {
     path: 'reports',
     name: 'reports.list',
-    component: ReportsPage,
+    component: ReportsOverviewPage,
     meta: { permission: 'reports.view' },
   },
 ]
