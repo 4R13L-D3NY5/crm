@@ -17,8 +17,21 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'current_organization_id', 'presence_status', 'last_seen_at'])]
-#[Hidden(['password', 'remember_token'])]
+#[Fillable([
+    'name',
+    'email',
+    'password',
+    'current_organization_id',
+    'presence_status',
+    'last_seen_at',
+    'phone',
+    'avatar_url',
+    'preferences',
+    'two_factor_secret',
+    'two_factor_recovery_codes',
+    'two_factor_confirmed_at',
+])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -35,7 +48,39 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'last_seen_at' => 'datetime',
+            'preferences' => 'array',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_recovery_codes' => 'array',
         ];
+    }
+
+    /**
+     * Preferencias predeterminadas del usuario.
+     */
+    public static function defaultPreferences(): array
+    {
+        return [
+            'theme_mode' => 'dark',
+            'accent_color' => 'emerald',
+            'notification_sound' => 'chime',
+            'notification_volume' => 80,
+            'desktop_notifications' => true,
+            'whatsapp_signature_enabled' => false,
+            'whatsapp_signature' => '',
+            'language' => 'es',
+            'presence_break_reason' => null,
+            'presence_break_until' => null,
+        ];
+    }
+
+    public function getPreferencesWithDefaultsAttribute(): array
+    {
+        return array_merge(static::defaultPreferences(), $this->preferences ?? []);
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
     }
 
     public function currentOrganization(): BelongsTo

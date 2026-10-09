@@ -30,6 +30,13 @@ Route::middleware('web')->group(function (): void {
     Route::middleware(['auth:sanctum', 'current.organization'])->group(function (): void {
         Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('api.logout');
         Route::get('/me', [CurrentUserController::class, 'show'])->name('api.me');
+        Route::put('/me/profile', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'updateProfile'])->name('api.me.profile');
+        Route::put('/me/password', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'updatePassword'])->name('api.me.password');
+        Route::put('/me/presence', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'updatePresence'])->name('api.me.presence');
+        Route::put('/me/preferences', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'updatePreferences'])->name('api.me.preferences');
+        Route::post('/me/two-factor/setup', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'setupTwoFactor'])->name('api.me.two-factor.setup');
+        Route::post('/me/two-factor/confirm', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'confirmTwoFactor'])->name('api.me.two-factor.confirm');
+        Route::post('/me/two-factor/disable', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'disableTwoFactor'])->name('api.me.two-factor.disable');
         Route::get('/organizations', [OrganizationController::class, 'index'])->name('api.organizations.index');
         Route::get('/organizations/current', [CurrentOrganizationController::class, 'index'])->name('api.organizations.current');
         Route::put('/organizations/current', [CurrentOrganizationController::class, 'update'])->name('api.organizations.switch');

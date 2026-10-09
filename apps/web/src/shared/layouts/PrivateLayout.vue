@@ -56,22 +56,131 @@
             </template>
           </q-select>
 
-          <!-- Avatar / Menú de Usuario -->
-          <q-btn flat round dense class="q-ml-xs">
+          <!-- Avatar / Menú de Usuario con Indicador de Presencia -->
+          <q-btn flat round dense class="q-ml-xs relative-position">
             <q-avatar size="32px" class="xf-avatar-user">
               {{ initials }}
+              <q-badge
+                floating
+                rounded
+                :color="presenceBadgeColor"
+                class="xf-presence-badge"
+              />
             </q-avatar>
-            <q-menu anchor="bottom right" self="top right" dark class="xf-profile-menu">
+            <q-menu anchor="bottom right" self="top right" dark class="xf-profile-menu" style="min-width: 250px;">
               <div class="q-pa-md">
-                <div class="text-weight-bold text-white">{{ authStore.user?.name ?? 'Admin' }}</div>
-                <div class="text-caption text-grey-4">{{ authStore.user?.email ?? 'admin@crm.local' }}</div>
-                <div class="xf-user-role-badge q-mt-xs">Fase 4 • Superadmin</div>
+                <div class="row items-center justify-between no-wrap">
+                  <div class="text-weight-bold text-white text-subtitle2 ellipsis" style="max-width: 140px;">
+                    {{ authStore.user?.name ?? 'Admin' }}
+                  </div>
+                  <q-badge :color="presenceBadgeColor" :label="presenceBadgeLabel" rounded class="text-bold text-caption" />
+                </div>
+                <div class="text-caption text-grey-4 ellipsis">{{ authStore.user?.email ?? 'admin@crm.local' }}</div>
+                <div class="xf-user-role-badge q-mt-xs">
+                  {{ authStore.user?.current_role ? authStore.user.current_role.toUpperCase() : 'SUPERADMIN' }}
+                </div>
               </div>
+
+              <q-separator dark />
+
+              <!-- Selector Rápido de Presencia de Operador -->
+              <div class="q-px-sm q-pt-sm q-pb-xs">
+                <div class="text-caption text-weight-bold text-grey-5 q-px-sm q-mb-xs" style="font-size: 10px; letter-spacing: 0.5px;">
+                  ESTADO DE OPERADOR
+                </div>
+                <div class="column q-gutter-y-xs">
+                  <q-item
+                    clickable
+                    v-close-popup
+                    dense
+                    :class="['xf-presence-item', { 'xf-presence-item--active': currentPresence === 'online' }]"
+                    @click="setQuickPresence('online')"
+                  >
+                    <q-item-section avatar style="min-width: 24px;">
+                      <q-badge rounded color="positive" class="q-mr-xs" style="width: 8px; height: 8px;" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white text-caption text-weight-medium">En línea</q-item-label>
+                      <q-item-label caption class="text-grey-5" style="font-size: 10px;">Disponible para nuevos chats</q-item-label>
+                    </q-item-section>
+                    <q-item-section side v-if="currentPresence === 'online'">
+                      <q-icon name="sym_r_check" size="16px" color="positive" />
+                    </q-item-section>
+                  </q-item>
+
+                  <q-item
+                    clickable
+                    v-close-popup
+                    dense
+                    :class="['xf-presence-item', { 'xf-presence-item--active': currentPresence === 'busy' }]"
+                    @click="setQuickPresence('busy')"
+                  >
+                    <q-item-section avatar style="min-width: 24px;">
+                      <q-badge rounded color="warning" class="q-mr-xs" style="width: 8px; height: 8px;" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white text-caption text-weight-medium">En pausa / Ausente</q-item-label>
+                      <q-item-label caption class="text-grey-5" style="font-size: 10px;">No asignar nuevas colas</q-item-label>
+                    </q-item-section>
+                    <q-item-section side v-if="currentPresence === 'busy'">
+                      <q-icon name="sym_r_check" size="16px" color="warning" />
+                    </q-item-section>
+                  </q-item>
+
+                  <q-item
+                    clickable
+                    v-close-popup
+                    dense
+                    :class="['xf-presence-item', { 'xf-presence-item--active': currentPresence === 'offline' }]"
+                    @click="setQuickPresence('offline')"
+                  >
+                    <q-item-section avatar style="min-width: 24px;">
+                      <q-badge rounded color="grey-6" class="q-mr-xs" style="width: 8px; height: 8px;" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white text-caption text-weight-medium">Fuera de turno</q-item-label>
+                      <q-item-label caption class="text-grey-5" style="font-size: 10px;">Desconectado del sistema</q-item-label>
+                    </q-item-section>
+                    <q-item-section side v-if="currentPresence === 'offline'">
+                      <q-icon name="sym_r_check" size="16px" color="grey-5" />
+                    </q-item-section>
+                  </q-item>
+                </div>
+              </div>
+
               <q-separator dark class="q-my-xs" />
+
               <q-list dense>
+                <q-item clickable v-close-popup class="xf-profile-item" @click="isSettingsModalOpen = true">
+                  <q-item-section avatar style="min-width: 24px;">
+                    <q-icon name="sym_r_manage_accounts" size="18px" color="teal-4" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-white text-caption text-weight-medium">Mi Cuenta & Ajustes</q-item-label>
+                    <q-item-label caption class="text-grey-5" style="font-size: 10px;">Audio, temas, 2FA y perfil</q-item-label>
+                  </q-item-section>
+                </q-item>
+
+                <!-- Toggle Rápido Modo Oscuro -->
+                <q-item tag="label" class="xf-profile-item">
+                  <q-item-section avatar style="min-width: 24px;">
+                    <q-icon :name="isDarkMode ? 'sym_r_dark_mode' : 'sym_r_light_mode'" size="18px" :color="isDarkMode ? 'teal-4' : 'amber-7'" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-white text-caption text-weight-medium">Modo Oscuro</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-toggle v-model="isDarkMode" dense color="primary" size="sm" @update:model-value="toggleTheme" />
+                  </q-item-section>
+                </q-item>
+
+                <q-separator dark class="q-my-xs" />
+
                 <q-item clickable v-close-popup class="xf-profile-item text-negative" @click="handleLogout">
-                  <q-item-section avatar><q-icon name="sym_r_logout" size="18px" color="negative" /></q-item-section>
-                  <q-item-section>Cerrar sesión</q-item-section>
+                  <q-item-section avatar style="min-width: 24px;">
+                    <q-icon name="sym_r_logout" size="18px" color="negative" />
+                  </q-item-section>
+                  <q-item-section class="text-caption text-weight-medium">Cerrar sesión</q-item-section>
                 </q-item>
               </q-list>
             </q-menu>
@@ -293,6 +402,8 @@
         </transition>
       </router-view>
     </q-page-container>
+    <!-- Modal Centralizado de Ajustes de Usuario & Preferencias -->
+    <UserSettingsModal v-model="isSettingsModalOpen" />
   </q-layout>
 </template>
 
@@ -301,6 +412,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
+import type { PresenceStatus } from '@/modules/auth/types/auth.types'
+import UserSettingsModal from '@/shared/components/UserSettingsModal.vue'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -308,9 +421,57 @@ const authStore = useAuthStore()
 
 const leftDrawerOpen = ref(true)
 const isDarkMode = ref(true)
+const isSettingsModalOpen = ref(false)
+
+const currentPresence = computed<PresenceStatus>(() => {
+  return authStore.user?.presence_status ?? 'online'
+})
+
+const presenceBadgeColor = computed(() => {
+  switch (currentPresence.value) {
+    case 'online':
+      return 'positive'
+    case 'busy':
+      return 'warning'
+    case 'offline':
+    default:
+      return 'grey-6'
+  }
+})
+
+const presenceBadgeLabel = computed(() => {
+  switch (currentPresence.value) {
+    case 'online':
+      return 'En línea'
+    case 'busy':
+      return 'Ausente'
+    case 'offline':
+    default:
+      return 'Fuera de turno'
+  }
+})
+
+async function setQuickPresence(status: PresenceStatus) {
+  try {
+    await authStore.setPresence(status)
+    $q.notify({
+      type: 'positive',
+      message: `Estado de operador: ${status === 'online' ? 'En línea' : status === 'busy' ? 'En pausa' : 'Fuera de turno'}`,
+      position: 'bottom-right',
+      timeout: 1800,
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.message || 'Error al actualizar estado de presencia',
+      position: 'bottom-right',
+    })
+  }
+}
 
 onMounted(() => {
-  const saved = localStorage.getItem('whaticket_theme')
+  const userPrefTheme = authStore.user?.preferences?.theme_mode
+  const saved = userPrefTheme || localStorage.getItem('whaticket_theme')
   if (saved) {
     isDarkMode.value = saved === 'dark'
   } else {
@@ -318,6 +479,21 @@ onMounted(() => {
     localStorage.setItem('whaticket_theme', 'dark')
   }
   applyTheme(isDarkMode.value)
+
+  const accentColor = authStore.user?.preferences?.accent_color
+  if (accentColor) {
+    const colorMap: Record<string, string> = {
+      emerald: '#10b981',
+      cyan: '#06b6d4',
+      indigo: '#6366f1',
+      amber: '#f59e0b',
+      purple: '#8b5cf6',
+      rose: '#ec4899',
+    }
+    if (colorMap[accentColor]) {
+      document.documentElement.style.setProperty('--crm-color-primary', colorMap[accentColor])
+    }
+  }
 })
 
 function toggleTheme(val: boolean) {
@@ -611,5 +787,38 @@ async function handleLogout() {
   border: 1px solid var(--crm-color-border) !important;
   border-radius: 10px !important;
   box-shadow: var(--crm-shadow-dropdown) !important;
+}
+
+.xf-presence-badge {
+  top: -2px;
+  right: -2px;
+  min-width: 9px;
+  min-height: 9px;
+  border: 2px solid var(--crm-bg-header);
+  padding: 0;
+}
+
+.xf-presence-item {
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background var(--crm-transition-fast);
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  &--active {
+    background: rgba(16, 185, 129, 0.12) !important;
+  }
+}
+
+.xf-profile-item {
+  border-radius: 6px;
+  margin: 1px 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: background var(--crm-transition-fast);
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 </style>

@@ -9,7 +9,12 @@ import {
   logout,
   switchOrganization,
 } from '../api/auth.api'
-import type { AuthRole, AuthUser } from '../types/auth.types'
+import {
+  updatePreferences,
+  updatePresence,
+  updateProfile,
+} from '../api/profile.api'
+import type { AuthRole, AuthUser, PresenceStatus, UserPreferences } from '../types/auth.types'
 
 const DEMO_ROLE_STORAGE_KEY = 'crm-demo-role'
 
@@ -235,6 +240,28 @@ export const useAuthStore = defineStore('auth', {
       } else {
         clearStoredDemoRole()
       }
+    },
+    async setPresence(status: PresenceStatus, breakReason?: string | null, breakUntil?: string | null) {
+      const res = await updatePresence({
+        presence_status: status,
+        presence_break_reason: breakReason,
+        presence_break_until: breakUntil,
+      })
+      if (this.user) {
+        this.user.presence_status = res.presence_status
+        this.user.last_seen_at = res.last_seen_at
+        this.user.preferences = res.preferences
+      }
+    },
+    async savePreferences(prefs: Partial<UserPreferences>) {
+      const res = await updatePreferences(prefs)
+      if (this.user) {
+        this.user.preferences = res
+      }
+    },
+    async saveProfile(payload: { name: string; email: string; phone?: string }) {
+      const updated = await updateProfile(payload)
+      this.user = updated
     },
   },
 })
