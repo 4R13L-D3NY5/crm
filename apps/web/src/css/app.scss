@@ -45,31 +45,44 @@
   --crm-transition-smooth: 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-// MODO CLARO REFINADO
+// MODO CLARO REFINADO (Alto contraste & legibilidad cristalina)
 [data-theme='light'],
 .body--light {
-  --crm-bg-app: #f8fafc;
-  --crm-bg-header: rgba(255, 255, 255, 0.85);
+  --crm-bg-app: #f1f5f9;
+  --crm-bg-header: rgba(255, 255, 255, 0.95);
   --crm-bg-sidebar: #ffffff;
   --crm-bg-card: #ffffff;
-  --crm-bg-card-hover: #f1f5f9;
-  --crm-bg-surface-elevated: #e2e8f0;
+  --crm-bg-card-hover: #f8fafc;
+  --crm-bg-surface-elevated: #ffffff;
 
-  --crm-color-primary: #059669;
-  --crm-color-primary-hover: #047857;
-  --crm-color-primary-soft: rgba(5, 150, 105, 0.08);
+  --crm-color-primary: #10b981;
+  --crm-color-primary-hover: #059669;
+  --crm-color-primary-soft: rgba(16, 185, 129, 0.12);
   --crm-color-secondary: #4f46e5;
   --crm-color-accent: #d97706;
 
   --crm-color-ink: #0f172a;
-  --crm-color-muted: #64748b;
-  --crm-color-dim: #94a3b8;
-  --crm-color-border: rgba(0, 0, 0, 0.08);
-  --crm-color-border-hover: rgba(0, 0, 0, 0.16);
+  --crm-color-muted: #475569;
+  --crm-color-dim: #64748b;
+  --crm-color-border: #e2e8f0;
+  --crm-color-border-hover: #cbd5e1;
 
-  --crm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --crm-shadow-card: 0 4px 14px -2px rgba(0, 0, 0, 0.06);
-  --crm-shadow-dropdown: 0 12px 28px -4px rgba(0, 0, 0, 0.12);
+  --crm-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --crm-shadow-card: 0 2px 8px -1px rgba(15, 23, 42, 0.06), 0 1px 3px -1px rgba(15, 23, 42, 0.04);
+  --crm-shadow-dropdown: 0 10px 25px -3px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+}
+
+// Clases utilitarias semánticas adaptativas
+.text-ink {
+  color: var(--crm-color-ink) !important;
+}
+
+.text-muted {
+  color: var(--crm-color-muted) !important;
+}
+
+.text-dim {
+  color: var(--crm-color-dim) !important;
 }
 
 // Reset & Tipografía Global
@@ -218,5 +231,196 @@ a {
 
   &:hover {
     color: var(--crm-color-primary-hover);
+  }
+}
+
+// ========================================================
+// SISTEMA INTEGRAL DE MODO CLARO (ALTO CONTRASTE Y LEGIBILIDAD)
+// ========================================================
+.body--light {
+  background-color: var(--crm-bg-app) !important;
+  color: var(--crm-color-ink) !important;
+
+  // Header y Toolbar
+  .xf-header-top {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .xf-toolbar {
+    color: #0f172a !important;
+  }
+
+  .xf-logo-text {
+    color: #0f172a !important;
+  }
+
+  .xf-btn-icon {
+    color: #475569 !important;
+    &:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+  }
+
+  // Sidebar Drawer
+  .xf-sidebar-drawer {
+    background-color: #ffffff !important;
+    border-right: 1px solid #e2e8f0 !important;
+  }
+
+  .xf-nav-item {
+    color: #475569 !important;
+    &:hover {
+      background: #f1f5f9 !important;
+      color: #0f172a !important;
+    }
+  }
+
+  .xf-roadmap-card {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .xf-theme-toggle-box {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  // Cards y Diálogos
+  .q-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .q-menu {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: var(--crm-shadow-dropdown) !important;
+  }
+
+  .q-separator {
+    background: #e2e8f0 !important;
+  }
+
+  // Corrección tipográfica para textos que tenían clases rígidas text-white
+  // (convierte textos blancos accidentales en oscuro sobre superficies claras)
+  .q-card,
+  .q-dialog,
+  .q-drawer,
+  .q-menu,
+  .app-page,
+  .deal-board,
+  .xf-app-layout {
+    .text-white:not(.q-btn *):not(.q-badge *):not(.bg-primary *):not(.bg-positive *):not(.bg-negative *):not(.bg-info *):not(.bg-warning *):not(.bg-dark *):not(.bg-teal *) {
+      color: #0f172a !important;
+    }
+
+    .text-grey-4,
+    .text-grey-5 {
+      color: #475569 !important;
+    }
+
+    .text-grey-6 {
+      color: #64748b !important;
+    }
+  }
+
+  // Tablero Kanban (Pipeline) en Modo Claro
+  .deal-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
+
+    .deal-card__title {
+      color: #0f172a !important;
+    }
+    .deal-card__amount {
+      color: #334155 !important;
+    }
+    .deal-card__details {
+      color: #475569 !important;
+    }
+    .deal-card__readonly {
+      color: #64748b !important;
+    }
+  }
+
+  .deal-column__header {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .deal-column__name {
+    color: #0f172a !important;
+  }
+
+  .deal-column__meta {
+    color: #64748b !important;
+  }
+
+  .deal-column__empty {
+    background: #f8fafc !important;
+    border: 1px dashed #cbd5e1 !important;
+    color: #64748b !important;
+  }
+
+  .deal-board__summary {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  // Modal de Ajustes de Usuario
+  .user-settings-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  .bg-dark-subtle {
+    background: #f8fafc !important;
+  }
+
+  .xf-settings-section {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .xf-theme-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+
+    &:hover {
+      background: #f1f5f9 !important;
+    }
+
+    &--active {
+      background: rgba(16, 185, 129, 0.08) !important;
+      border-color: var(--crm-color-primary) !important;
+    }
+  }
+
+  // Diálogos generales AppDialog
+  .app-dialog {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12) !important;
+    color: #0f172a !important;
+
+    .app-dialog__title {
+      color: #0f172a !important;
+    }
+  }
+
+  // Inputs y Selects en modo claro
+  .q-field--outlined .q-field__control {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .q-field__native,
+  .q-field__input {
+    color: #0f172a !important;
   }
 }

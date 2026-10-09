@@ -475,12 +475,30 @@ function formatCurrency(value: number) {
   display: grid;
   gap: 14px;
   padding: 18px;
-  border: 1px solid rgba(118, 198, 255, 0.12);
-  border-radius: 24px;
+  border-radius: 20px;
+  background: var(--crm-bg-card);
+  border: 1px solid var(--crm-color-border);
+  box-shadow: var(--crm-shadow-card);
+  transition: all var(--crm-transition-fast);
+
+  &:hover {
+    border-color: var(--crm-color-border-hover);
+    transform: translateY(-1px);
+  }
+}
+
+:global(.body--dark) .deal-card {
   background:
     radial-gradient(circle at top right, rgba(73, 194, 255, 0.06), transparent 24%),
     linear-gradient(180deg, rgba(14, 27, 43, 0.96) 0%, rgba(9, 20, 33, 0.94) 100%);
+  border: 1px solid rgba(118, 198, 255, 0.12);
   box-shadow: 0 14px 36px rgba(2, 12, 26, 0.18);
+}
+
+:global(.body--light) .deal-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05) !important;
 }
 
 .deal-card__top {
@@ -524,10 +542,20 @@ function formatCurrency(value: number) {
 
 .deal-column__empty {
   padding: 20px;
-  border: 1px dashed rgba(122, 226, 231, 0.18);
-  border-radius: 20px;
+  border-radius: 16px;
   color: var(--crm-color-muted);
+  border: 1px dashed var(--crm-color-border);
+  background: var(--crm-bg-card);
+}
+
+:global(.body--dark) .deal-column__empty {
+  border: 1px dashed rgba(122, 226, 231, 0.18);
   background: rgba(10, 22, 36, 0.88);
+}
+
+:global(.body--light) .deal-column__empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
 }
 
 @media (max-width: 960px) {

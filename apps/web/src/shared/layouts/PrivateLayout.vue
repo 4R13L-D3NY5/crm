@@ -47,12 +47,11 @@
             map-options
             dense
             outlined
-            dark
             class="xf-org-select"
             @update:model-value="onOrganizationChange"
           >
             <template #prepend>
-              <q-icon name="sym_r_corporate_fare" size="15px" class="text-teal-4" />
+              <q-icon name="sym_r_corporate_fare" size="15px" color="primary" />
             </template>
           </q-select>
 
@@ -67,25 +66,25 @@
                 class="xf-presence-badge"
               />
             </q-avatar>
-            <q-menu anchor="bottom right" self="top right" dark class="xf-profile-menu" style="min-width: 250px;">
+            <q-menu anchor="bottom right" self="top right" class="xf-profile-menu" style="min-width: 250px;">
               <div class="q-pa-md">
                 <div class="row items-center justify-between no-wrap">
-                  <div class="text-weight-bold text-white text-subtitle2 ellipsis" style="max-width: 140px;">
+                  <div class="text-weight-bold text-ink text-subtitle2 ellipsis" style="max-width: 140px;">
                     {{ authStore.user?.name ?? 'Admin' }}
                   </div>
                   <q-badge :color="presenceBadgeColor" :label="presenceBadgeLabel" rounded class="text-bold text-caption" />
                 </div>
-                <div class="text-caption text-grey-4 ellipsis">{{ authStore.user?.email ?? 'admin@crm.local' }}</div>
+                <div class="text-caption text-muted ellipsis">{{ authStore.user?.email ?? 'admin@crm.local' }}</div>
                 <div class="xf-user-role-badge q-mt-xs">
                   {{ authStore.user?.current_role ? authStore.user.current_role.toUpperCase() : 'SUPERADMIN' }}
                 </div>
               </div>
 
-              <q-separator dark />
+              <q-separator />
 
               <!-- Selector Rápido de Presencia de Operador -->
               <div class="q-px-sm q-pt-sm q-pb-xs">
-                <div class="text-caption text-weight-bold text-grey-5 q-px-sm q-mb-xs" style="font-size: 10px; letter-spacing: 0.5px;">
+                <div class="text-caption text-weight-bold text-dim q-px-sm q-mb-xs" style="font-size: 10px; letter-spacing: 0.5px;">
                   ESTADO DE OPERADOR
                 </div>
                 <div class="column q-gutter-y-xs">
@@ -100,8 +99,8 @@
                       <q-badge rounded color="positive" class="q-mr-xs" style="width: 8px; height: 8px;" />
                     </q-item-section>
                     <q-item-section>
-                      <q-item-label class="text-white text-caption text-weight-medium">En línea</q-item-label>
-                      <q-item-label caption class="text-grey-5" style="font-size: 10px;">Disponible para nuevos chats</q-item-label>
+                      <q-item-label class="text-ink text-caption text-weight-medium">En línea</q-item-label>
+                      <q-item-label caption class="text-muted" style="font-size: 10px;">Disponible para nuevos chats</q-item-label>
                     </q-item-section>
                     <q-item-section side v-if="currentPresence === 'online'">
                       <q-icon name="sym_r_check" size="16px" color="positive" />
@@ -119,8 +118,8 @@
                       <q-badge rounded color="warning" class="q-mr-xs" style="width: 8px; height: 8px;" />
                     </q-item-section>
                     <q-item-section>
-                      <q-item-label class="text-white text-caption text-weight-medium">En pausa / Ausente</q-item-label>
-                      <q-item-label caption class="text-grey-5" style="font-size: 10px;">No asignar nuevas colas</q-item-label>
+                      <q-item-label class="text-ink text-caption text-weight-medium">En pausa / Ausente</q-item-label>
+                      <q-item-label caption class="text-muted" style="font-size: 10px;">No asignar nuevas colas</q-item-label>
                     </q-item-section>
                     <q-item-section side v-if="currentPresence === 'busy'">
                       <q-icon name="sym_r_check" size="16px" color="warning" />
@@ -138,8 +137,8 @@
                       <q-badge rounded color="grey-6" class="q-mr-xs" style="width: 8px; height: 8px;" />
                     </q-item-section>
                     <q-item-section>
-                      <q-item-label class="text-white text-caption text-weight-medium">Fuera de turno</q-item-label>
-                      <q-item-label caption class="text-grey-5" style="font-size: 10px;">Desconectado del sistema</q-item-label>
+                      <q-item-label class="text-ink text-caption text-weight-medium">Fuera de turno</q-item-label>
+                      <q-item-label caption class="text-muted" style="font-size: 10px;">Desconectado del sistema</q-item-label>
                     </q-item-section>
                     <q-item-section side v-if="currentPresence === 'offline'">
                       <q-icon name="sym_r_check" size="16px" color="grey-5" />
@@ -148,33 +147,33 @@
                 </div>
               </div>
 
-              <q-separator dark class="q-my-xs" />
+              <q-separator class="q-my-xs" />
 
               <q-list dense>
                 <q-item clickable v-close-popup class="xf-profile-item" @click="isSettingsModalOpen = true">
                   <q-item-section avatar style="min-width: 24px;">
-                    <q-icon name="sym_r_manage_accounts" size="18px" color="teal-4" />
+                    <q-icon name="sym_r_manage_accounts" size="18px" color="primary" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label class="text-white text-caption text-weight-medium">Mi Cuenta & Ajustes</q-item-label>
-                    <q-item-label caption class="text-grey-5" style="font-size: 10px;">Audio, temas, 2FA y perfil</q-item-label>
+                    <q-item-label class="text-ink text-caption text-weight-medium">Mi Cuenta & Ajustes</q-item-label>
+                    <q-item-label caption class="text-muted" style="font-size: 10px;">Audio, temas, 2FA y perfil</q-item-label>
                   </q-item-section>
                 </q-item>
 
                 <!-- Toggle Rápido Modo Oscuro -->
                 <q-item tag="label" class="xf-profile-item">
                   <q-item-section avatar style="min-width: 24px;">
-                    <q-icon :name="isDarkMode ? 'sym_r_dark_mode' : 'sym_r_light_mode'" size="18px" :color="isDarkMode ? 'teal-4' : 'amber-7'" />
+                    <q-icon :name="isDark ? 'sym_r_dark_mode' : 'sym_r_light_mode'" size="18px" :color="isDark ? 'primary' : 'amber-7'" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label class="text-white text-caption text-weight-medium">Modo Oscuro</q-item-label>
+                    <q-item-label class="text-ink text-caption text-weight-medium">Modo Oscuro</q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-toggle v-model="isDarkMode" dense color="primary" size="sm" @update:model-value="toggleTheme" />
+                    <q-toggle v-model="isDark" dense color="primary" size="sm" @update:model-value="toggleTheme" />
                   </q-item-section>
                 </q-item>
 
-                <q-separator dark class="q-my-xs" />
+                <q-separator class="q-my-xs" />
 
                 <q-item clickable v-close-popup class="xf-profile-item text-negative" @click="handleLogout">
                   <q-item-section avatar style="min-width: 24px;">
@@ -343,7 +342,20 @@
               <q-item-section>Filas & Departamentos</q-item-section>
             </q-item>
 
-            <!-- 11. Parametrización -->
+            <!-- 11. Reportes & Métricas -->
+            <q-item
+              clickable
+              to="/app/reports"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_monitoring" size="18px" />
+              </q-item-section>
+              <q-item-section>Reportes & Métricas</q-item-section>
+            </q-item>
+
+            <!-- 12. Parametrización -->
             <q-item
               clickable
               to="/app/parameters"
@@ -360,13 +372,13 @@
           <!-- Tarjeta Minimalista del Roadmap V2 -->
           <div class="xf-roadmap-card q-mx-sm q-mt-md">
             <div class="row items-center justify-between q-mb-xs">
-              <span class="text-caption text-weight-bold text-white">Roadmap V2</span>
-              <span class="text-caption text-teal-4 text-weight-medium">Fase 4 / 6</span>
+              <span class="text-caption text-weight-bold text-ink">Roadmap V2</span>
+              <span class="text-caption text-primary text-weight-medium">Fase 4 / 6</span>
             </div>
-            <p class="text-caption text-grey-5 q-mb-xs roadmap-text">
+            <p class="text-caption text-muted q-mb-xs roadmap-text">
               Fase 5 (Hentle-AI Copilot & RAG) se desbloqueará en su etapa.
             </p>
-            <q-linear-progress :value="0.66" color="positive" track-color="grey-9" rounded size="4px" />
+            <q-linear-progress :value="0.66" color="primary" rounded size="4px" />
           </div>
 
         </div>
@@ -376,14 +388,14 @@
           <div class="xf-theme-toggle-box">
             <div class="row items-center q-gutter-x-xs">
               <q-icon
-                :name="isDarkMode ? 'sym_r_dark_mode' : 'sym_r_light_mode'"
+                :name="isDark ? 'sym_r_dark_mode' : 'sym_r_light_mode'"
                 size="16px"
-                :color="isDarkMode ? 'teal-4' : 'amber-7'"
+                :color="isDark ? 'primary' : 'amber-7'"
               />
-              <span class="text-caption text-weight-medium">{{ isDarkMode ? 'Oscuro' : 'Claro' }}</span>
+              <span class="text-caption text-weight-medium text-ink">{{ isDark ? 'Oscuro' : 'Claro' }}</span>
             </div>
             <q-toggle
-              v-model="isDarkMode"
+              v-model="isDark"
               dense
               color="primary"
               size="sm"
@@ -414,13 +426,16 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import type { PresenceStatus } from '@/modules/auth/types/auth.types'
 import UserSettingsModal from '@/shared/components/UserSettingsModal.vue'
+import { useAppTheme } from '@/shared/composables/useAppTheme'
 
 const $q = useQuasar()
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useAppTheme()
+const isDark = themeStore.isDark
+const { applyThemeMode, initTheme } = themeStore
 
 const leftDrawerOpen = ref(true)
-const isDarkMode = ref(true)
 const isSettingsModalOpen = ref(false)
 
 const currentPresence = computed<PresenceStatus>(() => {
@@ -470,48 +485,11 @@ async function setQuickPresence(status: PresenceStatus) {
 }
 
 onMounted(() => {
-  const userPrefTheme = authStore.user?.preferences?.theme_mode
-  const saved = userPrefTheme || localStorage.getItem('whaticket_theme')
-  if (saved) {
-    isDarkMode.value = saved === 'dark'
-  } else {
-    isDarkMode.value = true
-    localStorage.setItem('whaticket_theme', 'dark')
-  }
-  applyTheme(isDarkMode.value)
-
-  const accentColor = authStore.user?.preferences?.accent_color
-  if (accentColor) {
-    const colorMap: Record<string, string> = {
-      emerald: '#10b981',
-      cyan: '#06b6d4',
-      indigo: '#6366f1',
-      amber: '#f59e0b',
-      purple: '#8b5cf6',
-      rose: '#ec4899',
-    }
-    if (colorMap[accentColor]) {
-      document.documentElement.style.setProperty('--crm-color-primary', colorMap[accentColor])
-    }
-  }
+  initTheme(authStore.user?.preferences)
 })
 
 function toggleTheme(val: boolean) {
-  applyTheme(val)
-  localStorage.setItem('whaticket_theme', val ? 'dark' : 'light')
-}
-
-function applyTheme(dark: boolean) {
-  $q.dark.set(dark)
-  if (dark) {
-    document.documentElement.setAttribute('data-theme', 'dark')
-    document.body.classList.add('body--dark')
-    document.body.classList.remove('body--light')
-  } else {
-    document.documentElement.setAttribute('data-theme', 'light')
-    document.body.classList.add('body--light')
-    document.body.classList.remove('body--dark')
-  }
+  applyThemeMode(val)
 }
 
 const selectedOrganizationId = computed({

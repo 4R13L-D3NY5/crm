@@ -4,29 +4,28 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="user-settings-card column" style="width: 720px; max-width: 95vw; height: 600px; max-height: 90vh;">
+    <q-card class="user-settings-card column" style="width: 720px; max-width: 95vw; height: 620px; max-height: 90vh;">
       <!-- Header del Modal -->
-      <q-card-section class="row items-center justify-between q-pb-none bg-dark-subtle">
+      <q-card-section class="row items-center justify-between q-pb-none bg-subtle">
         <div class="row items-center q-gutter-x-sm">
-          <q-avatar size="36px" color="teal-9" text-color="teal-2">
+          <q-avatar size="36px" color="primary" text-color="white">
             <q-icon name="sym_r_manage_accounts" size="22px" />
           </q-avatar>
           <div>
-            <div class="text-h6 text-bold text-white">Ajustes de Cuenta & Preferencias</div>
-            <div class="text-caption text-grey-4">Personaliza tu perfil, audio, aspecto visual y seguridad</div>
+            <div class="text-h6 text-bold text-ink">Ajustes de Cuenta & Preferencias</div>
+            <div class="text-caption text-muted">Personaliza tu perfil, audio, aspecto visual y seguridad</div>
           </div>
         </div>
-        <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        <q-btn flat round dense icon="sym_r_close" :color="isDarkTheme ? 'grey-4' : 'grey-8'" v-close-popup />
       </q-card-section>
 
       <!-- Tabs de Navegación -->
-      <div class="bg-dark-subtle q-px-md">
+      <div class="bg-subtle q-px-md">
         <q-tabs
           v-model="activeTab"
           dense
-          dark
           align="left"
-          class="text-grey-4"
+          class="text-muted"
           active-color="primary"
           indicator-color="primary"
         >
@@ -37,16 +36,16 @@
         </q-tabs>
       </div>
 
-      <q-separator dark />
+      <q-separator />
 
       <!-- Cuerpo de las Pestañas -->
       <q-card-section class="col q-pa-none scroll">
-        <q-tab-panels v-model="activeTab" animated dark class="bg-transparent q-pa-md">
+        <q-tab-panels v-model="activeTab" animated class="bg-transparent q-pa-md">
           <!-- TAB 1: PERFIL & DATOS PERSONALES -->
           <q-tab-panel name="profile" class="q-pa-none q-gutter-y-md">
             <div class="xf-settings-section">
-              <div class="text-subtitle2 text-bold text-white q-mb-xs">Datos de Contacto</div>
-              <div class="text-caption text-grey-4 q-mb-md">Información visible para los supervisores y miembros del equipo.</div>
+              <div class="text-subtitle2 text-bold text-ink q-mb-xs">Datos de Contacto</div>
+              <div class="text-caption text-muted q-mb-md">Información visible para los supervisores y miembros del equipo.</div>
 
               <div class="row q-col-gutter-md">
                 <div class="col-12 col-md-6">
@@ -54,7 +53,6 @@
                     v-model="profileForm.name"
                     label="Nombre Completo *"
                     outlined
-                    dark
                     dense
                     placeholder="Tu nombre y apellido"
                   />
@@ -66,7 +64,6 @@
                     label="Correo Electrónico *"
                     type="email"
                     outlined
-                    dark
                     dense
                     placeholder="tu.correo@unitepc.net"
                   />
@@ -77,7 +74,6 @@
                     v-model="profileForm.phone"
                     label="Teléfono Móvil / Interno"
                     outlined
-                    dark
                     dense
                     placeholder="+591 70000000"
                   />
@@ -89,7 +85,6 @@
                     label="Rol en el Workspace"
                     readonly
                     outlined
-                    dark
                     dense
                     class="opacity-75"
                   />
@@ -110,8 +105,8 @@
 
             <!-- Cambio de Contraseña -->
             <div class="xf-settings-section q-mt-md">
-              <div class="text-subtitle2 text-bold text-white q-mb-xs">Seguridad de Acceso: Cambiar Contraseña</div>
-              <div class="text-caption text-grey-4 q-mb-md">Ingresa tu contraseña actual para establecer una nueva clave segura.</div>
+              <div class="text-subtitle2 text-bold text-ink q-mb-xs">Seguridad de Acceso: Cambiar Contraseña</div>
+              <div class="text-caption text-muted q-mb-md">Ingresa tu contraseña actual para establecer una nueva clave segura.</div>
 
               <div class="row q-col-gutter-sm">
                 <div class="col-12 col-md-4">
@@ -120,7 +115,6 @@
                     label="Contraseña Actual *"
                     type="password"
                     outlined
-                    dark
                     dense
                   />
                 </div>
@@ -130,7 +124,6 @@
                     label="Nueva Contraseña *"
                     type="password"
                     outlined
-                    dark
                     dense
                   />
                 </div>
@@ -140,7 +133,6 @@
                     label="Confirmar Nueva Clave *"
                     type="password"
                     outlined
-                    dark
                     dense
                   />
                 </div>
@@ -150,7 +142,7 @@
                 <q-btn
                   outline
                   no-caps
-                  color="cyan-4"
+                  color="primary"
                   label="Actualizar Contraseña"
                   :loading="savingPassword"
                   @click="handleSavePassword"
@@ -165,12 +157,16 @@
             <div class="xf-settings-section">
               <div class="row items-center justify-between">
                 <div>
-                  <div class="text-subtitle2 text-bold text-white">Modo de Visualización</div>
-                  <div class="text-caption text-grey-4">Alterna entre tema oscuro para menor fatiga visual o tema claro.</div>
+                  <div class="text-subtitle2 text-bold text-ink">Modo de Visualización</div>
+                  <div class="text-caption text-muted">Alterna entre tema oscuro para menor fatiga visual o tema claro de alto contraste.</div>
                 </div>
                 <div class="row items-center q-gutter-x-sm">
-                  <q-icon :name="preferences.theme_mode === 'dark' ? 'sym_r_dark_mode' : 'sym_r_light_mode'" size="20px" :color="preferences.theme_mode === 'dark' ? 'teal-4' : 'amber-4'" />
-                  <span class="text-caption text-white text-bold">
+                  <q-icon
+                    :name="preferences.theme_mode === 'dark' ? 'sym_r_dark_mode' : 'sym_r_light_mode'"
+                    size="20px"
+                    :color="preferences.theme_mode === 'dark' ? 'primary' : 'amber-7'"
+                  />
+                  <span class="text-caption text-ink text-bold">
                     {{ preferences.theme_mode === 'dark' ? 'Modo Oscuro' : 'Modo Claro' }}
                   </span>
                   <q-toggle
@@ -185,11 +181,11 @@
 
             <!-- Paleta de Color de Acento -->
             <div class="xf-settings-section">
-              <div class="text-subtitle2 text-bold text-white q-mb-xs">Color de Acento Principal</div>
-              <div class="text-caption text-grey-4 q-mb-md">Personaliza los botones, badges e indicadores interactivos del CRM.</div>
+              <div class="text-subtitle2 text-bold text-ink q-mb-xs">Color de Acento Principal</div>
+              <div class="text-caption text-muted q-mb-md">Personaliza en tiempo real los botones, tabs activas, badges e indicadores del CRM.</div>
 
               <div class="row q-col-gutter-sm">
-                <div v-for="t in accentThemes" :key="t.key" class="col-12 col-sm-6 col-md-4">
+                <div v-for="t in ACCENT_THEMES" :key="t.key" class="col-12 col-sm-6 col-md-4">
                   <div
                     class="xf-theme-card cursor-pointer row items-center justify-between q-pa-sm"
                     :class="{ 'xf-theme-card--active': preferences.accent_color === t.key }"
@@ -198,8 +194,8 @@
                     <div class="row items-center q-gutter-x-sm">
                       <span class="xf-theme-circle" :style="{ backgroundColor: t.color }"></span>
                       <div>
-                        <div class="text-caption text-bold text-white">{{ t.name }}</div>
-                        <div class="text-caption text-grey-5" style="font-size: 0.7rem">{{ t.desc }}</div>
+                        <div class="text-caption text-bold text-ink">{{ t.name }}</div>
+                        <div class="text-caption text-muted" style="font-size: 0.7rem">{{ t.desc }}</div>
                       </div>
                     </div>
                     <q-icon v-if="preferences.accent_color === t.key" name="sym_r_check_circle" color="primary" size="18px" />
@@ -212,8 +208,8 @@
             <div class="xf-settings-section">
               <div class="row items-center justify-between">
                 <div>
-                  <div class="text-subtitle2 text-bold text-white">Idioma de la Interfaz</div>
-                  <div class="text-caption text-grey-4">Selecciona tu idioma preferido para la navegación.</div>
+                  <div class="text-subtitle2 text-bold text-ink">Idioma de la Interfaz</div>
+                  <div class="text-caption text-muted">Selecciona tu idioma preferido para la navegación.</div>
                 </div>
                 <q-select
                   v-model="preferences.language"
@@ -221,7 +217,6 @@
                   emit-value
                   map-options
                   outlined
-                  dark
                   dense
                   style="width: 170px"
                   @update:model-value="handleSavePreferences"
@@ -234,8 +229,8 @@
           <q-tab-panel name="notifications" class="q-pa-none q-gutter-y-md">
             <!-- Tono de Timbre para Chats Entrantes -->
             <div class="xf-settings-section">
-              <div class="text-subtitle2 text-bold text-white q-mb-xs">Tono de Notificación de Mensaje Entrante</div>
-              <div class="text-caption text-grey-4 q-mb-md">Elige el timbre que sonará cuando un cliente escriba en la bandeja omnicanal.</div>
+              <div class="text-subtitle2 text-bold text-ink q-mb-xs">Tono de Notificación de Mensaje Entrante</div>
+              <div class="text-caption text-muted q-mb-md">Elige el timbre sintetizado por Web Audio que sonará cuando un cliente escriba en la bandeja omnicanal.</div>
 
               <div class="row q-col-gutter-md items-center">
                 <div class="col-12 col-sm-6">
@@ -245,13 +240,12 @@
                     emit-value
                     map-options
                     outlined
-                    dark
                     dense
                     label="Sonido de Notificación"
                     @update:model-value="handleSavePreferences"
                   >
                     <template #prepend>
-                      <q-icon name="sym_r_volume_up" color="amber-4" size="18px" />
+                      <q-icon name="sym_r_volume_up" color="primary" size="18px" />
                     </template>
                   </q-select>
                 </div>
@@ -261,13 +255,13 @@
                     outline
                     dense
                     no-caps
-                    color="amber-4"
+                    color="primary"
                     icon="sym_r_play_arrow"
                     label="Probar Sonido"
                     class="q-px-sm"
                     @click="playTestSound(preferences.notification_sound || 'chime')"
                   />
-                  <span class="text-caption text-grey-4">Volumen: {{ preferences.notification_volume ?? 80 }}%</span>
+                  <span class="text-caption text-muted">Volumen: {{ preferences.notification_volume ?? 80 }}%</span>
                 </div>
               </div>
 
@@ -278,8 +272,7 @@
                   :min="0"
                   :max="100"
                   :step="5"
-                  color="amber-4"
-                  dark
+                  color="primary"
                   label
                   @change="handleSavePreferences"
                 />
@@ -290,8 +283,8 @@
             <div class="xf-settings-section">
               <div class="row items-center justify-between">
                 <div>
-                  <div class="text-subtitle2 text-bold text-white">Notificaciones de Escritorio (Desktop Push)</div>
-                  <div class="text-caption text-grey-4">Muestra alertas emergentes del sistema cuando estés en otra pestaña o ventana.</div>
+                  <div class="text-subtitle2 text-bold text-ink">Notificaciones de Escritorio (Desktop Push)</div>
+                  <div class="text-caption text-muted">Muestra alertas emergentes del sistema cuando estés en otra pestaña o ventana.</div>
                 </div>
                 <div class="row items-center q-gutter-x-sm">
                   <q-btn
@@ -300,7 +293,7 @@
                     dense
                     no-caps
                     size="sm"
-                    color="cyan-4"
+                    color="primary"
                     label="Habilitar en Navegador"
                     @click="requestNotificationPermission"
                   />
@@ -318,8 +311,8 @@
             <div class="xf-settings-section">
               <div class="row items-center justify-between q-mb-xs">
                 <div>
-                  <div class="text-subtitle2 text-bold text-white">Firma Automática de Asesor (WhatsApp)</div>
-                  <div class="text-caption text-grey-4">Adjunta automáticamente tu nombre o firma al final de cada respuesta.</div>
+                  <div class="text-subtitle2 text-bold text-ink">Firma Automática de Asesor (WhatsApp)</div>
+                  <div class="text-caption text-muted">Adjunta automáticamente tu nombre o firma al final de cada respuesta.</div>
                 </div>
                 <q-toggle
                   v-model="preferences.whatsapp_signature_enabled"
@@ -333,7 +326,6 @@
                 <q-input
                   v-model="preferences.whatsapp_signature"
                   outlined
-                  dark
                   dense
                   placeholder="ej: ~ Lic. José Claure | Asesor Académico"
                   @blur="handleSavePreferences"
@@ -351,54 +343,67 @@
             <div class="xf-settings-section">
               <div class="row items-center justify-between q-mb-md">
                 <div class="row items-center q-gutter-x-sm">
-                  <q-avatar size="38px" :color="authStore.user?.two_factor_enabled ? 'positive' : 'grey-8'" text-color="white">
+                  <q-avatar size="38px" :color="authStore.user?.two_factor_enabled ? 'positive' : 'grey-7'" text-color="white">
                     <q-icon :name="authStore.user?.two_factor_enabled ? 'sym_r_verified_user' : 'sym_r_security'" size="22px" />
                   </q-avatar>
                   <div>
-                    <div class="text-subtitle2 text-bold text-white">Autenticación en Dos Factores (2FA - TOTP)</div>
-                    <div class="text-caption text-grey-4">
-                      {{ authStore.user?.two_factor_enabled ? 'Tu cuenta está protegida con verificación en 2 pasos.' : 'Protege tu cuenta con Google Authenticator o Authy.' }}
+                    <div class="text-subtitle2 text-bold text-ink">Autenticación en Dos Factores (2FA - TOTP)</div>
+                    <div class="text-caption text-muted">
+                      {{ authStore.user?.two_factor_enabled ? 'Tu cuenta está protegida con verificación en 2 pasos activa.' : 'Protege tu cuenta con Google Authenticator, Authy o Microsoft Authenticator.' }}
                     </div>
                   </div>
                 </div>
 
-                <q-badge :color="authStore.user?.two_factor_enabled ? 'positive' : 'grey-8'" class="text-caption text-bold q-px-sm q-py-xs">
+                <q-badge :color="authStore.user?.two_factor_enabled ? 'positive' : 'grey-7'" class="text-caption text-bold q-px-sm q-py-xs">
                   {{ authStore.user?.two_factor_enabled ? 'ACTIVO' : 'INACTIVO' }}
                 </q-badge>
               </div>
 
+              <!-- Tarjeta Explicativa de Cómo Funciona 2FA -->
+              <div class="xf-2fa-info-box q-pa-sm q-mb-md rounded-borders">
+                <div class="row items-center q-gutter-x-xs text-primary text-bold text-caption q-mb-xs">
+                  <q-icon name="sym_r_info" size="16px" />
+                  <span>¿Cómo funciona la doble autenticación?</span>
+                </div>
+                <div class="text-caption text-muted" style="line-height: 1.45;">
+                  1. Descargas una app de autenticación (<strong>Google Authenticator</strong> o <strong>Authy</strong>) en tu teléfono.<br/>
+                  2. Registras la llave secreta para sincronizar el generador de claves temporales (TOTP).<br/>
+                  3. La app genera un código de 6 dígitos que <strong>cambia cada 30 segundos</strong>.<br/>
+                  4. Al iniciar sesión en un nuevo dispositivo, se te solicitará ese código, evitando que cualquiera ingrese solo conociendo tu contraseña.
+                </div>
+              </div>
+
               <!-- Si 2FA NO está activo: Iniciar Enrolamiento -->
               <div v-if="!authStore.user?.two_factor_enabled && !twoFactorSetupData">
-                <p class="text-caption text-grey-4">
-                  Al activar 2FA, se te solicitará un código de 6 dígitos desde tu aplicación de autenticación cada vez que inicies sesión en un nuevo dispositivo.
+                <p class="text-caption text-muted">
+                  Haz clic en el botón inferior para generar tu llave secreta y tus códigos de recuperación de respaldo:
                 </p>
                 <q-btn
                   unelevated
                   no-caps
                   color="primary"
                   icon="sym_r_qr_code_scanner"
-                  label="Configurar Autenticación 2FA"
+                  label="Configurar Autenticación 2FA Ahora"
                   :loading="loadingTwoFactor"
                   @click="handleStartTwoFactorSetup"
                 />
               </div>
 
               <!-- Enrolamiento en Progreso -->
-              <div v-else-if="twoFactorSetupData" class="q-gutter-y-sm bg-dark-subtle q-pa-md rounded-borders">
-                <div class="text-body2 text-bold text-white">Paso 1: Registra tu Llave Secreta en Google Authenticator / Authy</div>
-                <div class="row items-center q-gutter-x-sm font-mono text-bold text-teal-3 bg-dark q-pa-xs rounded-borders" style="width: fit-content;">
-                  <span>{{ twoFactorSetupData.secret }}</span>
-                  <q-btn flat round dense size="xs" icon="sym_r_content_copy" color="grey-4" @click="copyText(twoFactorSetupData.secret)">
+              <div v-else-if="twoFactorSetupData" class="q-gutter-y-sm bg-subtle q-pa-md rounded-borders">
+                <div class="text-body2 text-bold text-ink">Paso 1: Registra tu Llave Secreta en tu Authenticator</div>
+                <div class="row items-center q-gutter-x-sm font-mono text-bold text-primary xf-totp-badge q-pa-sm rounded-borders">
+                  <span class="letter-spacing-wide">{{ twoFactorSetupData.secret }}</span>
+                  <q-btn flat round dense size="sm" icon="sym_r_content_copy" color="primary" @click="copyText(twoFactorSetupData.secret)">
                     <q-tooltip>Copiar Llave</q-tooltip>
                   </q-btn>
                 </div>
 
-                <div class="text-body2 text-bold text-white q-mt-md">Paso 2: Ingresa el código de 6 dígitos generado</div>
-                <div class="row items-center q-gutter-x-sm" style="max-width: 280px">
+                <div class="text-body2 text-bold text-ink q-mt-md">Paso 2: Ingresa el código de 6 dígitos generado por tu app</div>
+                <div class="row items-center q-gutter-x-sm" style="max-width: 300px">
                   <q-input
                     v-model="twoFactorCode"
                     outlined
-                    dark
                     dense
                     mask="######"
                     placeholder="123456"
@@ -408,7 +413,7 @@
                     unelevated
                     no-caps
                     color="positive"
-                    label="Confirmar"
+                    label="Confirmar y Activar"
                     :loading="loadingTwoFactor"
                     @click="handleConfirmTwoFactor"
                   />
@@ -416,9 +421,10 @@
 
                 <!-- Códigos de recuperación -->
                 <div class="q-mt-md">
-                  <div class="text-caption text-grey-4 text-bold">Códigos de Recuperación de Respaldo:</div>
+                  <div class="text-caption text-ink text-bold">Códigos de Recuperación de Respaldo:</div>
+                  <div class="text-caption text-muted q-mb-xs">Guarda estos 8 códigos en un lugar seguro. Te permitirán ingresar si pierdes acceso a tu teléfono:</div>
                   <div class="row q-gutter-xs q-mt-xs">
-                    <q-badge v-for="rc in twoFactorSetupData.recovery_codes" :key="rc" outline color="grey-5" class="font-mono">
+                    <q-badge v-for="rc in twoFactorSetupData.recovery_codes" :key="rc" outline color="primary" class="font-mono text-weight-bold">
                       {{ rc }}
                     </q-badge>
                   </div>
@@ -427,8 +433,8 @@
 
               <!-- Si 2FA YA está activo: Opción de Desactivar -->
               <div v-else class="q-gutter-y-sm">
-                <p class="text-caption text-grey-4">
-                  Tu cuenta se encuentra actualmente protegida. Para desactivar la verificación en dos pasos, se requiere tu contraseña actual.
+                <p class="text-caption text-muted">
+                  Tu cuenta se encuentra actualmente protegida. Para desactivar la verificación en dos pasos, se requiere confirmar tu contraseña actual.
                 </p>
                 <div class="row items-center q-gutter-x-sm" style="max-width: 380px">
                   <q-input
@@ -436,7 +442,6 @@
                     type="password"
                     label="Contraseña actual"
                     outlined
-                    dark
                     dense
                     style="flex: 1"
                   />
@@ -460,10 +465,10 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import type { UserPreferences } from '@/modules/auth/types/auth.types'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { useAppTheme } from '@/shared/composables/useAppTheme'
 import {
   confirmTwoFactor,
   disableTwoFactor,
@@ -479,9 +484,9 @@ const emit = defineEmits<{
   'update:modelValue': [val: boolean]
 }>()
 
-const $q = useQuasar()
 const authStore = useAuthStore()
 const notify = useAppNotify()
+const { ACCENT_THEMES, applyAccentColor, applyThemeMode } = useAppTheme()
 
 const activeTab = ref('profile')
 const isDarkTheme = ref(true)
@@ -517,15 +522,6 @@ const twoFactorSetupData = ref<any>(null)
 const twoFactorCode = ref('')
 const disable2FaPassword = ref('')
 const hasDesktopPermission = ref(false)
-
-const accentThemes: { key: NonNullable<UserPreferences['accent_color']>; name: string; color: string; desc: string }[] = [
-  { key: 'emerald', name: 'Verde Esmeralda', color: '#10b981', desc: 'Identidad XpertiFlow' },
-  { key: 'cyan', name: 'Cian Océano', color: '#06b6d4', desc: 'Tecnología limpia' },
-  { key: 'indigo', name: 'Índigo Real', color: '#6366f1', desc: 'Corporativo profundo' },
-  { key: 'amber', name: 'Ámbar Energía', color: '#f59e0b', desc: 'Cálido y dinámico' },
-  { key: 'purple', name: 'Púrpura Nocturno', color: '#8b5cf6', desc: 'Elegancia moderna' },
-  { key: 'rose', name: 'Rosa Pastel', color: '#ec4899', desc: 'Contraste suave' },
-]
 
 const soundOptions = [
   { label: 'Chime Suave (Armónico)', value: 'chime' },
@@ -569,26 +565,13 @@ watch(
 
 function toggleDarkTheme(isDark: boolean) {
   preferences.theme_mode = isDark ? 'dark' : 'light'
-  $q.dark.set(isDark)
-  if (isDark) {
-    document.documentElement.setAttribute('data-theme', 'dark')
-    document.body.classList.add('body--dark')
-    document.body.classList.remove('body--light')
-  } else {
-    document.documentElement.setAttribute('data-theme', 'light')
-    document.body.classList.add('body--light')
-    document.body.classList.remove('body--dark')
-  }
-  localStorage.setItem('whaticket_theme', isDark ? 'dark' : 'light')
+  applyThemeMode(isDark)
   handleSavePreferences()
 }
 
 function setAccentColor(colorKey: NonNullable<UserPreferences['accent_color']>) {
   preferences.accent_color = colorKey
-  const theme = accentThemes.find((t) => t.key === colorKey)
-  if (theme) {
-    document.documentElement.style.setProperty('--crm-color-primary', theme.color)
-  }
+  applyAccentColor(colorKey)
   handleSavePreferences()
 }
 
@@ -768,25 +751,35 @@ function copyText(text: string) {
 
 <style scoped lang="scss">
 .user-settings-card {
-  background: var(--crm-bg-card, #111827);
-  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.1));
+  background: var(--crm-bg-card);
+  border: 1px solid var(--crm-color-border);
   border-radius: 16px;
+  color: var(--crm-color-ink);
 }
 
-.bg-dark-subtle {
+.bg-subtle {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.body--light .bg-subtle {
+  background: #f8fafc;
 }
 
 .xf-settings-section {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--crm-color-border);
   border-radius: 12px;
   padding: 16px;
 }
 
+.body--light .xf-settings-section {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
 .xf-theme-card {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--crm-color-border);
   border-radius: 10px;
   transition: all 0.2s ease;
 
@@ -795,8 +788,17 @@ function copyText(text: string) {
   }
 
   &--active {
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--crm-color-primary) !important;
+    background: var(--crm-color-primary-soft) !important;
+  }
+}
+
+.body--light .xf-theme-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+
+  &:hover {
+    background: #f1f5f9;
   }
 }
 
@@ -805,7 +807,27 @@ function copyText(text: string) {
   height: 22px;
   border-radius: 50%;
   display: inline-block;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.xf-2fa-info-box {
+  background: var(--crm-color-primary-soft);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.xf-totp-badge {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--crm-color-border);
+  width: fit-content;
+}
+
+.body--light .xf-totp-badge {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.letter-spacing-wide {
+  letter-spacing: 0.1em;
 }
 
 .opacity-75 {
