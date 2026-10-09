@@ -58,6 +58,14 @@ export interface Conversation {
   rating?: number | null
   feedback?: string | null
   queue?: QueueSummary | null
+  custom_status_id?: string | null
+  custom_status?: {
+    id: string
+    name: string
+    color: string
+    icon?: string | null
+    stage_type?: string
+  } | null
   contact: ConversationSummaryRelation | null
   company: ConversationSummaryRelation | null
   assignee?: ConversationAssignee | null

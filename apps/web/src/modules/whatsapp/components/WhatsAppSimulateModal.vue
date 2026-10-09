@@ -72,7 +72,7 @@
           <div class="simulate-hint q-pa-sm q-mt-xs">
             <q-icon name="sym_r_bolt" size="16px" color="amber-4" class="q-mr-xs" />
             <span class="text-caption text-grey-4">
-              Este mensaje llegará de inmediato a la <strong>Bandeja Omnicanal</strong> clasificado bajo el canal de <strong>{{ platformMeta.label }}</strong>.
+              Este mensaje llegará de inmediato a la <strong>Bandeja Multicanal</strong> clasificado bajo el canal de <strong>{{ platformMeta.label }}</strong>.
             </span>
           </div>
 

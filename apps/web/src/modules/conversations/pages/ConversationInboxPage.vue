@@ -35,7 +35,7 @@
         <div class="empty-chat-icon q-mb-md">
           <q-icon name="sym_r_forum" size="44px" color="teal-4" />
         </div>
-        <div class="text-h6 text-weight-bold text-white">Bandeja Omnicanal de Atención</div>
+        <div class="text-h6 text-weight-bold text-white">Bandeja Multicanal de Atención</div>
         <p class="text-caption text-grey-4 q-mt-xs" style="max-width: 380px">
           Selecciona una conversación del listado izquierdo para responder o iniciar atención en tiempo real.
         </p>

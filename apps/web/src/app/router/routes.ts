@@ -20,6 +20,7 @@ import WabotKnowledgePage from '@/modules/ai/pages/WabotKnowledgePage.vue'
 import UsersManagementPage from '@/modules/users/pages/UsersManagementPage.vue'
 import DepartmentsPage from '@/modules/departments/pages/DepartmentsPage.vue'
 import CampaignsPage from '@/modules/campaigns/pages/CampaignsPage.vue'
+import ParametersPage from '@/modules/parameters/pages/ParametersPage.vue'
 import SettingsPage from '@/modules/settings/pages/SettingsPage.vue'
 import TokensPage from '@/modules/tokens/pages/TokensPage.vue'
 import ApiDocsPage from '@/modules/docs/pages/ApiDocsPage.vue'
@@ -30,6 +31,7 @@ const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'wabot', name: 'wabot.index', component: WabotKnowledgePage },
   { path: 'users', name: 'users.index', component: UsersManagementPage },
   { path: 'departments', name: 'departments.index', component: DepartmentsPage },
+  { path: 'parameters', name: 'parameters.index', component: ParametersPage },
   { path: 'campaigns', name: 'campaigns.index', component: CampaignsPage },
   { path: 'settings', name: 'settings.index', component: SettingsPage },
   { path: 'tokens', name: 'tokens.index', component: TokensPage },

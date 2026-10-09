@@ -12,6 +12,8 @@
 
 | ID | Tarea / Requerimiento | Módulo / Área | Prioridad | Estado | Próximo Paso |
 |:---:|---|:---:|:---:|:---:|---|
+| **TASK-014** | **Estados Personalizados del Lead con Máquina de Transiciones Dependientes** | Parametrización | 🔴 Alta | ✅ **COMPLETADO** | Configurable por Admin, validación de dependencias (422), nota interna automática en timeline y selector interactivo |
+| **TASK-013** | **Gestión de Categorías, Subcategorías y Clasificación de Leads (Parametrización)** | Parametrización | 🔴 Alta | ✅ **COMPLETADO** | Tablero jerárquico multinivel, pestaña de estados base, asignación a chats e integración completa |
 | **TASK-012** | **Stickers WhatsApp (Descarga WebP, visualización sin burbuja, reenvío y conversión 512x512)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Descarga automática en Baileys, almacenamiento .webp, renderizado estilo WhatsApp Web, reenvío instantáneo y conversor canvas 512x512 |
 | **TASK-010** | **Envío de multimedia saliente (Adjuntar archivos, pegar capturas `Ctrl+V` y grabador 🎙️)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (botón 📎, pegado directo desde portapapeles `Ctrl+V`, grabador 🎙️ y endpoint `send-media`) |
 | **TASK-001** | **Descarga y renderizado multimedia en Chat (Imágenes, Audios y Emojis)** | WhatsApp / Inbox | 🔴 Alta | ✅ **COMPLETADO** | Verificado en frontend y backend (descarga base64, visor zoom, audio player y selector emojis) |
@@ -92,6 +94,8 @@
 ---
 
 ## 📈 Historial de Hitos Completados
+- [x] **TASK-014**: Estados Personalizados del Lead con Máquina de Estados Finita (FSM) y dependencias de transición. Configurable en `/app/parameters`, selector con candados de validación en chat sidebar, backend enforcement (422) y notas de auditoría automáticas en el timeline.
+- [x] **TASK-013**: Gestión de Categorías y Subcategorías jerárquicas multinivel (ej. Universidad > Facultad > Carrera / Sede) con asignación reactiva a chats.
 - [x] **TASK-012**: Soporte integral de Stickers WhatsApp (descarga automática .webp, visualización transparente estilo WhatsApp Web, botón para reutilizar/reenviar sticker y conversor canvas a 512x512 WebP).
 - [x] **TASK-010**: Envío de multimedia saliente (selector de archivos 📎, pegado directo de imágenes desde portapapeles `Ctrl+V`, grabador de notas de voz 🎙️ en vivo y endpoint `send-media` en Baileys).
 - [x] **TASK-001**: Descarga y visualización de imágenes, notas de voz (`<audio>`), visor modal zoom y selector de emojis integrado en Inbox.

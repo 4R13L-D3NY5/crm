@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'queue_id',
     'created_by_user_id',
     'assigned_to_user_id',
+    'custom_status_id',
     'channel',
     'status',
     'unread_count',
@@ -104,6 +106,18 @@ class Conversation extends Model
     public function assignment(): HasOne
     {
         return $this->hasOne(ConversationAssignment::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Modules\Parameters\Models\Category::class, 'conversation_categories')
+            ->withPivot('id', 'organization_id', 'assigned_by_user_id')
+            ->withTimestamps();
+    }
+
+    public function customStatus(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Parameters\Models\CustomStatus::class, 'custom_status_id');
     }
 
     // Scopes de filtrado Whaticket

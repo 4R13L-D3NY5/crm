@@ -112,17 +112,25 @@
               <q-item-section>Dashboard</q-item-section>
             </q-item>
 
-            <!-- 2. Bandeja Omnicanal (Fase 2) -->
+            <!-- 2. Bandeja Multicanal -->
             <q-item
               clickable
               to="/app/conversations"
-              class="xf-nav-item"
+              class="xf-nav-item xf-nav-item--multichannel"
               active-class="xf-nav-item--active"
             >
               <q-item-section avatar>
-                <q-icon name="sym_r_chat" size="18px" />
+                <q-icon name="sym_r_forum" size="18px" class="xf-multichannel-icon" />
               </q-item-section>
-              <q-item-section>Bandeja Omnicanal</q-item-section>
+              <q-item-section>
+                <div class="row items-center no-wrap justify-between">
+                  <span class="text-weight-bold">Bandeja Multicanal</span>
+                  <span class="xf-live-indicator">
+                    <span class="xf-live-dot"></span>
+                    <span class="xf-live-text font-mono text-weight-bold">LIVE</span>
+                  </span>
+                </div>
+              </q-item-section>
             </q-item>
 
             <!-- 3. Canales & Conexiones (Fase 2) -->
@@ -201,6 +209,45 @@
                 <q-icon name="sym_r_domain" size="18px" />
               </q-item-section>
               <q-item-section>Empresas & Cuentas</q-item-section>
+            </q-item>
+
+            <!-- 9. Operadores & Equipo -->
+            <q-item
+              clickable
+              to="/app/users"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_group" size="18px" />
+              </q-item-section>
+              <q-item-section>Operadores & Equipo</q-item-section>
+            </q-item>
+
+            <!-- 10. Filas & Departamentos -->
+            <q-item
+              clickable
+              to="/app/departments"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_alt_route" size="18px" />
+              </q-item-section>
+              <q-item-section>Filas & Departamentos</q-item-section>
+            </q-item>
+
+            <!-- 11. Parametrización -->
+            <q-item
+              clickable
+              to="/app/parameters"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_tune" size="18px" />
+              </q-item-section>
+              <q-item-section>Parametrización</q-item-section>
             </q-item>
           </q-list>
 
@@ -430,6 +477,7 @@ async function handleLogout() {
   flex-direction: column;
   height: 100%;
   justify-content: space-between;
+  overflow-y: auto;
 }
 
 .xf-nav-section-header {
@@ -480,6 +528,67 @@ async function handleLogout() {
     :deep(.q-icon) {
       color: var(--crm-color-primary) !important;
     }
+  }
+
+  &--multichannel {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.05) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.32);
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.09);
+    color: #ffffff !important;
+    font-weight: 600;
+
+    .xf-multichannel-icon {
+      color: #10b981 !important;
+      filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
+    }
+
+    &:hover {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.2) 0%, rgba(6, 182, 212, 0.1) 100%);
+      border-color: rgba(16, 185, 129, 0.5);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+    }
+
+    &.xf-nav-item--active {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.25) 0%, rgba(6, 182, 212, 0.14) 100%) !important;
+      border-color: var(--crm-color-primary) !important;
+      box-shadow: 0 0 18px rgba(16, 185, 129, 0.3);
+    }
+  }
+}
+
+.xf-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 0.62rem;
+  color: #34d399;
+}
+
+.xf-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: xf-pulse 2s infinite;
+}
+
+@keyframes xf-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
   }
 }
 

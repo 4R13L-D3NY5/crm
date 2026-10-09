@@ -4,7 +4,7 @@
     <div class="row items-center justify-between q-mb-lg">
       <div>
         <div class="row items-center q-gutter-x-sm">
-          <h1 class="text-h5 text-bold text-white q-my-none">Conexiones & Canales Omnicanal</h1>
+          <h1 class="text-h5 text-bold text-white q-my-none">Conexiones & Canales Multicanal</h1>
           <q-badge color="teal-9" text-color="teal-2" rounded class="q-px-sm">
             {{ accounts.length }} canales
           </q-badge>

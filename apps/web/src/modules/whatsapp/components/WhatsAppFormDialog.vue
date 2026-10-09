@@ -8,7 +8,7 @@
       <q-card-section class="row items-center justify-between q-pb-none">
         <div>
           <div class="text-subtitle1 text-weight-bold text-white">Conectar Nuevo Canal</div>
-          <div class="text-caption text-grey-4">Elige la plataforma que deseas integrar a la bandeja omnicanal</div>
+          <div class="text-caption text-grey-4">Elige la plataforma que deseas integrar a la bandeja multicanal</div>
         </div>
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
       </q-card-section>

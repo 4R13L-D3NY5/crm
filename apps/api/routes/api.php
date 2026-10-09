@@ -46,6 +46,7 @@ Route::middleware('web')->group(function (): void {
         require app_path('Modules/Reports/routes.php');
         require app_path('Modules/Settings/routes.php');
         require app_path('Modules/Social/routes.php');
+        require app_path('Modules/Parameters/routes.php');
         require app_path('Modules/Users/routes.php');
         require app_path('Modules/WhatsApp/routes.php');
     });
