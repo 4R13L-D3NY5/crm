@@ -229,7 +229,7 @@
     </div>
 
     <!-- TAB 2: ESTADOS PERSONALIZADOS -->
-    <div v-else-if="activeTab === 'statuses'" class="q-gutter-y-lg" style="max-width: 900px">
+    <div v-else-if="activeTab === 'statuses'" class="q-gutter-y-lg" style="max-width: 1050px">
       <q-banner rounded class="xf-status-banner q-pa-md">
         <template #avatar>
           <q-icon name="sym_r_tune" color="teal-4" size="28px" />
@@ -252,6 +252,25 @@
         </div>
 
         <div class="row items-center q-gutter-sm">
+          <!-- Toggle de Vista Diagrama vs Cuadrícula -->
+          <q-btn-toggle
+            v-if="statuses.length > 0"
+            v-model="statusViewMode"
+            no-caps
+            dense
+            rounded
+            unelevated
+            toggle-color="teal-9"
+            toggle-text-color="teal-2"
+            color="grey-10"
+            text-color="grey-4"
+            class="q-mr-xs"
+            :options="[
+              { label: 'Diagrama de Flujo', value: 'diagram', icon: 'sym_r_account_tree' },
+              { label: 'Tarjetas', value: 'cards', icon: 'sym_r_grid_view' },
+            ]"
+          />
+
           <q-btn
             v-if="statuses.length === 0"
             outline
@@ -303,8 +322,17 @@
         </div>
       </q-card>
 
-      <!-- Grid de Estados Configurados -->
-      <div v-else class="row q-col-gutter-md">
+      <!-- Contenido de Estados Configurados (Diagrama o Tarjetas) -->
+      <div v-else>
+        <!-- Vista 1: Diagrama de Flujo Visual e Interactivo -->
+        <StatusFlowDiagram
+          v-if="statusViewMode === 'diagram'"
+          :statuses="statuses"
+          @edit-status="openEditStatusDialog"
+        />
+
+        <!-- Vista 2: Grid de Tarjetas Tradicional -->
+        <div v-else class="row q-col-gutter-md">
         <div
           v-for="st in statuses"
           :key="st.id"
@@ -391,6 +419,7 @@
             </div>
           </q-card>
         </div>
+      </div>
       </div>
     </div>
 
@@ -795,10 +824,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { http } from '@/shared/api/http'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import CategoryTreeNode from '../components/CategoryTreeNode.vue'
+import StatusFlowDiagram from '../components/StatusFlowDiagram.vue'
 
 const notify = useAppNotify()
 
 const activeTab = ref<'categories' | 'statuses'>('categories')
+const statusViewMode = ref<'diagram' | 'cards'>('diagram')
 const loading = ref(false)
 const saving = ref(false)
 const linking = ref(false)

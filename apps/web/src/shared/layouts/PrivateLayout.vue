@@ -124,11 +124,8 @@
               </q-item-section>
               <q-item-section>
                 <div class="row items-center no-wrap justify-between">
-                  <span class="text-weight-bold">Bandeja Multicanal</span>
-                  <span class="xf-live-indicator">
-                    <span class="xf-live-dot"></span>
-                    <span class="xf-live-text font-mono text-weight-bold">LIVE</span>
-                  </span>
+                  <span>Bandeja Multicanal</span>
+                  <span class="xf-multichannel-badge">Principal</span>
                 </div>
               </q-item-section>
             </q-item>
@@ -531,64 +528,50 @@ async function handleLogout() {
   }
 
   &--multichannel {
-    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.05) 100%);
-    border: 1px solid rgba(16, 185, 129, 0.32);
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.09);
-    color: #ffffff !important;
-    font-weight: 600;
+    // Inactivo: fondo transparente igual a los demás ítems para no parecer seleccionado
+    background: transparent;
+    border: none;
+    box-shadow: none;
 
     .xf-multichannel-icon {
       color: #10b981 !important;
-      filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
+      transition: transform var(--crm-transition-fast);
+    }
+
+    .xf-multichannel-badge {
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.08);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.18);
     }
 
     &:hover {
-      background: linear-gradient(90deg, rgba(16, 185, 129, 0.2) 0%, rgba(6, 182, 212, 0.1) 100%);
-      border-color: rgba(16, 185, 129, 0.5);
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+      background: var(--crm-bg-card-hover);
+
+      .xf-multichannel-icon {
+        transform: scale(1.05);
+      }
     }
 
     &.xf-nav-item--active {
-      background: linear-gradient(90deg, rgba(16, 185, 129, 0.25) 0%, rgba(6, 182, 212, 0.14) 100%) !important;
-      border-color: var(--crm-color-primary) !important;
-      box-shadow: 0 0 18px rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.12) !important;
+      color: #ffffff !important;
+      font-weight: 600;
+
+      .xf-multichannel-icon {
+        color: #34d399 !important;
+      }
+
+      .xf-multichannel-badge {
+        background: rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+        border-color: rgba(16, 185, 129, 0.35);
+      }
     }
-  }
-}
-
-.xf-live-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(16, 185, 129, 0.18);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  padding: 1px 6px;
-  border-radius: 99px;
-  font-size: 0.62rem;
-  color: #34d399;
-}
-
-.xf-live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 6px #10b981;
-  animation: xf-pulse 2s infinite;
-}
-
-@keyframes xf-pulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  }
-  70% {
-    transform: scale(1.15);
-    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
   }
 }
 
