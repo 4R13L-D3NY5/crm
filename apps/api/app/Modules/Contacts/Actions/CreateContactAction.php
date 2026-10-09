@@ -12,13 +12,18 @@ class CreateContactAction
 {
     public function execute(User $user, array $payload): Contact
     {
+        $defaultStatusId = $payload['custom_status_id'] ?? \App\Modules\Parameters\Models\CustomStatus::where('organization_id', $user->current_organization_id)
+            ->where('is_default', true)
+            ->value('id');
+
         $contact = Contact::query()->create([
             'organization_id' => $user->current_organization_id,
             'first_name' => $payload['first_name'],
             'last_name' => $payload['last_name'] ?? null,
             'email' => $payload['email'] ?? null,
             'phone' => $payload['phone'] ?? null,
-            'status' => $payload['status'],
+            'status' => $payload['status'] ?? 'lead',
+            'custom_status_id' => $defaultStatusId,
             'notes' => $payload['notes'] ?? null,
         ]);
 

@@ -20,8 +20,15 @@
             {{ contactInitials }}
           </q-avatar>
           <div>
-            <div class="text-subtitle1 text-bold text-white leading-tight">
-              {{ contactFullName }}
+            <div class="row items-center q-gutter-x-sm no-wrap">
+              <span class="text-subtitle1 text-bold text-white leading-tight">
+                {{ contactFullName }}
+              </span>
+              <SocialChannelBadge
+                :channel="contact?.origin_channel"
+                :account-name="contact?.channel_account?.name"
+                size="xs"
+              />
             </div>
             <div class="text-caption text-grey-4">
               {{ contact?.email || 'Sin correo registrado' }}
@@ -97,11 +104,48 @@
           </div>
 
           <div class="info-block">
-            <span class="info-label">Estado de Relación</span>
+            <span class="info-label">Estado Oficial del Lead</span>
             <div class="q-mt-xs">
-              <q-badge :color="statusColor(contact?.status)" rounded class="q-px-sm">
+              <q-badge
+                v-if="contact?.custom_status"
+                :style="{
+                  backgroundColor: contact.custom_status.color + '22',
+                  color: contact.custom_status.color,
+                  border: '1px solid ' + contact.custom_status.color,
+                }"
+                rounded
+                class="q-px-sm q-py-xs text-weight-medium"
+              >
+                <q-icon :name="contact.custom_status.icon || 'sym_r_flag'" size="14px" class="q-mr-xs" />
+                {{ contact.custom_status.name }}
+              </q-badge>
+              <q-badge v-else :color="statusColor(contact?.status)" rounded class="q-px-sm">
                 {{ contact?.status || 'active' }}
               </q-badge>
+            </div>
+          </div>
+
+          <div class="info-block">
+            <span class="info-label">Carreras / Categorías de Interés</span>
+            <div v-if="contact?.categories?.length" class="row q-gutter-xs q-mt-xs">
+              <q-chip
+                v-for="cat in contact.categories"
+                :key="cat.id"
+                dense
+                dark
+                size="sm"
+                :style="{
+                  backgroundColor: (cat.color || '#06b6d4') + '22',
+                  borderColor: cat.color || '#06b6d4',
+                  border: '1px solid',
+                }"
+              >
+                <q-icon :name="cat.icon || 'sym_r_school'" size="13px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+                <span class="text-white">{{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}</span>
+              </q-chip>
+            </div>
+            <div v-else class="text-caption text-grey-6 italic q-mt-xs">
+              Sin carreras o categorías asignadas
             </div>
           </div>
 
@@ -192,6 +236,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import type { Contact } from '../types/contact.types'
 
 const props = defineProps<{

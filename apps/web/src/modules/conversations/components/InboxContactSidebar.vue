@@ -42,8 +42,13 @@
       <!-- Metadatos de la Conversación -->
       <div class="q-gutter-y-sm">
         <div class="info-row">
-          <span class="info-label">Canal:</span>
-          <span class="info-val text-capitalize">{{ conversation.channel }}</span>
+          <span class="info-label">Canal / Red:</span>
+          <SocialChannelBadge
+            :channel="conversation.channel"
+            :account-name="conversation.channel_account?.name"
+            :phone-number="conversation.channel_account?.display_phone_number"
+            size="xs"
+          />
         </div>
 
         <div class="info-row">
@@ -308,6 +313,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { http } from '@/shared/api/http'
 import type { Conversation } from '../types/conversation.types'
 

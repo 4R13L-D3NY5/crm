@@ -161,6 +161,69 @@ class ContactCrudTest extends TestCase
             ->assertJsonPath('data.conversations.0.subject', 'Seguimiento inicial');
     }
 
+    public function test_contact_list_can_filter_by_custom_status_and_category(): void
+    {
+        [$user, $organization] = $this->createMembership();
+
+        $statusInscrito = \App\Modules\Parameters\Models\CustomStatus::create([
+            'organization_id' => $organization->id,
+            'name' => 'Inscrito',
+            'slug' => 'inscrito',
+            'color' => '#10b981',
+            'icon' => 'sym_r_check_circle',
+            'stage_type' => 'won',
+            'sort_order' => 4,
+        ]);
+
+        $statusNoContactado = \App\Modules\Parameters\Models\CustomStatus::create([
+            'organization_id' => $organization->id,
+            'name' => 'No Contactado',
+            'slug' => 'no-contactado',
+            'color' => '#3b82f6',
+            'icon' => 'sym_r_mark_chat_unread',
+            'stage_type' => 'initial',
+            'sort_order' => 1,
+        ]);
+
+        $categorySistemas = \App\Modules\Parameters\Models\Category::create([
+            'organization_id' => $organization->id,
+            'name' => 'Ingeniería de Sistemas',
+            'code' => 'SIS',
+            'color' => '#06b6d4',
+            'icon' => 'sym_r_computer',
+        ]);
+
+        $contact1 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Carlos',
+            'custom_status_id' => $statusInscrito->id,
+        ]);
+        $contact1->categories()->attach($categorySistemas->id, [
+            'id' => (string) str()->ulid(),
+            'organization_id' => $organization->id,
+        ]);
+
+        $contact2 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Beatriz',
+            'custom_status_id' => $statusNoContactado->id,
+        ]);
+
+        // Filtrar por custom_status_id
+        $respStatus = $this->actingAs($user)->getJson("/api/contacts?custom_status_id={$statusInscrito->id}");
+        $respStatus->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.first_name', 'Carlos')
+            ->assertJsonPath('data.0.custom_status.name', 'Inscrito');
+
+        // Filtrar por category_id
+        $respCat = $this->actingAs($user)->getJson("/api/contacts?category_id={$categorySistemas->id}");
+        $respCat->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.first_name', 'Carlos')
+            ->assertJsonPath('data.0.categories.0.name', 'Ingeniería de Sistemas');
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();

@@ -43,7 +43,8 @@
     <ContactFilterBar
       v-model:search="filters.search"
       v-model:tag="filters.tag"
-      v-model:status="filters.status"
+      v-model:custom-status-id="filters.custom_status_id"
+      v-model:category-id="filters.category_id"
       v-model:view-mode="viewMode"
       :tags="tagsQuery.data.value ?? []"
     />
@@ -163,6 +164,8 @@ const filters = reactive({
   search: '',
   tag: null as string | null,
   status: null as string | null,
+  custom_status_id: null as string | null,
+  category_id: null as string | null,
   page: 1,
   per_page: 15,
 })
@@ -173,6 +176,8 @@ const contactsQuery = useContacts(computed(() => ({
   search: filters.search || undefined,
   tag: filters.tag || undefined,
   status: filters.status || undefined,
+  custom_status_id: filters.custom_status_id || undefined,
+  category_id: filters.category_id || undefined,
   page: filters.page,
   per_page: filters.per_page,
 })))

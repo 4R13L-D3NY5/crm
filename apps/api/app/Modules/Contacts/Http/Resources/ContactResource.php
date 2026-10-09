@@ -18,6 +18,33 @@ class ContactResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'status' => $this->status,
+            'origin_channel' => $this->relationLoaded('conversations') && $this->conversations->isNotEmpty()
+                ? $this->conversations->first()->channel
+                : ($this->phone ? 'whatsapp' : 'manual'),
+            'channel_account' => $this->relationLoaded('conversations') && $this->conversations->isNotEmpty() && $this->conversations->first()->whatsappAccount ? [
+                'id' => $this->conversations->first()->whatsappAccount->id,
+                'name' => $this->conversations->first()->whatsappAccount->name,
+                'display_phone_number' => $this->conversations->first()->whatsappAccount->display_phone_number,
+            ] : null,
+            'custom_status_id' => $this->custom_status_id,
+            'custom_status' => $this->customStatus ? [
+                'id' => $this->customStatus->id,
+                'name' => $this->customStatus->name,
+                'color' => $this->customStatus->color,
+                'icon' => $this->customStatus->icon,
+                'stage_type' => $this->customStatus->stage_type,
+            ] : null,
+            'categories' => collect([
+                ...($this->relationLoaded('categories') ? $this->categories : []),
+                ...($this->relationLoaded('conversations') ? $this->conversations->flatMap->categories : []),
+            ])->unique('id')->values()->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'code' => $c->code,
+                'color' => $c->color,
+                'icon' => $c->icon,
+                'full_path' => $c->full_path ?? $c->name,
+            ]),
             'notes' => $this->notes,
             'tags' => $this->tags->map(fn ($tag) => [
                 'id' => $tag->id,

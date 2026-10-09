@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'email',
     'phone',
     'status',
+    'custom_status_id',
     'notes',
     'avatar_url',
     'custom_fields',
@@ -76,5 +77,17 @@ class Contact extends Model
     public function conversations()
     {
         return $this->hasMany(Conversation::class)->latest('last_message_at');
+    }
+
+    public function customStatus(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Parameters\Models\CustomStatus::class, 'custom_status_id');
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Modules\Parameters\Models\Category::class, 'contact_categories')
+            ->withPivot('id', 'organization_id', 'assigned_by_user_id')
+            ->withTimestamps();
     }
 }

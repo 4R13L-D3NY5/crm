@@ -16,7 +16,8 @@ class UpdateContactAction
             'last_name' => $payload['last_name'] ?? null,
             'email' => $payload['email'] ?? null,
             'phone' => $payload['phone'] ?? null,
-            'status' => $payload['status'],
+            'status' => $payload['status'] ?? $contact->status,
+            'custom_status_id' => array_key_exists('custom_status_id', $payload) ? $payload['custom_status_id'] : $contact->custom_status_id,
             'notes' => $payload['notes'] ?? null,
         ]);
 

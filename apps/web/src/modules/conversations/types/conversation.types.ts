@@ -43,12 +43,20 @@ export interface ConversationSummaryRelation {
   name: string
   phone?: string | null
   email?: string | null
+  tags?: Array<{ id: string; name: string; slug?: string; color?: string | null }>
 }
 
 export interface Conversation {
   id: string
   organization_id: string
   channel: 'manual' | 'whatsapp' | 'email' | 'facebook' | 'instagram' | 'tiktok'
+  whatsapp_account_id?: string | null
+  channel_account?: {
+    id: string
+    name: string
+    display_phone_number?: string | null
+    session_type?: string
+  } | null
   status: 'open' | 'pending' | 'closed'
   subject: string | null
   unread_count?: number
@@ -66,6 +74,13 @@ export interface Conversation {
     icon?: string | null
     stage_type?: string
   } | null
+  categories?: Array<{
+    id: string
+    name: string
+    code?: string | null
+    color: string
+    icon?: string | null
+  }>
   contact: ConversationSummaryRelation | null
   company: ConversationSummaryRelation | null
   assignee?: ConversationAssignee | null

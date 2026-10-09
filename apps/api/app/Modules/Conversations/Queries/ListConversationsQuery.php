@@ -14,7 +14,7 @@ class ListConversationsQuery
         $perPage = (int) ($filters['per_page'] ?? 20);
 
         return Conversation::query()
-            ->with(['contact', 'company', 'queue', 'assignee', 'assignment.assignee', 'latestMessage.user'])
+            ->with(['contact.tags', 'company', 'queue', 'assignee', 'assignment.assignee', 'latestMessage.user', 'customStatus', 'categories', 'whatsappAccount'])
             ->where('organization_id', $user->current_organization_id)
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
                 $query->where(function (Builder $nested) use ($search) {

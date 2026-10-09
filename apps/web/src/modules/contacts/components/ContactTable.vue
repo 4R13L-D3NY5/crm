@@ -4,23 +4,25 @@
       <thead>
         <tr>
           <th class="text-left">CONTACTO</th>
+          <th class="text-left">ORIGEN</th>
           <th class="text-left">TELÉFONO / WHATSAPP</th>
           <th class="text-left">CORREO</th>
+          <th class="text-left">CARRERA / CATEGORÍA</th>
           <th class="text-left">ETIQUETAS</th>
-          <th class="text-left">ESTADO</th>
+          <th class="text-left">ESTADO DEL LEAD</th>
           <th class="text-left">REGISTRO</th>
           <th class="text-center">ACCIONES</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="loading">
-          <td colspan="7" class="text-center q-pa-lg text-grey-4">
+          <td colspan="9" class="text-center q-pa-lg text-grey-4">
             <q-spinner-dots size="32px" color="primary" />
             <div class="q-mt-sm">Cargando directorio de contactos...</div>
           </td>
         </tr>
         <tr v-else-if="contacts.length === 0">
-          <td colspan="7" class="text-center q-pa-xl text-grey-4">
+          <td colspan="9" class="text-center q-pa-xl text-grey-4">
             <q-icon name="sym_r_person_off" size="48px" class="q-mb-sm text-grey-6" />
             <div class="text-subtitle1 text-white text-bold">No se encontraron contactos</div>
             <div class="text-caption text-grey-5">Ajusta los filtros o crea un nuevo contacto para comenzar.</div>
@@ -53,6 +55,15 @@
             </div>
           </td>
 
+          <!-- Origen / Red Social -->
+          <td class="text-left" @click.stop>
+            <SocialChannelBadge
+              :channel="contact.origin_channel"
+              :account-name="contact.channel_account?.name"
+              size="xs"
+            />
+          </td>
+
           <!-- Teléfono / WhatsApp -->
           <td class="text-left" @click.stop>
             <div v-if="contact.phone" class="row items-center q-gutter-x-xs">
@@ -77,6 +88,28 @@
             {{ contact.email || '-' }}
           </td>
 
+          <!-- Carrera / Categoría -->
+          <td class="text-left">
+            <div v-if="contact.categories && contact.categories.length > 0" class="row q-gutter-xs items-center">
+              <q-chip
+                v-for="cat in contact.categories"
+                :key="cat.id"
+                dense
+                dark
+                size="sm"
+                :style="{
+                  backgroundColor: (cat.color || '#06b6d4') + '22',
+                  borderColor: cat.color || '#06b6d4',
+                  border: '1px solid',
+                }"
+              >
+                <q-icon :name="cat.icon || 'sym_r_school'" size="13px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+                <span class="text-white">{{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}</span>
+              </q-chip>
+            </div>
+            <span v-else class="text-caption text-grey-6 italic">Sin carrera</span>
+          </td>
+
           <!-- Etiquetas -->
           <td class="text-left">
             <div class="row q-gutter-xs items-center">
@@ -94,9 +127,23 @@
             </div>
           </td>
 
-          <!-- Estado -->
+          <!-- Estado Oficial del Lead -->
           <td class="text-left">
             <q-badge
+              v-if="contact.custom_status"
+              :style="{
+                backgroundColor: contact.custom_status.color + '22',
+                color: contact.custom_status.color,
+                border: '1px solid ' + contact.custom_status.color,
+              }"
+              rounded
+              class="q-px-sm q-py-xs text-weight-medium"
+            >
+              <q-icon :name="contact.custom_status.icon || 'sym_r_flag'" size="13px" class="q-mr-xs" />
+              {{ contact.custom_status.name }}
+            </q-badge>
+            <q-badge
+              v-else
               :color="statusColor(contact.status)"
               rounded
               class="q-px-sm q-py-xs text-capitalize"
@@ -110,20 +157,50 @@
             {{ formatDate(contact.created_at) }}
           </td>
 
-          <!-- Acciones -->
+          <!-- Acciones Whaticket -->
           <td class="text-center" @click.stop>
             <div class="row justify-center q-gutter-xs">
+              <!-- 1. Botón Iniciar Chat Directo -->
+              <q-btn
+                v-if="contact.phone"
+                flat
+                round
+                dense
+                size="sm"
+                icon="sym_r_chat"
+                color="positive"
+                :to="`/app/conversations?contactId=${contact.id}`"
+              >
+                <q-tooltip>Iniciar chat por WhatsApp</q-tooltip>
+              </q-btn>
+
+              <!-- 2. Botón Información Rápida (Whaticket) -->
+              <q-btn
+                flat
+                round
+                dense
+                size="sm"
+                icon="sym_r_info"
+                color="teal-4"
+                @click="openQuickInfo(contact)"
+              >
+                <q-tooltip>Información y procedencia</q-tooltip>
+              </q-btn>
+
+              <!-- 3. Ver Perfil 360° -->
               <q-btn
                 flat
                 round
                 dense
                 size="sm"
                 icon="sym_r_visibility"
-                color="teal-4"
+                color="cyan-4"
                 @click="emit('view', contact)"
               >
                 <q-tooltip>Ver perfil 360°</q-tooltip>
               </q-btn>
+
+              <!-- 4. Editar Contacto -->
               <q-btn
                 flat
                 round
@@ -135,6 +212,8 @@
               >
                 <q-tooltip>Editar contacto</q-tooltip>
               </q-btn>
+
+              <!-- 5. Eliminar Contacto -->
               <q-btn
                 flat
                 round
@@ -151,10 +230,20 @@
         </tr>
       </tbody>
     </q-markup-table>
+
+    <!-- Modal de Información Rápida & Procedencia de Contacto -->
+    <ContactQuickInfoDialog
+      v-model="isQuickInfoOpen"
+      :contact="selectedContactForInfo"
+      @edit="emit('edit', $event)"
+    />
   </q-card>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
+import ContactQuickInfoDialog from './ContactQuickInfoDialog.vue'
 import type { Contact, ContactTag } from '../types/contact.types'
 
 defineProps<{
@@ -167,6 +256,14 @@ const emit = defineEmits<{
   edit: [contact: Contact]
   delete: [contact: Contact]
 }>()
+
+const isQuickInfoOpen = ref(false)
+const selectedContactForInfo = ref<Contact | null>(null)
+
+function openQuickInfo(contact: Contact) {
+  selectedContactForInfo.value = contact
+  isQuickInfoOpen.value = true
+}
 
 function contactName(contact: Contact): string {
   if (contact.name) return contact.name

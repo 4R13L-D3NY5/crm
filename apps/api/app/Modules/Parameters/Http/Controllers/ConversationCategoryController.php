@@ -71,6 +71,16 @@ class ConversationCategoryController extends Controller
                     'assigned_by_user_id' => $request->user()->id,
                 ],
             ]);
+
+            if ($conversation->contact_id) {
+                $conversation->contact?->categories()->syncWithoutDetaching([
+                    $category->id => [
+                        'id' => (string) Str::ulid(),
+                        'organization_id' => $organization->id,
+                        'assigned_by_user_id' => $request->user()->id,
+                    ],
+                ]);
+            }
         }
 
         $freshCategories = $conversation->categories()->with('parent')->get()->map(fn ($c) => [
@@ -95,6 +105,10 @@ class ConversationCategoryController extends Controller
         $conversation = Conversation::where('organization_id', $organization->id)->findOrFail($conversationId);
 
         $conversation->categories()->detach($categoryId);
+
+        if ($conversation->contact_id) {
+            $conversation->contact?->categories()->detach($categoryId);
+        }
 
         return response()->json([
             'message' => 'Categoría desvinculada de la conversación.',

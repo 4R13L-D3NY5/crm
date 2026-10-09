@@ -20,9 +20,29 @@
             </div>
           </div>
 
-          <q-badge :color="statusColor" rounded class="q-px-xs text-caption">
-            {{ contact.status }}
-          </q-badge>
+          <div class="row items-center q-gutter-x-xs no-wrap">
+            <SocialChannelBadge
+              :channel="contact.origin_channel"
+              :account-name="contact.channel_account?.name"
+              size="xs"
+            />
+            <q-badge
+              v-if="contact.custom_status"
+              :style="{
+                backgroundColor: contact.custom_status.color + '22',
+                color: contact.custom_status.color,
+                border: '1px solid ' + contact.custom_status.color,
+              }"
+              rounded
+              class="q-px-xs text-caption text-weight-medium"
+            >
+              <q-icon :name="contact.custom_status.icon || 'sym_r_flag'" size="12px" class="q-mr-xs" />
+              {{ contact.custom_status.name }}
+            </q-badge>
+            <q-badge v-else :color="statusColor" rounded class="q-px-xs text-caption">
+              {{ contact.status }}
+            </q-badge>
+          </div>
         </div>
       </q-card-section>
 
@@ -36,6 +56,25 @@
         <div v-if="contact.email" class="row items-center q-gutter-x-xs text-grey-4 ellipsis">
           <q-icon name="sym_r_mail" size="14px" color="teal-4" />
           <span class="ellipsis">{{ contact.email }}</span>
+        </div>
+
+        <!-- Categorías / Carreras -->
+        <div v-if="contact.categories?.length" class="row q-gutter-xs q-mt-xs">
+          <q-chip
+            v-for="cat in contact.categories"
+            :key="cat.id"
+            dense
+            dark
+            size="xs"
+            :style="{
+              backgroundColor: (cat.color || '#06b6d4') + '22',
+              borderColor: cat.color || '#06b6d4',
+              border: '1px solid',
+            }"
+          >
+            <q-icon :name="cat.icon || 'sym_r_school'" size="11px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+            {{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}
+          </q-chip>
         </div>
 
         <div class="row q-gutter-xs q-mt-xs">
@@ -67,6 +106,10 @@
           :to="`/app/conversations?contactId=${contact.id}`"
         />
         <div class="row q-gutter-xs">
+          <!-- Botón de Información y Procedencia (Whaticket) -->
+          <q-btn flat round dense size="sm" icon="sym_r_info" color="teal-4" @click="emit('view', contact)">
+            <q-tooltip>Información y procedencia</q-tooltip>
+          </q-btn>
           <q-btn flat round dense size="sm" icon="sym_r_edit" color="grey-4" @click="emit('edit', contact)">
             <q-tooltip>Editar</q-tooltip>
           </q-btn>
@@ -81,6 +124,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import type { Contact } from '../types/contact.types'
 
 const props = defineProps<{

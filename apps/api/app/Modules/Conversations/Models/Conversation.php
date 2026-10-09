@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'assigned_to_user_id',
     'custom_status_id',
     'channel',
+    'whatsapp_account_id',
     'status',
     'unread_count',
     'is_group',
@@ -118,6 +119,11 @@ class Conversation extends Model
     public function customStatus(): BelongsTo
     {
         return $this->belongsTo(\App\Modules\Parameters\Models\CustomStatus::class, 'custom_status_id');
+    }
+
+    public function whatsappAccount(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\WhatsApp\Models\WhatsAppAccount::class, 'whatsapp_account_id');
     }
 
     // Scopes de filtrado Whaticket

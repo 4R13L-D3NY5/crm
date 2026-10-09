@@ -122,7 +122,24 @@
         <div class="ticket-content">
           <div class="row items-center justify-between no-wrap">
             <span class="ticket-name ellipsis">{{ item.contact?.name || item.subject || 'Contacto' }}</span>
-            <span class="ticket-time">{{ formatTime(item.last_message_at) }}</span>
+            <div class="row items-center q-gutter-x-xs no-wrap">
+              <span class="ticket-time">{{ formatTime(item.last_message_at) }}</span>
+              <!-- BOTÓN DE INFORMACIÓN RÁPIDA (WHATICKET) -->
+              <q-btn
+                flat
+                round
+                dense
+                size="xs"
+                icon="sym_r_info"
+                color="teal-4"
+                class="ticket-info-btn"
+                @click.stop="openQuickInfo(item)"
+              >
+                <q-tooltip anchor="top middle" self="bottom middle">
+                  Ver información y procedencia sin entrar al chat
+                </q-tooltip>
+              </q-btn>
+            </div>
           </div>
 
           <div class="row items-center justify-between no-wrap q-mt-xs">
@@ -131,6 +148,11 @@
             </span>
 
             <div class="row items-center q-gutter-x-xs no-wrap q-ml-xs">
+              <SocialChannelBadge
+                :channel="item.channel"
+                :account-name="item.channel_account?.name"
+                size="xs"
+              />
               <span
                 v-if="item.assignee?.name"
                 class="ticket-assignee-chip ellipsis"
@@ -146,11 +168,20 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de Información Rápida & Procedencia (Sin entrar al chat) -->
+    <TicketQuickInfoDialog
+      v-model="isQuickInfoOpen"
+      :conversation="selectedQuickInfoConversation"
+      @open-chat="handleOpenChatFromDialog"
+    />
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
+import TicketQuickInfoDialog from './TicketQuickInfoDialog.vue'
 import type { Conversation } from '../types/conversation.types'
 
 const props = defineProps<{
@@ -176,6 +207,18 @@ const searchModel = computed({
 })
 
 const totalTickets = computed(() => props.conversations.length)
+
+const isQuickInfoOpen = ref(false)
+const selectedQuickInfoConversation = ref<Conversation | null>(null)
+
+function openQuickInfo(item: Conversation) {
+  selectedQuickInfoConversation.value = item
+  isQuickInfoOpen.value = true
+}
+
+function handleOpenChatFromDialog(item: Conversation) {
+  emit('select', item)
+}
 
 function getInitials(name: string): string {
   if (!name) return 'WA'
@@ -341,6 +384,16 @@ function getChannelIcon(channel?: string) {
   font-size: 0.7rem;
   color: var(--crm-color-dim);
   flex-shrink: 0;
+}
+
+.ticket-info-btn {
+  opacity: 0.75;
+  transition: opacity var(--crm-transition-fast), transform var(--crm-transition-fast);
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 .ticket-snippet {

@@ -54,6 +54,23 @@ export interface ContactConversationSummary {
   } | null
 }
 
+export interface ContactCustomStatus {
+  id: string
+  name: string
+  color: string
+  icon?: string
+  stage_type: string
+}
+
+export interface ContactCategory {
+  id: string
+  name: string
+  code?: string
+  color?: string
+  icon?: string
+  full_path?: string
+}
+
 export interface Contact {
   id: string
   organization_id: string
@@ -63,6 +80,15 @@ export interface Contact {
   email: string | null
   phone: string | null
   status: 'active' | 'lead' | 'inactive'
+  origin_channel?: string
+  channel_account?: {
+    id: string
+    name: string
+    display_phone_number?: string | null
+  } | null
+  custom_status_id?: string | null
+  custom_status?: ContactCustomStatus | null
+  categories?: ContactCategory[]
   notes: string | null
   tags: ContactTag[]
   company?: ContactCompanySummary | null
@@ -76,7 +102,12 @@ export interface Contact {
 export interface ContactFilters {
   search?: string
   status?: string
-  tag?: string
+  custom_status_id?: string | string[] | null
+  custom_status_ids?: string[]
+  category_id?: string | string[] | null
+  category_ids?: string[]
+  tag?: string | string[] | null
+  tags?: string[]
   page?: number
   per_page?: number
 }
@@ -87,6 +118,7 @@ export interface ContactPayload {
   email: string
   phone: string
   status: 'active' | 'lead' | 'inactive'
+  custom_status_id?: string | null
   notes: string
   tags: string[]
 }

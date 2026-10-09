@@ -73,15 +73,42 @@
           </div>
 
           <q-select
-            v-model="form.status"
-            :options="statusOptions"
+            v-model="form.custom_status_id"
+            :options="customStatusOptions"
             emit-value
             map-options
-            label="Estado del Contacto"
+            label="Estado Oficial del Lead"
             outlined
             dark
             dense
-          />
+            clearable
+          >
+            <template #prepend>
+              <q-icon name="sym_r_flag" size="16px" color="teal-4" />
+            </template>
+            <template #selected-item="scope">
+              <div v-if="scope.opt?.value" class="row items-center no-wrap ellipsis text-caption">
+                <span
+                  class="status-form-dot q-mr-xs"
+                  :style="{ backgroundColor: scope.opt.color || '#10b981' }"
+                ></span>
+                <span class="text-white">{{ scope.opt.label }}</span>
+              </div>
+            </template>
+            <template #option="scope">
+              <q-item v-bind="scope.itemProps" dense dark>
+                <q-item-section avatar style="min-width: 24px">
+                  <span
+                    class="status-form-dot"
+                    :style="{ backgroundColor: scope.opt.color || '#10b981' }"
+                  ></span>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-white">{{ scope.opt.label }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
 
           <!-- Selector de Etiquetas con chips dinámicos -->
           <q-select
@@ -132,6 +159,8 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
+import { http } from '@/shared/api/http'
 import type { Contact, ContactPayload, ContactTag } from '../types/contact.types'
 
 const props = withDefaults(
@@ -155,11 +184,25 @@ const emit = defineEmits<{
 
 const isEditing = computed(() => Boolean(props.contact?.id))
 
-const statusOptions = [
-  { label: 'Activo (Cliente)', value: 'active' },
-  { label: 'Lead (Prospecto Comercial)', value: 'lead' },
-  { label: 'Inactivo', value: 'inactive' },
-]
+// Cargar Estados Oficiales de la Organización
+const { data: customStatusesQuery } = useQuery({
+  queryKey: ['custom-statuses'],
+  queryFn: async () => {
+    const res = await http.get('/custom-statuses')
+    return res.data.data || []
+  },
+})
+
+const customStatusOptions = computed(() => {
+  const list = (customStatusesQuery.value as any[]) || []
+  return list.map((s: any) => ({
+    label: s.name,
+    value: s.id,
+    color: s.color,
+    icon: s.icon || 'sym_r_flag',
+    is_default: s.is_default,
+  }))
+})
 
 const form = reactive({
   first_name: '',
@@ -167,6 +210,7 @@ const form = reactive({
   email: '',
   phone: '',
   status: 'active' as 'active' | 'lead' | 'inactive',
+  custom_status_id: null as string | null,
   notes: '',
 })
 
@@ -185,6 +229,7 @@ watch(
       form.email = c.email || ''
       form.phone = c.phone || ''
       form.status = c.status || 'active'
+      form.custom_status_id = c.custom_status_id || c.custom_status?.id || null
       form.notes = c.notes || ''
       selectedTags.value = c.tags ? c.tags.map((t) => (typeof t === 'string' ? t : t.name)) : []
     } else {
@@ -193,6 +238,8 @@ watch(
       form.email = ''
       form.phone = ''
       form.status = 'active'
+      const defaultStatus = customStatusOptions.value.find((s: any) => s.is_default)
+      form.custom_status_id = defaultStatus?.value || null
       form.notes = ''
       selectedTags.value = []
     }
@@ -209,6 +256,7 @@ function handleSubmit() {
     email: form.email.trim(),
     phone: form.phone.trim(),
     status: form.status,
+    custom_status_id: form.custom_status_id || undefined,
     notes: form.notes.trim(),
     tags: selectedTags.value,
   }
@@ -222,6 +270,14 @@ function handleSubmit() {
   background: var(--crm-bg-card, #111827);
   border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.08));
   border-radius: 14px;
+}
+
+.status-form-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .contact-dialog-btn {

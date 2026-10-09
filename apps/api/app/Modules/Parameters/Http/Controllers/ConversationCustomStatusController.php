@@ -41,6 +41,12 @@ class ConversationCustomStatusController extends Controller
             'custom_status_id' => $targetStatus->id,
         ]);
 
+        if ($conversation->contact_id) {
+            $conversation->contact?->update([
+                'custom_status_id' => $targetStatus->id,
+            ]);
+        }
+
         // Registrar nota interna en el timeline del chat
         $noteText = "📌 *Estado del Lead actualizado*: {$oldStatusName} ➔ *{$targetStatus->name}*";
         if (!empty($validated['note'])) {
