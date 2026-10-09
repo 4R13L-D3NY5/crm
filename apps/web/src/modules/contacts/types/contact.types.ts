@@ -102,6 +102,7 @@ export interface Contact {
 export interface ContactFilters {
   search?: string
   status?: string
+  channel?: string | null
   custom_status_id?: string | string[] | null
   custom_status_ids?: string[]
   category_id?: string | string[] | null

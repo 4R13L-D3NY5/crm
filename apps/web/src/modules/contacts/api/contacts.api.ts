@@ -76,3 +76,28 @@ export async function updateTag(
 export async function deleteTag(id: string): Promise<void> {
   await http.delete(`/tags/${id}`)
 }
+
+export async function sendBulkMessage(payload: {
+  contact_ids: string[]
+  whatsapp_account_id?: string | null
+  message: string
+}): Promise<{
+  data: {
+    dispatched_count: number
+    skipped_count: number
+    total: number
+  }
+  message: string
+}> {
+  const response = await http.post<{
+    data: {
+      dispatched_count: number
+      skipped_count: number
+      total: number
+    }
+    message: string
+  }>('/contacts/bulk-message', payload)
+
+  return response.data
+}
+

@@ -26,6 +26,20 @@ class ListContactsQuery
                 });
             })
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when($filters['channel'] ?? null, function (Builder $query, string $channel) {
+                if ($channel === 'manual') {
+                    $query->where(function ($sub) {
+                        $sub->whereNull('phone')->orWhereDoesntHave('conversations');
+                    });
+                } elseif ($channel === 'whatsapp') {
+                    $query->where(function ($sub) {
+                        $sub->whereHas('conversations', fn ($convQ) => $convQ->where('channel', 'whatsapp'))
+                            ->orWhereNotNull('phone');
+                    });
+                } else {
+                    $query->whereHas('conversations', fn ($convQ) => $convQ->where('channel', $channel));
+                }
+            })
             ->when($filters['custom_status_id'] ?? $filters['custom_status_ids'] ?? null, function (Builder $query, $statusIds) {
                 $ids = is_array($statusIds) ? $statusIds : explode(',', (string) $statusIds);
                 $ids = array_filter(array_map('trim', $ids));

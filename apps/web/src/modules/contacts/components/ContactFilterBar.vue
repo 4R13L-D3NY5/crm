@@ -25,7 +25,50 @@
         </template>
       </q-input>
 
-      <!-- 2. Filtro de Categorías (Buscable y Checkable) -->
+      <!-- 2. Filtro de Canal de Procedencia (Omnicanal) -->
+      <q-select
+        :model-value="channel"
+        :options="channelOptions"
+        emit-value
+        map-options
+        dense
+        outlined
+        dark
+        clearable
+        placeholder="Canal de origen"
+        class="contact-filter-bar__channel-select"
+        @update:model-value="emit('update:channel', $event ?? null)"
+      >
+        <template #prepend>
+          <q-icon name="sym_r_hub" size="16px" color="teal-4" />
+        </template>
+
+        <template #selected>
+          <div v-if="channel" class="row items-center no-wrap ellipsis text-caption text-white">
+            <span
+              class="filter-dot q-mr-xs"
+              :style="{ backgroundColor: getSelectedChannelOption(channel)?.color || '#10b981' }"
+            ></span>
+            <span class="ellipsis text-weight-medium">{{ getSelectedChannelOption(channel)?.label || channel }}</span>
+          </div>
+        </template>
+
+        <template #option="{ itemProps, opt, selected }">
+          <q-item v-bind="itemProps" dense dark class="filter-option-item cursor-pointer">
+            <q-item-section avatar style="min-width: 24px" class="q-pr-xs">
+              <q-icon :name="opt.icon" size="16px" :style="{ color: opt.color }" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-body2 text-white">{{ opt.label }}</q-item-label>
+            </q-item-section>
+            <q-item-section v-if="selected" side>
+              <q-icon name="sym_r_check" size="16px" color="teal-4" />
+            </q-item-section>
+          </q-item>
+        </template>
+      </q-select>
+
+      <!-- 3. Filtro de Categorías (Buscable y Checkable) -->
       <q-select
         :model-value="categoryIds"
         :options="filteredCategoryOptions"
@@ -54,7 +97,6 @@
             </q-badge>
             <span class="ellipsis">{{ getSelectedCategoryText(categoryIds) }}</span>
           </div>
-          <span v-else class="text-grey-5 text-caption">Categorías</span>
         </template>
 
         <!-- Opciones Checkables con Buscador -->
@@ -79,7 +121,7 @@
         </template>
       </q-select>
 
-      <!-- 3. Filtro de Estados Oficiales (Buscable y Checkable) -->
+      <!-- 4. Filtro de Estados Oficiales (Buscable y Checkable) -->
       <q-select
         :model-value="customStatusIds"
         :options="filteredStatusOptions"
@@ -108,7 +150,6 @@
             </q-badge>
             <span class="ellipsis">{{ getSelectedStatusText(customStatusIds) }}</span>
           </div>
-          <span v-else class="text-grey-5 text-caption">Estados</span>
         </template>
 
         <!-- Opciones Checkables con Buscador -->
@@ -139,7 +180,7 @@
         </template>
       </q-select>
 
-      <!-- 4. Filtro de Etiquetas (Buscable y Checkable) -->
+      <!-- 5. Filtro de Etiquetas (Buscable y Checkable) -->
       <q-select
         :model-value="tagNames"
         :options="filteredTagOptions"
@@ -168,7 +209,6 @@
             </q-badge>
             <span class="ellipsis">{{ tagNames.join(', ') }}</span>
           </div>
-          <span v-else class="text-grey-5 text-caption">Etiquetas</span>
         </template>
 
         <!-- Opciones Checkables con Buscador -->
@@ -226,6 +266,7 @@ import type { ContactTag } from '../types/contact.types'
 const props = withDefaults(
   defineProps<{
     search?: string
+    channel?: string | null
     tagNames?: string[]
     customStatusIds?: string[]
     categoryIds?: string[]
@@ -234,6 +275,7 @@ const props = withDefaults(
   }>(),
   {
     search: '',
+    channel: null,
     tagNames: () => [],
     customStatusIds: () => [],
     categoryIds: () => [],
@@ -244,11 +286,27 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update:search': [value: string]
+  'update:channel': [value: string | null]
   'update:tagNames': [value: string[]]
   'update:customStatusIds': [value: string[]]
   'update:categoryIds': [value: string[]]
   'update:viewMode': [value: 'table' | 'grid']
 }>()
+
+// Opciones de Canal de Procedencia Omnicanal
+const channelOptions = [
+  { label: 'Todos los canales', value: null, icon: 'sym_r_hub', color: '#94a3b8' },
+  { label: 'WhatsApp', value: 'whatsapp', icon: 'sym_r_forum', color: '#25D366' },
+  { label: 'Instagram', value: 'instagram', icon: 'sym_r_photo_camera', color: '#E1306C' },
+  { label: 'Facebook / Messenger', value: 'facebook', icon: 'sym_r_chat', color: '#1877F2' },
+  { label: 'TikTok', value: 'tiktok', icon: 'sym_r_music_note', color: '#25F4EE' },
+  { label: 'Correo', value: 'email', icon: 'sym_r_mail', color: '#f59e0b' },
+  { label: 'Manual', value: 'manual', icon: 'sym_r_person', color: '#64748b' },
+]
+
+function getSelectedChannelOption(val: string | null | undefined) {
+  return channelOptions.find((o) => o.value === val)
+}
 
 // Filtros de búsqueda textual en los selects
 const categorySearch = ref('')
@@ -297,7 +355,7 @@ const allCategoryOptions = computed(() => {
     label: c.code ? `[${c.code}] ${c.name}` : c.name,
     value: c.id,
     color: c.color,
-    icon: c.icon || 'sym_r_school',
+    icon: c.icon || 'sym_r_category',
     full_path: c.full_path,
   }))
 })
@@ -387,6 +445,12 @@ function getStageColor(stage: string): string {
   min-width: 170px;
   max-width: 230px;
   flex: 1 1 170px;
+}
+
+.contact-filter-bar__channel-select {
+  min-width: 160px;
+  max-width: 210px;
+  flex: 1 1 160px;
 }
 
 .filter-dot {

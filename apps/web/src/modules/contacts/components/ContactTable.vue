@@ -3,11 +3,23 @@
     <q-markup-table flat dark class="contact-table">
       <thead>
         <tr>
+          <th style="width: 44px" class="text-center">
+            <q-checkbox
+              :model-value="isAllVisibleSelected"
+              :indeterminate="isSomeVisibleSelected"
+              dense
+              dark
+              color="teal-4"
+              @update:model-value="toggleSelectAllVisible"
+            >
+              <q-tooltip>Seleccionar todos los visibles</q-tooltip>
+            </q-checkbox>
+          </th>
           <th class="text-left">CONTACTO</th>
           <th class="text-left">ORIGEN</th>
           <th class="text-left">TELÉFONO / WHATSAPP</th>
           <th class="text-left">CORREO</th>
-          <th class="text-left">CARRERA / CATEGORÍA</th>
+          <th class="text-left">CATEGORÍAS</th>
           <th class="text-left">ETIQUETAS</th>
           <th class="text-left">ESTADO DEL LEAD</th>
           <th class="text-left">REGISTRO</th>
@@ -16,13 +28,13 @@
       </thead>
       <tbody>
         <tr v-if="loading">
-          <td colspan="9" class="text-center q-pa-lg text-grey-4">
+          <td colspan="10" class="text-center q-pa-lg text-grey-4">
             <q-spinner-dots size="32px" color="primary" />
             <div class="q-mt-sm">Cargando directorio de contactos...</div>
           </td>
         </tr>
         <tr v-else-if="contacts.length === 0">
-          <td colspan="9" class="text-center q-pa-xl text-grey-4">
+          <td colspan="10" class="text-center q-pa-xl text-grey-4">
             <q-icon name="sym_r_person_off" size="48px" class="q-mb-sm text-grey-6" />
             <div class="text-subtitle1 text-white text-bold">No se encontraron contactos</div>
             <div class="text-caption text-grey-5">Ajusta los filtros o crea un nuevo contacto para comenzar.</div>
@@ -33,8 +45,20 @@
           v-else
           :key="contact.id"
           class="contact-table__row cursor-pointer"
+          :class="{ 'contact-table__row--selected': isSelected(contact.id) }"
           @click="emit('view', contact)"
         >
+          <!-- Checkbox de selección individual -->
+          <td class="text-center" style="width: 44px" @click.stop>
+            <q-checkbox
+              :model-value="isSelected(contact.id)"
+              dense
+              dark
+              color="teal-4"
+              @update:model-value="toggleContactSelection(contact.id)"
+            />
+          </td>
+
           <!-- Nombre + Avatar -->
           <td class="text-left">
             <div class="row items-center q-gutter-x-sm">
@@ -103,11 +127,11 @@
                   border: '1px solid',
                 }"
               >
-                <q-icon :name="cat.icon || 'sym_r_school'" size="13px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+                <q-icon :name="cat.icon || 'sym_r_category'" size="13px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
                 <span class="text-white">{{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}</span>
               </q-chip>
             </div>
-            <span v-else class="text-caption text-grey-6 italic">Sin carrera</span>
+            <span v-else class="text-caption text-grey-6 italic">Sin categoría</span>
           </td>
 
           <!-- Etiquetas -->
@@ -241,21 +265,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import ContactQuickInfoDialog from './ContactQuickInfoDialog.vue'
 import type { Contact, ContactTag } from '../types/contact.types'
 
-defineProps<{
-  contacts: Contact[]
-  loading?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    contacts: Contact[]
+    loading?: boolean
+    selectedIds?: string[]
+  }>(),
+  {
+    loading: false,
+    selectedIds: () => [],
+  },
+)
 
 const emit = defineEmits<{
+  'update:selectedIds': [ids: string[]]
   view: [contact: Contact]
   edit: [contact: Contact]
   delete: [contact: Contact]
 }>()
+
+const isAllVisibleSelected = computed(() => {
+  if (props.contacts.length === 0) return false
+  return props.contacts.every((c) => props.selectedIds.includes(c.id))
+})
+
+const isSomeVisibleSelected = computed(() => {
+  if (props.contacts.length === 0) return false
+  const selectedCount = props.contacts.filter((c) => props.selectedIds.includes(c.id)).length
+  return selectedCount > 0 && selectedCount < props.contacts.length
+})
+
+function isSelected(id: string): boolean {
+  return props.selectedIds.includes(id)
+}
+
+function toggleContactSelection(id: string) {
+  if (props.selectedIds.includes(id)) {
+    emit('update:selectedIds', props.selectedIds.filter((item) => item !== id))
+  } else {
+    emit('update:selectedIds', [...props.selectedIds, id])
+  }
+}
+
+function toggleSelectAllVisible() {
+  if (isAllVisibleSelected.value) {
+    const visibleIds = new Set(props.contacts.map((c) => c.id))
+    emit('update:selectedIds', props.selectedIds.filter((id) => !visibleIds.has(id)))
+  } else {
+    const newSelected = new Set([...props.selectedIds, ...props.contacts.map((c) => c.id)])
+    emit('update:selectedIds', Array.from(newSelected))
+  }
+}
 
 const isQuickInfoOpen = ref(false)
 const selectedContactForInfo = ref<Contact | null>(null)
@@ -340,6 +405,10 @@ function formatDate(dateStr: string | null): string {
 
     &:hover {
       background: rgba(255, 255, 255, 0.03);
+    }
+
+    &.contact-table__row--selected {
+      background: rgba(16, 185, 129, 0.12) !important;
     }
   }
 

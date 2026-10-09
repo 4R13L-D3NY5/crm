@@ -126,7 +126,7 @@
           </div>
 
           <div class="info-block">
-            <span class="info-label">Carreras / Categorías de Interés</span>
+            <span class="info-label">Categorías de Interés</span>
             <div v-if="contact?.categories?.length" class="row q-gutter-xs q-mt-xs">
               <q-chip
                 v-for="cat in contact.categories"
@@ -140,12 +140,12 @@
                   border: '1px solid',
                 }"
               >
-                <q-icon :name="cat.icon || 'sym_r_school'" size="13px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+                <q-icon :name="cat.icon || 'sym_r_category'" size="13px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
                 <span class="text-white">{{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}</span>
               </q-chip>
             </div>
             <div v-else class="text-caption text-grey-6 italic q-mt-xs">
-              Sin carreras o categorías asignadas
+              Sin categorías asignadas
             </div>
           </div>
 

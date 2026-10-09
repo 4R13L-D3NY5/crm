@@ -224,6 +224,77 @@ class ContactCrudTest extends TestCase
             ->assertJsonPath('data.0.categories.0.name', 'Ingeniería de Sistemas');
     }
 
+    public function test_user_can_send_bulk_messages_to_selected_contacts(): void
+    {
+        [$user, $organization] = $this->createMembership();
+
+        $c1 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Ana',
+            'phone' => '+59170011111',
+        ]);
+        $c2 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Luis',
+            'phone' => '+59170022222',
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/contacts/bulk-message', [
+            'contact_ids' => [$c1->id, $c2->id],
+            'message' => 'Hola {{nombre}}, te recordamos tu cita de admisiones.',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('sent_count', 2)
+            ->assertJsonPath('total_selected', 2);
+
+        $this->assertDatabaseHas('conversations', [
+            'contact_id' => $c1->id,
+            'channel' => 'whatsapp',
+        ]);
+        $this->assertDatabaseHas('conversations', [
+            'contact_id' => $c2->id,
+            'channel' => 'whatsapp',
+        ]);
+    }
+
+    public function test_contact_list_can_filter_by_origin_channel(): void
+    {
+        [$user, $organization] = $this->createMembership();
+
+        $cWa = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Willy',
+            'phone' => '+59170033333',
+        ]);
+        \App\Modules\Conversations\Models\Conversation::factory()->create([
+            'organization_id' => $organization->id,
+            'contact_id' => $cWa->id,
+            'channel' => 'whatsapp',
+        ]);
+
+        $cInsta = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Iris',
+            'phone' => null,
+        ]);
+        \App\Modules\Conversations\Models\Conversation::factory()->create([
+            'organization_id' => $organization->id,
+            'contact_id' => $cInsta->id,
+            'channel' => 'instagram',
+        ]);
+
+        $resWa = $this->actingAs($user)->getJson('/api/contacts?channel=whatsapp');
+        $resWa->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.first_name', 'Willy');
+
+        $resInsta = $this->actingAs($user)->getJson('/api/contacts?channel=instagram');
+        $resInsta->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.first_name', 'Iris');
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();

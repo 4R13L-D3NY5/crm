@@ -58,7 +58,7 @@
           <span class="ellipsis">{{ contact.email }}</span>
         </div>
 
-        <!-- Categorías / Carreras -->
+        <!-- Categorías -->
         <div v-if="contact.categories?.length" class="row q-gutter-xs q-mt-xs">
           <q-chip
             v-for="cat in contact.categories"
@@ -72,7 +72,7 @@
               border: '1px solid',
             }"
           >
-            <q-icon :name="cat.icon || 'sym_r_school'" size="11px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+            <q-icon :name="cat.icon || 'sym_r_category'" size="11px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
             {{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}
           </q-chip>
         </div>

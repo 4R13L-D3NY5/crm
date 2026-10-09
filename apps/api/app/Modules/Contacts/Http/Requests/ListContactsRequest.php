@@ -16,6 +16,7 @@ class ListContactsRequest extends FormRequest
         return [
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'in:active,lead,inactive'],
+            'channel' => ['nullable', 'string', 'max:50'],
             'custom_status_id' => ['nullable'],
             'custom_status_ids' => ['nullable'],
             'category_id' => ['nullable'],

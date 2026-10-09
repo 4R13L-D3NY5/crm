@@ -121,7 +121,7 @@
           </div>
         </div>
 
-        <!-- 3. Clasificación (Estado, Carreras & Tags) -->
+        <!-- 3. Clasificación (Estado, Categorías & Tags) -->
         <div class="contact-info-block">
           <div class="text-caption text-weight-bold text-grey-3 q-mb-xs flex items-center q-gutter-x-xs">
             <q-icon name="sym_r_tune" size="16px" color="teal-4" />
@@ -149,7 +149,7 @@
             </q-badge>
           </div>
 
-          <!-- Categorías / Carreras -->
+          <!-- Categorías -->
           <div v-if="contact?.categories?.length" class="row q-gutter-xs q-mt-sm">
             <q-chip
               v-for="cat in contact.categories"
@@ -163,7 +163,7 @@
                 border: '1px solid',
               }"
             >
-              <q-icon :name="cat.icon || 'sym_r_school'" size="11px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
+              <q-icon :name="cat.icon || 'sym_r_category'" size="11px" class="q-mr-xs" :style="{ color: cat.color || '#06b6d4' }" />
               {{ cat.code ? `[${cat.code}] ${cat.name}` : cat.name }}
             </q-chip>
           </div>
