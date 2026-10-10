@@ -87,6 +87,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      api:
+        condition: service_started
     networks:
       - crm-internal
     command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; sleep 5; done"]
