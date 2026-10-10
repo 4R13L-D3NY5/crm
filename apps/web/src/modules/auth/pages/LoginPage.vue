@@ -129,6 +129,18 @@
       />
     </q-form>
 
+    <!-- Enlace a Planes y Precios -->
+    <div class="text-center q-mt-md">
+      <router-link
+        to="/planes"
+        class="text-caption text-primary text-weight-medium row items-center justify-center q-gutter-x-xs text-decoration-none"
+        style="transition: opacity 0.2s; opacity: 0.85;"
+      >
+        <q-icon name="sym_r_loyalty" size="14px" />
+        <span>Ver Planes & Precios de Suscripción →</span>
+      </router-link>
+    </div>
+
     <!-- Footer Discreto: Fase 1 Activa -->
     <div class="login-card__footer text-center q-mt-lg">
       <div class="row items-center justify-center q-gutter-x-xs text-caption text-grey-5">

@@ -125,14 +125,15 @@ services:
       - crm-internal
 
   nginx:
-    image: nginx:1.27-alpine
+    image: ${CRM_INSTANCE_NAME:-crm}-nginx:production
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile
     container_name: ${CRM_INSTANCE_NAME:-crm}-nginx
     restart: unless-stopped
     depends_on:
       - api
       - web
-    volumes:
-      - ./infra/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - crm-internal
       - proxy

@@ -24,6 +24,8 @@ import ParametersPage from '@/modules/parameters/pages/ParametersPage.vue'
 import SettingsPage from '@/modules/settings/pages/SettingsPage.vue'
 import TokensPage from '@/modules/tokens/pages/TokensPage.vue'
 import ApiDocsPage from '@/modules/docs/pages/ApiDocsPage.vue'
+import LandingLayout from '@/shared/layouts/LandingLayout.vue'
+import PricingPage from '@/modules/pricing/pages/PricingPage.vue'
 
 const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'quick-messages', name: 'quick-messages.index', component: QuickMessagesPage },
@@ -36,9 +38,25 @@ const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'settings', name: 'settings.index', component: SettingsPage },
   { path: 'tokens', name: 'tokens.index', component: TokensPage },
   { path: 'docs', name: 'docs.index', component: ApiDocsPage },
+  { path: 'pricing', name: 'pricing.app', component: PricingPage },
 ]
 
 export const routes: RouteRecordRaw[] = [
+  {
+    path: '/planes',
+    component: LandingLayout,
+    children: [
+      {
+        path: '',
+        name: 'pricing.public',
+        component: PricingPage,
+      },
+    ],
+  },
+  {
+    path: '/pricing',
+    redirect: '/planes',
+  },
   {
     path: '/',
     component: PublicLayout,

@@ -367,6 +367,19 @@
               </q-item-section>
               <q-item-section>Parametrización</q-item-section>
             </q-item>
+
+            <!-- Planes & Precios -->
+            <q-item
+              clickable
+              to="/app/pricing"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_loyalty" size="18px" />
+              </q-item-section>
+              <q-item-section>Planes & Precios</q-item-section>
+            </q-item>
           </q-list>
 
           <!-- Tarjeta Minimalista del Roadmap V2 -->
