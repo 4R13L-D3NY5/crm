@@ -206,16 +206,28 @@
             <q-btn flat dense no-caps size="xs" color="grey-4" label="Doméstico (api.minimax.chat)" @click="configForm.base_url = 'https://api.minimax.chat/v1'" />
           </div>
 
-          <!-- 4. API Key con botón de mostrar/ocultar -->
+          <!-- Indicador visual de clave guardada y activa -->
+          <div v-if="aiConfig.has_api_key" class="q-pa-sm rounded-borders row items-center justify-between" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35);">
+            <div class="row items-center q-gutter-x-sm">
+              <q-icon name="sym_r_verified_user" color="positive" size="22px" />
+              <div>
+                <div class="text-caption text-weight-bold text-white">Clave API guardada y conectada</div>
+                <div class="text-caption text-teal-3 font-mono" style="font-size: 0.75rem">{{ aiConfig.api_key_masked }}</div>
+              </div>
+            </div>
+            <q-badge color="positive" label="✓ Enlazada en Base de Datos" class="text-weight-bold q-px-sm" />
+          </div>
+
+          <!-- 4. API Key (para ingresar nueva clave o cambiarla) -->
           <q-input
             v-model="configForm.api_key"
-            label="API Key Secreta"
+            :label="aiConfig.has_api_key ? 'Reemplazar API Key (opcional, deja vacío para conservar la actual)' : 'Ingresa tu API Key de ' + configForm.provider"
             :type="showApiKey ? 'text' : 'password'"
             outlined
             dark
             dense
-            :placeholder="aiConfig.has_api_key ? `Clave actual guardada (${aiConfig.api_key_masked})` : 'Pega aquí tu clave API'"
-            hint="Tu clave se almacena de forma cifrada y nunca se expone en texto plano."
+            :placeholder="aiConfig.has_api_key ? `Conservando: ${aiConfig.api_key_masked}` : 'Pega aquí tu clave API'"
+            :hint="aiConfig.has_api_key ? 'Tu clave actual sigue activa. Solo escribe aquí si deseas cambiarla por otra.' : 'Tu clave se almacena de forma segura en la base de datos.'"
           >
             <template #prepend>
               <q-icon name="sym_r_key" color="amber-4" size="18px" />
