@@ -176,6 +176,8 @@ class BaileysWebhookController extends Controller
                 'unread_count' => 0,
                 'last_message_at' => Carbon::now(),
             ]);
+        } elseif (! $conversation->whatsapp_account_id) {
+            $conversation->update(['whatsapp_account_id' => $account->id]);
         }
 
         $conversation->increment('unread_count');

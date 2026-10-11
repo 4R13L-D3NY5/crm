@@ -68,6 +68,9 @@ class ConversationController
                 'assignment.assignee',
                 'messages.user',
                 'latestMessage.user',
+                'whatsappAccount',
+                'customStatus',
+                'categories',
             ])))->resolve(),
         ]);
     }

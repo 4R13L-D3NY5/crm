@@ -193,6 +193,13 @@
             </template>
           </q-input>
 
+          <div v-if="configForm.provider === 'minimax'" class="row items-center q-gutter-x-xs q-mt-xs">
+            <span class="text-caption text-grey-5" style="font-size: 11px;">Región MiniMax:</span>
+            <q-btn flat dense no-caps size="xs" color="teal-4" label="Global (api.minimax.io)" @click="configForm.base_url = 'https://api.minimax.io/v1'" />
+            <q-btn flat dense no-caps size="xs" color="grey-4" label="Alternativo (api.minimaxi.chat)" @click="configForm.base_url = 'https://api.minimaxi.chat/v1'" />
+            <q-btn flat dense no-caps size="xs" color="grey-4" label="Doméstico (api.minimax.chat)" @click="configForm.base_url = 'https://api.minimax.chat/v1'" />
+          </div>
+
           <!-- 4. API Key con botón de mostrar/ocultar -->
           <q-input
             v-model="configForm.api_key"
@@ -362,7 +369,7 @@ const providerModelPresets: Record<string, string[]> = {
 }
 
 const defaultBaseUrls: Record<string, string> = {
-  minimax: 'https://api.minimax.chat/v1',
+  minimax: 'https://api.minimax.io/v1',
   gemini: 'https://generativelanguage.googleapis.com/v1beta',
   openai: 'https://api.openai.com/v1',
   deepseek: 'https://api.deepseek.com/v1',
@@ -372,7 +379,7 @@ const defaultBaseUrls: Record<string, string> = {
 const aiConfig = ref<AiConfigData>({
   provider: 'minimax',
   model: 'MiniMax-Text-01',
-  base_url: 'https://api.minimax.chat/v1',
+  base_url: 'https://api.minimax.io/v1',
   has_api_key: false,
   api_key_masked: '',
   system_prompt: 'Eres el Copiloto de Inteligencia Artificial para UNITEPC.',
@@ -382,7 +389,7 @@ const aiConfig = ref<AiConfigData>({
 const configForm = reactive({
   provider: 'minimax',
   model: 'MiniMax-Text-01',
-  base_url: 'https://api.minimax.chat/v1',
+  base_url: 'https://api.minimax.io/v1',
   api_key: '',
   system_prompt: '',
   similarity_threshold: 0.75,

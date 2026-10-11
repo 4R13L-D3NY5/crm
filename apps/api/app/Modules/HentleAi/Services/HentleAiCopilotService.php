@@ -67,7 +67,7 @@ class HentleAiCopilotService
         ?string $systemInstruction = null
     ): string {
         $defaultUrls = [
-            'minimax' => 'https://api.minimax.chat/v1',
+            'minimax' => 'https://api.minimax.io/v1',
             'openai' => 'https://api.openai.com/v1',
             'deepseek' => 'https://api.deepseek.com/v1',
             'custom' => 'https://api.minimax.chat/v1',

@@ -35,7 +35,7 @@ class AiConfigController extends Controller
             'data' => [
                 'provider' => $aiConfig['provider'] ?? 'minimax',
                 'model' => $aiConfig['model'] ?? 'MiniMax-Text-01',
-                'base_url' => $aiConfig['base_url'] ?? 'https://api.minimax.chat/v1',
+                'base_url' => $aiConfig['base_url'] ?? 'https://api.minimax.io/v1',
                 'has_api_key' => $hasKey,
                 'api_key_masked' => $maskedKey,
                 'system_prompt' => $aiConfig['system_prompt'] ?? 'Eres el Copiloto de Inteligencia Artificial "Hentle-AI" para UNITEPC. Tu objetivo es asistir a los agentes sugiriendo respuestas empáticas, profesionales y precisas para WhatsApp.',
@@ -74,7 +74,7 @@ class AiConfigController extends Controller
         }
 
         $defaultBaseUrls = [
-            'minimax' => 'https://api.minimax.chat/v1',
+            'minimax' => 'https://api.minimax.io/v1',
             'openai' => 'https://api.openai.com/v1',
             'deepseek' => 'https://api.deepseek.com/v1',
             'gemini' => 'https://generativelanguage.googleapis.com/v1beta',

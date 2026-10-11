@@ -148,10 +148,13 @@ class ProcessWhatsAppWebhook implements ShouldQueue
                 'company_id' => null,
                 'created_by_user_id' => null,
                 'channel' => 'whatsapp',
+                'whatsapp_account_id' => $account->getKey(),
                 'status' => 'open',
                 'subject' => 'WhatsApp: '.$profileName,
                 'last_message_at' => $sentAt,
             ]);
+        } elseif (! $conversation->whatsapp_account_id) {
+            $conversation->forceFill(['whatsapp_account_id' => $account->getKey()])->save();
         }
 
         $message = Message::query()->create([
