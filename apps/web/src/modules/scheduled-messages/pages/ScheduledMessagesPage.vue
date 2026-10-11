@@ -587,7 +587,7 @@ async function submitCreate() {
 
   isSaving.value = true
   try {
-    const res = await http.post('/scheduled-messages', {
+    await http.post('/scheduled-messages', {
       recipient_phone: createForm.phone.trim(),
       contact_name: createForm.contact_name.trim() || undefined,
       contact_id: createForm.contact_id || undefined,

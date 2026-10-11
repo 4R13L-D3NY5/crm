@@ -297,6 +297,20 @@
             <q-tooltip>Atajos de respuesta rápida</q-tooltip>
           </q-btn>
 
+          <!-- Programar Envío Diferido (Fase 6) -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="light-blue-3"
+            icon="sym_r_schedule_send"
+            label="Programar"
+            class="q-px-xs"
+            @click="openScheduleFromChat"
+          >
+            <q-tooltip>Programar mensaje diferido para este contacto</q-tooltip>
+          </q-btn>
+
           <!-- Selector de Emojis -->
           <q-btn
             flat
@@ -637,11 +651,73 @@
         </div>
       </q-card>
     </q-dialog>
+
+    <!-- Modal Programar Mensaje Directo desde Chat (Fase 6) -->
+    <q-dialog v-model="showScheduleModal">
+      <q-card style="width: 480px; max-width: 95vw;" class="quick-messages-picker-card q-pa-md">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="row items-center q-gutter-x-sm">
+            <q-avatar size="34px" color="primary" text-color="white">
+              <q-icon name="sym_r_schedule_send" size="18px" />
+            </q-avatar>
+            <div>
+              <div class="text-subtitle1 text-weight-bold text-white">Programar Mensaje</div>
+              <div class="text-caption text-grey-4">
+                Para: {{ conversation?.contact?.name || 'Contacto' }} ({{ conversation?.contact?.phone || 'Sin número' }})
+              </div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-gutter-y-md q-pt-md">
+          <div>
+            <div class="text-caption text-weight-bold text-grey-3 q-mb-xs">Fecha y Hora de Envío *</div>
+            <q-input
+              v-model="scheduleForm.scheduled_at"
+              outlined
+              dense
+              dark
+              type="datetime-local"
+              class="composer-textarea"
+            />
+          </div>
+
+          <div>
+            <div class="text-caption text-weight-bold text-grey-3 q-mb-xs">Contenido del Mensaje *</div>
+            <q-input
+              v-model="scheduleForm.body"
+              outlined
+              dense
+              dark
+              type="textarea"
+              rows="4"
+              placeholder="Escribe el mensaje a enviar en la fecha y hora seleccionada..."
+              class="composer-textarea"
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pt-none">
+          <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+          <q-btn
+            unelevated
+            label="Programar Envío"
+            color="primary"
+            icon="sym_r_schedule_send"
+            no-caps
+            :loading="scheduleForm.isSubmitting"
+            @click="submitScheduleFromChat"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { http } from '@/shared/api/http'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
 import { getHentleAiSuggestion } from '../api/conversations.api'
@@ -941,6 +1017,57 @@ function formatRecordTimer(sec: number): string {
 const quickMessagesQuery = useQuickMessages()
 const showQuickMessagesModal = ref(false)
 const quickSearch = ref('')
+
+// Programación de envíos diferidos desde chat (Fase 6)
+const showScheduleModal = ref(false)
+const scheduleForm = reactive({
+  scheduled_at: '',
+  body: '',
+  isSubmitting: false,
+})
+
+function openScheduleFromChat() {
+  const now = new Date()
+  now.setMinutes(now.getMinutes() + 15)
+  const tzOffset = now.getTimezoneOffset() * 60000
+  const localISOTime = new Date(now.getTime() - tzOffset).toISOString().slice(0, 16)
+
+  scheduleForm.scheduled_at = localISOTime
+  scheduleForm.body = composerText.value.trim()
+  showScheduleModal.value = true
+}
+
+async function submitScheduleFromChat() {
+  const phone = props.conversation?.contact?.phone
+  if (!phone) {
+    notify.warning({ message: 'Este contacto no tiene un número telefónico registrado.' })
+    return
+  }
+
+  if (!scheduleForm.scheduled_at || !scheduleForm.body.trim()) {
+    notify.warning({ message: 'Por favor completa la fecha y el mensaje.' })
+    return
+  }
+
+  scheduleForm.isSubmitting = true
+  try {
+    await http.post('/scheduled-messages', {
+      recipient_phone: phone,
+      contact_id: props.conversation?.contact?.id,
+      contact_name: props.conversation?.contact?.name,
+      scheduled_at: scheduleForm.scheduled_at,
+      body: scheduleForm.body.trim(),
+    })
+
+    notify.success({ message: `Mensaje programado con éxito para ${props.conversation?.contact?.name || phone}.` })
+    showScheduleModal.value = false
+    composerText.value = ''
+  } catch (error: any) {
+    notify.error({ message: error.response?.data?.message || 'Error al programar el mensaje.' })
+  } finally {
+    scheduleForm.isSubmitting = false
+  }
+}
 
 const showImageModal = ref(false)
 const activeImageUrl = ref('')
