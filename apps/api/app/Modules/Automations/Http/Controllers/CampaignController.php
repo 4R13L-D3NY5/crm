@@ -92,6 +92,36 @@ class CampaignController extends Controller
         ]);
     }
 
+    public function pause(Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $campaign = Campaign::where('organization_id', $organization->id)->findOrFail($id);
+
+        $campaign->update([
+            'status' => 'paused',
+        ]);
+
+        return response()->json([
+            'data' => $campaign,
+            'message' => 'Campaña pausada exitosamente.',
+        ]);
+    }
+
+    public function resume(Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $campaign = Campaign::where('organization_id', $organization->id)->findOrFail($id);
+
+        $campaign->update([
+            'status' => 'processing',
+        ]);
+
+        return response()->json([
+            'data' => $campaign,
+            'message' => 'Campaña reanudada.',
+        ]);
+    }
+
     public function destroy(Request $request, string $id): JsonResponse
     {
         $organization = $request->user()->currentOrganization;

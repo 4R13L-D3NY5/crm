@@ -14,6 +14,8 @@ Route::delete('scheduled-messages/{id}', [ScheduledMessageController::class, 'de
 Route::get('campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
 Route::post('campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
 Route::post('campaigns/{id}/start', [CampaignController::class, 'start'])->name('campaigns.start');
+Route::post('campaigns/{id}/pause', [CampaignController::class, 'pause'])->name('campaigns.pause');
+Route::post('campaigns/{id}/resume', [CampaignController::class, 'resume'])->name('campaigns.resume');
 Route::delete('campaigns/{id}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
 
 // Reglas de Automatización

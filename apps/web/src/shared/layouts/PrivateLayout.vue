@@ -303,6 +303,19 @@
               <q-item-section>Etiquetas & Segmentos</q-item-section>
             </q-item>
 
+            <!-- 8. Campañas Masivas -->
+            <q-item
+              clickable
+              to="/app/campaigns"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_campaign" size="18px" />
+              </q-item-section>
+              <q-item-section>Campañas Masivas</q-item-section>
+            </q-item>
+
             <!-- 8. Empresas & Cuentas -->
             <q-item
               clickable

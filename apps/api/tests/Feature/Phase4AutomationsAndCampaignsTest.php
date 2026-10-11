@@ -81,5 +81,25 @@ class Phase4AutomationsAndCampaignsTest extends TestCase
             'id' => $campaignId,
             'status' => 'processing',
         ]);
+
+        // Pausar campaña
+        $pauseResponse = $this->actingAs($user)->postJson("/api/campaigns/{$campaignId}/pause");
+        $pauseResponse->assertStatus(200)
+            ->assertJsonPath('data.status', 'paused');
+
+        $this->assertDatabaseHas('campaigns', [
+            'id' => $campaignId,
+            'status' => 'paused',
+        ]);
+
+        // Reanudar campaña
+        $resumeResponse = $this->actingAs($user)->postJson("/api/campaigns/{$campaignId}/resume");
+        $resumeResponse->assertStatus(200)
+            ->assertJsonPath('data.status', 'processing');
+
+        $this->assertDatabaseHas('campaigns', [
+            'id' => $campaignId,
+            'status' => 'processing',
+        ]);
     }
 }
