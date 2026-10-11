@@ -19,6 +19,9 @@ class HentleAiCopilotService
     public function getEffectiveConfig(?string $organizationId = null): array
     {
         $setting = $organizationId ? WorkspaceSetting::where('organization_id', $organizationId)->first() : null;
+        if (!$setting) {
+            $setting = WorkspaceSetting::first();
+        }
         $aiConfig = $setting?->custom_options['ai_config'] ?? [];
 
         $provider = $aiConfig['provider'] ?? env('AI_PROVIDER', 'minimax');

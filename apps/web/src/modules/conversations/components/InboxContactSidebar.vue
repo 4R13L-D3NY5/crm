@@ -265,6 +265,49 @@
         </q-card>
       </q-dialog>
 
+      <!-- Resumen Inteligente de la Conversación con MiniMax -->
+      <div class="q-mb-md">
+        <div class="row items-center justify-between q-mb-xs">
+          <span class="text-caption text-weight-bold text-white row items-center q-gutter-x-xs">
+            <q-icon name="sym_r_auto_awesome" size="15px" color="amber-4" />
+            <span>Resumen del Caso (MiniMax)</span>
+          </span>
+          <q-btn
+            v-if="aiSummaryData"
+            flat
+            dense
+            round
+            size="xs"
+            color="amber-4"
+            icon="sym_r_refresh"
+            :loading="isLoadingAiSummary"
+            @click="loadAiSummary"
+          >
+            <q-tooltip>Regenerar resumen de la conversación con MiniMax</q-tooltip>
+          </q-btn>
+        </div>
+
+        <div v-if="aiSummaryData" class="q-pa-sm rounded-borders" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25)">
+          <p class="text-caption text-grey-2 q-mb-xs" style="line-height: 1.35">{{ aiSummaryData.summary }}</p>
+          <ul class="q-pl-md q-my-none text-caption text-grey-4" style="font-size: 0.72rem">
+            <li v-for="(point, idx) in aiSummaryData.key_points" :key="idx">{{ point }}</li>
+          </ul>
+        </div>
+        <q-btn
+          v-else
+          outline
+          dense
+          no-caps
+          size="sm"
+          color="amber-4"
+          icon="sym_r_summarize"
+          label="Resumir Conversación con IA"
+          class="full-width q-py-xs"
+          :loading="isLoadingAiSummary"
+          @click="loadAiSummary"
+        />
+      </div>
+
       <q-separator dark class="q-my-md" style="border-color: var(--crm-color-border)" />
 
       <!-- Pipeline Comercial & Deals (Fase 3) -->
@@ -331,6 +374,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { http } from '@/shared/api/http'
+import { getHentleAiSummary } from '../api/conversations.api'
+import { useAppNotify } from '@/shared/composables/useAppNotify'
 import type { Conversation } from '../types/conversation.types'
 
 const props = defineProps<{
@@ -342,6 +387,26 @@ const emit = defineEmits<{
   (e: 'transfer'): void
   (e: 'resolve'): void
 }>()
+
+const notify = useAppNotify()
+const aiSummaryData = ref<{ summary: string; key_points: string[] } | null>(null)
+const isLoadingAiSummary = ref(false)
+
+async function loadAiSummary() {
+  if (!props.conversation?.id) return
+  isLoadingAiSummary.value = true
+  try {
+    const res = await getHentleAiSummary(props.conversation.id)
+    if (res) {
+      aiSummaryData.value = res
+      notify.success({ message: 'Resumen generado con MiniMax.' })
+    }
+  } catch (e: any) {
+    notify.error({ message: 'Error generando resumen: ' + (e?.response?.data?.message || e?.message || 'Error de IA') })
+  } finally {
+    isLoadingAiSummary.value = false
+  }
+}
 
 // Categorías del Lead / Conversación
 const assignedCategories = ref<any[]>([])
@@ -477,6 +542,7 @@ async function fetchCustomStatuses() {
 watch(
   () => props.conversation?.id,
   () => {
+    aiSummaryData.value = null
     fetchAssignedCategories()
   },
   { immediate: true },

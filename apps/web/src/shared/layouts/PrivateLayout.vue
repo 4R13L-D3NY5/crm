@@ -31,7 +31,7 @@
           <!-- Pill Indicador de Fase Activa -->
           <div class="phase-active-pill q-ml-sm gt-xs">
             <span class="phase-active-dot"></span>
-            <span>Fase 5: Hentle-AI Copilot & RAG (Activo)</span>
+            <span>Fase 6: Productividad & Envíos Programados (Completada 100%)</span>
           </div>
         </div>
 
@@ -201,7 +201,7 @@
           <!-- Encabezado de Navegación de Fase -->
           <div class="xf-nav-section-header">
             <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
-              Fase 4 • Módulos Activos
+              Fase 6 • Suite Omnicanal V2
             </div>
           </div>
 
@@ -316,6 +316,19 @@
               <q-item-section>Campañas Masivas</q-item-section>
             </q-item>
 
+            <!-- 9. Envíos Programados (Fase 6) -->
+            <q-item
+              clickable
+              to="/app/scheduled-messages"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_schedule_send" size="18px" />
+              </q-item-section>
+              <q-item-section>Envíos Programados</q-item-section>
+            </q-item>
+
             <!-- 8. Empresas & Cuentas -->
             <q-item
               clickable
@@ -412,12 +425,12 @@
           <div class="xf-roadmap-card q-mx-sm q-mt-md">
             <div class="row items-center justify-between q-mb-xs">
               <span class="text-caption text-weight-bold text-ink">Roadmap V2</span>
-              <span class="text-caption text-primary text-weight-medium">Fase 5 / 6</span>
+              <span class="text-caption text-positive text-weight-bold">Fase 6 / 6 (100%)</span>
             </div>
             <p class="text-caption text-muted q-mb-xs roadmap-text">
-              Hentle-AI Copilot & RAG multi-proveedor (MiniMax, Gemini, OpenAI) activo.
+              Productividad, envíos programados y difusión masiva anti-ban 100% activa.
             </p>
-            <q-linear-progress :value="0.83" color="primary" rounded size="4px" />
+            <q-linear-progress :value="1.0" color="positive" rounded size="4px" />
           </div>
 
         </div>

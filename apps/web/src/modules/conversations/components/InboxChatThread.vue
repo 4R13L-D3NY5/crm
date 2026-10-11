@@ -361,6 +361,21 @@
           >
             <q-tooltip>{{ isRecordingVoice ? 'Detener grabación de audio' : 'Grabar nota de voz con micrófono' }}</q-tooltip>
           </q-btn>
+
+          <!-- Sugerencia IA con MiniMax -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="amber-4"
+            icon="sym_r_auto_awesome"
+            label="Sugerir con IA"
+            class="q-px-xs"
+            :loading="isGeneratingAiSuggestion"
+            @click="generateAiSuggestion"
+          >
+            <q-tooltip>Generar sugerencia de respuesta automática con MiniMax según los mensajes del cliente</q-tooltip>
+          </q-btn>
         </div>
 
         <span class="text-caption text-grey-5" style="font-size: 0.7rem">
@@ -475,6 +490,41 @@
             <q-tooltip>Quitar archivo adjunto</q-tooltip>
           </q-btn>
         </div>
+      </div>
+
+      <!-- Banner de Sugerencia MiniMax -->
+      <div v-if="aiSuggestionText" class="ai-suggestion-box q-pa-sm q-mb-xs rounded-borders">
+        <div class="row items-center justify-between no-wrap q-mb-xs">
+          <div class="row items-center q-gutter-x-xs text-amber-4 text-caption text-weight-bold">
+            <q-icon name="sym_r_auto_awesome" size="16px" />
+            <span>Sugerencia Inteligente (MiniMax)</span>
+          </div>
+          <div class="row items-center q-gutter-x-xs">
+            <q-btn
+              unelevated
+              dense
+              size="xs"
+              color="positive"
+              icon="sym_r_done"
+              label="Insertar en mensaje"
+              no-caps
+              class="q-px-sm"
+              @click="applyAiSuggestion"
+            />
+            <q-btn
+              flat
+              round
+              dense
+              size="xs"
+              color="grey-4"
+              icon="sym_r_close"
+              @click="aiSuggestionText = null"
+            />
+          </div>
+        </div>
+        <p class="text-caption text-grey-2 q-mb-none font-sans" style="line-height: 1.35; white-space: pre-wrap">
+          {{ aiSuggestionText }}
+        </p>
       </div>
 
       <div class="row items-end q-gutter-x-sm">
@@ -594,6 +644,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
+import { getHentleAiSuggestion } from '../api/conversations.api'
+import { useAppNotify } from '@/shared/composables/useAppNotify'
 import type { Conversation, ConversationMessage } from '../types/conversation.types'
 
 const props = defineProps<{
@@ -614,6 +666,41 @@ const emit = defineEmits<{
     media_type?: string | null
   }): void
 }>()
+
+const notify = useAppNotify()
+const isGeneratingAiSuggestion = ref(false)
+const aiSuggestionText = ref<string | null>(null)
+
+watch(
+  () => props.conversation?.id,
+  () => {
+    aiSuggestionText.value = null
+  },
+)
+
+async function generateAiSuggestion() {
+  if (!props.conversation?.id) return
+  isGeneratingAiSuggestion.value = true
+  try {
+    const res = await getHentleAiSuggestion(props.conversation.id)
+    if (res?.suggestion) {
+      aiSuggestionText.value = res.suggestion
+      notify.success({ message: 'Sugerencia generada con MiniMax.' })
+    }
+  } catch (e: any) {
+    notify.error({ message: 'Error generando sugerencia: ' + (e?.message || 'Error de IA') })
+  } finally {
+    isGeneratingAiSuggestion.value = false
+  }
+}
+
+function applyAiSuggestion() {
+  if (aiSuggestionText.value) {
+    composerText.value = aiSuggestionText.value
+    aiSuggestionText.value = null
+    composerInputRef.value?.focus()
+  }
+}
 
 const composerInputRef = ref<any>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -1389,5 +1476,11 @@ onUnmounted(() => {
   0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
   70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.ai-suggestion-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 8px;
 }
 </style>
