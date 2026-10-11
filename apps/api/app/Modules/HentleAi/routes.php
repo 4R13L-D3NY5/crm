@@ -12,3 +12,8 @@ Route::get('conversations/{conversation}/ai/copilot/summary', [HentleAiCopilotCo
 Route::get('ai/knowledge-bases', [KnowledgeBaseController::class, 'index']);
 Route::post('ai/knowledge-bases', [KnowledgeBaseController::class, 'store']);
 Route::post('ai/knowledge-bases/{knowledgeBase}/chunks', [KnowledgeBaseController::class, 'addChunk']);
+
+Route::get('ai/config', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'show']);
+Route::put('ai/config', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'update']);
+Route::post('ai/test', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'test']);
+

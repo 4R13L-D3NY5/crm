@@ -31,7 +31,7 @@
           <!-- Pill Indicador de Fase Activa -->
           <div class="phase-active-pill q-ml-sm gt-xs">
             <span class="phase-active-dot"></span>
-            <span>Fase 4: Productividad & Respuestas Rápidas</span>
+            <span>Fase 5: Hentle-AI Copilot & RAG (Activo)</span>
           </div>
         </div>
 
@@ -381,6 +381,19 @@
               <q-item-section>Parametrización</q-item-section>
             </q-item>
 
+            <!-- 13. Inteligencia Artificial (Hentle-AI) -->
+            <q-item
+              clickable
+              to="/app/wabot"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_psychology" size="18px" color="teal-4" />
+              </q-item-section>
+              <q-item-section>Inteligencia Artificial</q-item-section>
+            </q-item>
+
             <!-- Planes & Precios -->
             <q-item
               clickable
@@ -399,12 +412,12 @@
           <div class="xf-roadmap-card q-mx-sm q-mt-md">
             <div class="row items-center justify-between q-mb-xs">
               <span class="text-caption text-weight-bold text-ink">Roadmap V2</span>
-              <span class="text-caption text-primary text-weight-medium">Fase 4 / 6</span>
+              <span class="text-caption text-primary text-weight-medium">Fase 5 / 6</span>
             </div>
             <p class="text-caption text-muted q-mb-xs roadmap-text">
-              Fase 5 (Hentle-AI Copilot & RAG) se desbloqueará en su etapa.
+              Hentle-AI Copilot & RAG multi-proveedor (MiniMax, Gemini, OpenAI) activo.
             </p>
-            <q-linear-progress :value="0.66" color="primary" rounded size="4px" />
+            <q-linear-progress :value="0.83" color="primary" rounded size="4px" />
           </div>
 
         </div>
