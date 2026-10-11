@@ -192,11 +192,7 @@ Instrucciones:
 PROMPT;
 
         if (empty($config['api_key'])) {
-            return [
-                'suggestion' => "¡Hola {$contactName}! Con gusto te ayudo con tu consulta. ¿Podrías brindarme más detalles?",
-                'confidence' => 0.85,
-                'source' => 'fallback_template',
-            ];
+            throw new \RuntimeException("No hay una API Key configurada para {$config['provider']}. Por favor ingresa a 'Inteligencia Artificial' para configurar tu clave.");
         }
 
         try {
@@ -216,13 +212,8 @@ PROMPT;
             ];
         } catch (\Throwable $e) {
             Log::warning("Error consultando Hentle-AI Copilot ({$config['provider']}): " . $e->getMessage());
+            throw new \RuntimeException("Error al consultar motor IA ({$config['provider']}): " . $e->getMessage());
         }
-
-        return [
-            'suggestion' => "Hola {$contactName}, gracias por comunicarte. Estamos revisando tu solicitud y te daremos respuesta enseguida.",
-            'confidence' => 0.8,
-            'source' => 'fallback',
-        ];
     }
 
     /**
@@ -237,9 +228,12 @@ PROMPT;
 
         $config = $this->getEffectiveConfig($conversation->organization_id);
 
-        if (!empty($config['api_key'])) {
-            try {
-                $prompt = <<<PROMPT
+        if (empty($config['api_key'])) {
+            throw new \RuntimeException("No hay una API Key configurada para {$config['provider']}. Por favor ingresa a 'Inteligencia Artificial' para configurar tu clave.");
+        }
+
+        try {
+            $prompt = <<<PROMPT
 Resume la siguiente conversación de WhatsApp entre un asesor y el cliente {$contactName}.
 Devuelve un resumen ejecutivo breve (máximo 3 líneas) indicando motivo de contacto, estado actual y sentimiento.
 
@@ -247,34 +241,25 @@ Historial:
 {$history}
 PROMPT;
 
-                $reply = $this->sendDirectPrompt(
-                    prompt: $prompt,
-                    provider: $config['provider'],
-                    apiKey: $config['api_key'],
-                    model: $config['model'],
-                    baseUrl: $config['base_url'],
-                    systemInstruction: 'Eres un analista de CRM que sintetiza tickets de atención al cliente de forma clara y directa.'
-                );
+            $reply = $this->sendDirectPrompt(
+                prompt: $prompt,
+                provider: $config['provider'],
+                apiKey: $config['api_key'],
+                model: $config['model'],
+                baseUrl: $config['base_url'],
+                systemInstruction: 'Eres un analista de CRM que sintetiza tickets de atención al cliente de forma clara y directa.'
+            );
 
-                return [
-                    'summary' => $reply,
-                    'key_points' => [
-                        "Cliente: {$contactName}",
-                        'Proveedor IA: ' . ucfirst($config['provider']) . " ({$config['model']})",
-                    ],
-                ];
-            } catch (\Throwable $e) {
-                Log::warning('Error en summarizeTicket: ' . $e->getMessage());
-            }
+            return [
+                'summary' => $reply,
+                'key_points' => [
+                    "Cliente: {$contactName}",
+                    'Proveedor IA: ' . ucfirst($config['provider']) . " ({$config['model']})",
+                ],
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Error en summarizeTicket: ' . $e->getMessage());
+            throw new \RuntimeException("Error al generar resumen con {$config['provider']}: " . $e->getMessage());
         }
-
-        return [
-            'summary' => "El cliente {$contactName} solicita información sobre el estado de su requerimiento y cotizaciones pendientes.",
-            'key_points' => [
-                'Motivo: Consulta general',
-                'Estado: En atención',
-                'Sentimiento: Neutral/Positivo',
-            ],
-        ];
     }
 }

@@ -116,7 +116,14 @@ class AiConfigController extends Controller
     public function test(Request $request, HentleAiCopilotService $copilotService): JsonResponse
     {
         $organization = $request->user()->currentOrganization;
-        $setting = WorkspaceSetting::where('organization_id', $organization->id)->first();
+        $setting = WorkspaceSetting::firstOrCreate(
+            ['organization_id' => $organization->id],
+            [
+                'default_language' => 'es',
+                'timezone' => 'America/La_Paz',
+                'sla_timeout_minutes' => 10,
+            ]
+        );
         $storedAiConfig = $setting?->custom_options['ai_config'] ?? [];
 
         $provider = $request->input('provider') ?? $storedAiConfig['provider'] ?? 'minimax';
@@ -150,9 +157,22 @@ class AiConfigController extends Controller
 
             $latencyMs = (int) round((microtime(true) - $startTime) * 1000);
 
+            // Auto-guardar la configuración verificada si el test fue exitoso
+            $custom = $setting->custom_options ?? [];
+            $custom['ai_config'] = [
+                'provider' => $provider,
+                'model' => $model,
+                'api_key' => $apiKey,
+                'base_url' => $baseUrl,
+                'system_prompt' => $storedAiConfig['system_prompt'] ?? 'Eres el Copiloto de Inteligencia Artificial para UNITEPC. Tu objetivo es asistir a los agentes sugiriendo respuestas empáticas, profesionales y precisas para WhatsApp.',
+                'similarity_threshold' => (float) ($storedAiConfig['similarity_threshold'] ?? 0.75),
+            ];
+            $setting->custom_options = $custom;
+            $setting->save();
+
             return response()->json([
                 'status' => 'success',
-                'message' => "¡Conexión exitosa con {$provider}!",
+                'message' => "¡Conexión exitosa con {$provider}! (Guardada automáticamente)",
                 'latency_ms' => $latencyMs,
                 'provider' => $provider,
                 'model' => $model,

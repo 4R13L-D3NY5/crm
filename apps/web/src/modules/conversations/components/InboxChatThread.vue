@@ -764,7 +764,7 @@ async function generateAiSuggestion() {
       notify.success({ message: 'Sugerencia generada con MiniMax.' })
     }
   } catch (e: any) {
-    notify.error({ message: 'Error generando sugerencia: ' + (e?.message || 'Error de IA') })
+    notify.error({ message: 'Error generando sugerencia: ' + (e?.response?.data?.message || e?.message || 'Error de IA') })
   } finally {
     isGeneratingAiSuggestion.value = false
   }

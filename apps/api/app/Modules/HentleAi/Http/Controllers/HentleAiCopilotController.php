@@ -16,21 +16,33 @@ class HentleAiCopilotController
     ): JsonResponse {
         $instruction = $request->input('instruction');
 
-        $result = $copilotService->generateReplySuggestion($conversation, $instruction);
+        try {
+            $result = $copilotService->generateReplySuggestion($conversation, $instruction);
 
-        return response()->json([
-            'data' => $result,
-        ]);
+            return response()->json([
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     public function summarize(
         Conversation $conversation,
         HentleAiCopilotService $copilotService,
     ): JsonResponse {
-        $result = $copilotService->summarizeTicket($conversation);
+        try {
+            $result = $copilotService->summarizeTicket($conversation);
 
-        return response()->json([
-            'data' => $result,
-        ]);
+            return response()->json([
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

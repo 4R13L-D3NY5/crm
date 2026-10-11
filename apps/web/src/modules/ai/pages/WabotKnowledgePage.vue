@@ -333,6 +333,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import {
   type AiConfigData,
@@ -343,6 +344,7 @@ import {
 } from '../api/ai-config.api'
 
 const $q = useQuasar()
+const route = useRoute()
 
 const activeTab = ref<'chat' | 'booking'>('chat')
 const isConfigModalOpen = ref(false)
@@ -433,6 +435,9 @@ const newArticle = reactive({
 
 onMounted(async () => {
   await loadAiConfig()
+  if (route.path.includes('config') || route.query.config === 'true') {
+    openConfigModal()
+  }
 })
 
 async function loadAiConfig() {
@@ -475,6 +480,9 @@ async function runConnectionTest() {
       base_url: configForm.base_url,
     })
     testResult.value = res
+    if (res?.status === 'success') {
+      await loadAiConfig()
+    }
   } catch (err: any) {
     testResult.value = {
       status: 'error',

@@ -30,7 +30,7 @@ import PricingPage from '@/modules/pricing/pages/PricingPage.vue'
 const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'quick-messages', name: 'quick-messages.index', component: QuickMessagesPage },
   { path: 'scheduled-messages', name: 'scheduled-messages.index', component: ScheduledMessagesPage },
-  { path: 'wabot', name: 'wabot.index', component: WabotKnowledgePage, alias: ['ai/knowledge', 'ai'] },
+  { path: 'wabot', name: 'wabot.index', component: WabotKnowledgePage, alias: ['ai/knowledge', 'ai', 'ai/config', 'ai-config'] },
   { path: 'users', name: 'users.index', component: UsersManagementPage },
   { path: 'departments', name: 'departments.index', component: DepartmentsPage },
   { path: 'parameters', name: 'parameters.index', component: ParametersPage },
