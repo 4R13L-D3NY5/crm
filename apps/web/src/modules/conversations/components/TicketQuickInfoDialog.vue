@@ -53,15 +53,15 @@
                 {{ getChannelTitle(conversation?.channel) }}
               </div>
               <div class="text-caption text-grey-4 q-mt-2">
-                <span v-if="conversation?.channel_account?.name">
-                  Conexión: <strong>{{ conversation.channel_account.name }}</strong>
-                </span>
-                <span v-else-if="conversation?.channel_account?.display_phone_number">
-                  Línea: <strong>{{ conversation.channel_account.display_phone_number }}</strong>
-                </span>
-                <span v-else>
+                <div v-if="conversation?.channel_account?.display_phone_number" class="text-teal-3 text-weight-medium font-mono">
+                  Línea Receptora: <strong>{{ conversation.channel_account.display_phone_number }}</strong>
+                </div>
+                <div v-if="conversation?.channel_account?.name">
+                  Cuenta / Conexión: <strong>{{ conversation.channel_account.name }}</strong>
+                </div>
+                <div v-if="!conversation?.channel_account">
                   Canal directo integrado
-                </span>
+                </div>
               </div>
             </div>
 

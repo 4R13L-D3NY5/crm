@@ -80,7 +80,8 @@
     <!-- Tooltip con Información de Procedencia -->
     <q-tooltip v-if="showTooltip" anchor="top middle" self="bottom middle">
       <div><strong>Canal:</strong> {{ channelFullTitle }}</div>
-      <div v-if="connectionDetail"><strong>Línea / Cuenta:</strong> {{ connectionDetail }}</div>
+      <div v-if="phoneNumber"><strong>Línea Receptora:</strong> {{ phoneNumber }}</div>
+      <div v-if="accountName"><strong>Cuenta / Nombre:</strong> {{ accountName }}</div>
     </q-tooltip>
   </div>
 </template>
@@ -152,8 +153,8 @@ const channelFullTitle = computed(() => {
 })
 
 const connectionDetail = computed(() => {
-  if (props.accountName) return props.accountName
   if (props.phoneNumber) return props.phoneNumber
+  if (props.accountName) return props.accountName
   return null
 })
 </script>

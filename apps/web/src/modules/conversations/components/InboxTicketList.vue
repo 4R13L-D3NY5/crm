@@ -151,6 +151,7 @@
               <SocialChannelBadge
                 :channel="item.channel"
                 :account-name="item.channel_account?.name"
+                :phone-number="item.channel_account?.display_phone_number"
                 size="xs"
               />
               <span
@@ -249,6 +250,8 @@ function getChannelColor(channel?: string) {
     case 'facebook': return '#1877f2'
     case 'instagram': return '#e1306c'
     case 'tiktok': return '#25f4ee'
+    case 'email': return '#6366f1'
+    case 'manual': return '#64748b'
     case 'whatsapp': default: return '#10b981'
   }
 }
@@ -258,6 +261,8 @@ function getChannelIcon(channel?: string) {
     case 'facebook': return 'sym_r_public'
     case 'instagram': return 'sym_r_photo_camera'
     case 'tiktok': return 'sym_r_music_note'
+    case 'email': return 'sym_r_mail'
+    case 'manual': return 'sym_r_person'
     case 'whatsapp': default: return 'sym_r_chat'
   }
 }

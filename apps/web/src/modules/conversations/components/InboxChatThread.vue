@@ -14,13 +14,12 @@
               <span class="text-subtitle2 text-weight-bold text-white ellipsis">
                 {{ conversation.contact?.name || conversation.subject || 'Contacto' }}
               </span>
-              <q-badge
-                :style="{ background: getChannelColor(conversation.channel) + '22', color: getChannelColor(conversation.channel), border: '1px solid ' + getChannelColor(conversation.channel) + '55' }"
-                rounded
-                class="q-px-xs text-caption"
-              >
-                {{ getChannelLabel(conversation.channel) }}
-              </q-badge>
+              <SocialChannelBadge
+                :channel="conversation.channel"
+                :account-name="conversation.channel_account?.name"
+                :phone-number="conversation.channel_account?.display_phone_number"
+                size="xs"
+              />
               <q-badge
                 :color="statusBadgeColor"
                 rounded
@@ -30,8 +29,37 @@
               </q-badge>
             </div>
             <div class="row items-center q-gutter-x-sm text-caption text-grey-4 font-mono" style="font-size: 0.72rem">
-              <span>{{ conversation.contact?.phone || `Canal ${getChannelLabel(conversation.channel)}` }}</span>
+              <!-- Teléfono del Contacto/Cliente -->
+              <span class="row items-center q-gutter-x-xs" :title="`Teléfono del contacto: ${conversation.contact?.phone || 'Sin número'}`">
+                <q-icon name="sym_r_call" size="13px" class="text-grey-4" />
+                <span class="text-grey-3">{{ conversation.contact?.phone || 'Sin número' }}</span>
+              </span>
+
               <span>•</span>
+
+              <!-- Línea / Cuenta Receptora del CRM -->
+              <span class="row items-center q-gutter-x-xs font-sans text-teal-3 text-weight-medium">
+                <q-icon name="sym_r_sim_card" size="13px" color="teal-3" />
+                <span>
+                  {{
+                    conversation.channel_account?.display_phone_number
+                      ? `Línea: ${conversation.channel_account.display_phone_number}`
+                      : conversation.channel_account?.name
+                        ? `Línea: ${conversation.channel_account.name}`
+                        : conversation.channel === 'whatsapp'
+                          ? 'Línea WhatsApp'
+                          : `Canal ${getChannelLabel(conversation.channel)}`
+                  }}
+                </span>
+                <q-tooltip anchor="top middle" self="bottom middle">
+                  Línea receptora del CRM donde ingresó el cliente
+                  {{ conversation.channel_account?.name ? `(${conversation.channel_account.name})` : '' }}
+                </q-tooltip>
+              </span>
+
+              <span>•</span>
+
+              <!-- Asesor Asignado -->
               <span class="row items-center q-gutter-x-xs font-sans">
                 <q-icon name="sym_r_person" size="13px" :color="conversation.assignee ? 'teal-3' : 'grey-5'" />
                 <span :class="conversation.assignee ? 'text-teal-3 text-weight-medium' : 'text-grey-5'">
@@ -564,6 +592,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
 import type { Conversation, ConversationMessage } from '../types/conversation.types'
 
@@ -962,20 +991,14 @@ function formatMessageTime(dateStr: string | null): string {
   }
 }
 
-function getChannelColor(channel?: string) {
-  switch (channel) {
-    case 'facebook': return '#1877f2'
-    case 'instagram': return '#e1306c'
-    case 'tiktok': return '#25f4ee'
-    case 'whatsapp': default: return '#10b981'
-  }
-}
 
 function getChannelLabel(channel?: string) {
   switch (channel) {
     case 'facebook': return 'Facebook'
     case 'instagram': return 'Instagram'
     case 'tiktok': return 'TikTok'
+    case 'email': return 'Correo'
+    case 'manual': return 'Manual'
     case 'whatsapp': default: return 'WhatsApp'
   }
 }

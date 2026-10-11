@@ -51,6 +51,22 @@
           />
         </div>
 
+        <div v-if="conversation.channel_account?.display_phone_number || conversation.channel_account?.name" class="info-row">
+          <span class="info-label">Línea Receptora:</span>
+          <div class="info-val text-right">
+            <span class="text-teal-3 text-weight-bold font-mono">
+              {{ conversation.channel_account.display_phone_number || conversation.channel_account.name }}
+            </span>
+            <span v-if="conversation.channel_account.display_phone_number && conversation.channel_account.name" class="text-caption text-grey-4 block" style="font-size: 0.72rem">
+              {{ conversation.channel_account.name }}
+            </span>
+          </div>
+        </div>
+        <div v-else-if="conversation.channel === 'whatsapp'" class="info-row">
+          <span class="info-label">Línea Receptora:</span>
+          <span class="info-val text-teal-3 text-weight-medium">Línea Principal WhatsApp</span>
+        </div>
+
         <div class="info-row">
           <span class="info-label">Estado del Ticket:</span>
           <q-badge :color="statusBadgeColor" class="q-px-xs">
