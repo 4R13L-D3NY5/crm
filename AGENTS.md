@@ -56,14 +56,16 @@ Cuando trabajes en este proyecto (**XpertiFlow CRM — Omnichannel Suite Pro**),
 
 ---
 
-## Regla de Oro de Entorno: Producción Oficial (https://crm.unitepc.pro)
+## Regla de Oro de Entorno: Desarrollo Local Primero (http://localhost:9010)
 
-- **ENTORNO DE REFERENCIA Y VERIFICACIÓN:**
-  El sistema se encuentra **100% en producción en la nube** en el servidor VPS de UNITEPC:
-  - **Dominio Oficial:** `https://crm.unitepc.pro`
-  - **Stack Portainer:** `crm` (ID 78) en `https://200.58.81.22:9443`
-  - **Nginx Proxy Manager:** Host 21 en `http://200.58.81.22:81`
+- **ENTORNO DE REFERENCIA Y VERIFICACIÓN PREDETERMINADO:**
+  El trabajo diario, desarrollo, pruebas y verificación se realizan **en el entorno LOCAL**:
+  - **Frontend:** `http://localhost:9010` (o `http://localhost:9010/app/...`)
+  - **Backend API:** `http://localhost:8010`
+  - **Docker Compose Local:** `crm-web`, `crm-api`, `crm-postgres`, `crm-redis`, `crm-whatsapp-service`, `crm-mailpit`.
 - **REGLAS MANDATORIAS PARA EL AGENTE:**
-  1. **NUNCA pedirle al usuario que verifique en `localhost` ni en `localhost:9010`.** Todo enlace, verificación o prueba que se solicite al usuario debe ser en el servidor oficial: `https://crm.unitepc.pro/app/...`.
-  2. **Siempre desplegar a producción:** Al completar cambios o nuevas funciones, compilar, enviar a `v2-rebuild` y sincronizar/redesplegar el Stack en Portainer para que el usuario pueda interactuar con los cambios en vivo en el servidor.
+  1. **SIEMPRE pedirle al usuario que verifique en `localhost:9010`.** Todos los enlaces y pruebas deben apuntar a `http://localhost:9010/app/...`.
+  2. **DESPLIEGUE A PRODUCCIÓN ÚNICAMENTE CUANDO EL USUARIO LO ORDENE:**
+     - **NUNCA** desplegar a producción automáticamente ni por iniciativa propia.
+     - Solo compilar y redesplegar en Portainer / VPS (`https://crm.unitepc.pro`) cuando el usuario dé la orden explícita (ej: *"pasa a producción"*, *"desplegar a producción"*, etc.).
 

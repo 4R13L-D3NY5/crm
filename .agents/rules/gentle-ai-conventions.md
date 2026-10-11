@@ -66,10 +66,15 @@ Para cambios sustanciales o nuevas funcionalidades, seguir el ciclo de fases est
 
 ---
 
-## 6. Regla de Oro de Entorno: Producción Oficial (https://crm.unitepc.pro)
+## 6. Regla de Oro de Entorno: Desarrollo Local Primero (http://localhost:9010)
 
-- **Servidor Activo:** El sistema está completamente desplegado y operando en la nube en `https://crm.unitepc.pro` (Portainer Stack `crm` en `https://200.58.81.22:9443`).
+- **Entorno Predeterminado:** El desarrollo, ejecución de pruebas y verificación por parte del usuario se realizan en el entorno **LOCAL**:
+  - **Frontend:** `http://localhost:9010` (o `http://localhost:9010/app/...`)
+  - **Backend API:** `http://localhost:8010`
+  - **Docker Compose Local:** `crm-web`, `crm-api`, `crm-postgres`, `crm-redis`, `crm-whatsapp-service`, `crm-mailpit`.
 - **Comportamiento Obligatorio del Asistente:**
-  1. **NUNCA pedirle al usuario verificar en `localhost` o `localhost:9010`.** Todo enlace, verificación o prueba presentada al usuario debe apuntar al servidor oficial: `https://crm.unitepc.pro/app/...`.
-  2. **Siempre desplegar a producción:** Al completar cambios o nuevas funciones, compilar, commitear a `v2-rebuild` y sincronizar/redesplegar el Stack en Portainer para que el usuario pueda interactuar con los cambios en vivo en el servidor.
+  1. **SIEMPRE pedirle al usuario verificar en `localhost:9010`.** Todos los enlaces y pruebas solicitados al usuario deben ser en `http://localhost:9010/app/...`.
+  2. **DESPLIEGUE A PRODUCCIÓN BAJO DEMANDA EXCLUSIVA:**
+     - **NUNCA** desplegar a producción automáticamente ni por iniciativa propia.
+     - Solo desplegar a producción (`https://crm.unitepc.pro` / Portainer / VPS) cuando el usuario dé la instrucción explícita de hacerlo.
 
