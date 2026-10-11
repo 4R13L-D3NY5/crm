@@ -91,7 +91,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; sleep 3; done"]
+    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; php artisan messages:dispatch-scheduled > /dev/null 2>&1; php artisan campaigns:dispatch-recipients > /dev/null 2>&1; php artisan queue:work --stop-when-empty --queue=whatsapp,automations,default > /dev/null 2>&1; sleep 3; done"]
 
   web:
     image: crm-web:latest

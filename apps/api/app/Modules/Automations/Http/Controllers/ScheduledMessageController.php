@@ -81,13 +81,22 @@ class ScheduledMessageController extends Controller
             );
         }
 
+        $setting = \App\Modules\Settings\Models\WorkspaceSetting::where('organization_id', $organization->id)->first();
+        $tz = $setting?->timezone ?? 'America/La_Paz';
+
+        $rawScheduledAt = $validated['scheduled_at'];
+        $hasTz = str_contains($rawScheduledAt, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $rawScheduledAt);
+        $scheduledAt = $hasTz
+            ? Carbon::parse($rawScheduledAt)->setTimezone('UTC')
+            : Carbon::parse($rawScheduledAt, $tz)->setTimezone('UTC');
+
         $scheduledMessage = ScheduledMessage::create([
             'organization_id' => $organization->id,
             'contact_id' => $contact->id,
             'whatsapp_account_id' => $validated['whatsapp_account_id'] ?? null,
             'recipient_phone' => $cleanPhone,
             'body' => $validated['body'],
-            'scheduled_at' => Carbon::parse($validated['scheduled_at']),
+            'scheduled_at' => $scheduledAt,
             'status' => 'pending',
         ]);
 

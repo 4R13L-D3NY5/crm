@@ -1051,11 +1051,15 @@ async function submitScheduleFromChat() {
 
   scheduleForm.isSubmitting = true
   try {
+    const scheduledIso = scheduleForm.scheduled_at
+      ? new Date(scheduleForm.scheduled_at).toISOString()
+      : scheduleForm.scheduled_at
+
     await http.post('/scheduled-messages', {
       recipient_phone: phone,
       contact_id: props.conversation?.contact?.id,
       contact_name: props.conversation?.contact?.name,
-      scheduled_at: scheduleForm.scheduled_at,
+      scheduled_at: scheduledIso,
       body: scheduleForm.body.trim(),
     })
 

@@ -79,8 +79,13 @@ class ScheduledMessageDispatcher
                 ]);
             }
 
-            // Despachar el Job de WhatsApp (evalúa Baileys QR vs Meta Cloud)
-            SendWhatsAppMessageJob::dispatch($message->id);
+            // Despachar el Job de WhatsApp de forma síncrona inmediata con fallback a cola
+            try {
+                SendWhatsAppMessageJob::dispatchSync($message->id);
+            } catch (Throwable $jobEx) {
+                Log::warning("Sync dispatch failed for message {$message->id}, fallback to queue: " . $jobEx->getMessage());
+                SendWhatsAppMessageJob::dispatch($message->id);
+            }
 
             // Actualizar conversación
             $conversation->update([

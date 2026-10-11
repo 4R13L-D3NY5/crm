@@ -587,11 +587,15 @@ async function submitCreate() {
 
   isSaving.value = true
   try {
+    const scheduledIso = createForm.scheduled_at
+      ? new Date(createForm.scheduled_at).toISOString()
+      : createForm.scheduled_at
+
     await http.post('/scheduled-messages', {
       recipient_phone: createForm.phone.trim(),
       contact_name: createForm.contact_name.trim() || undefined,
       contact_id: createForm.contact_id || undefined,
-      scheduled_at: createForm.scheduled_at,
+      scheduled_at: scheduledIso,
       body: createForm.body.trim(),
     })
 
