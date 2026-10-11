@@ -53,3 +53,17 @@ Cuando trabajes en este proyecto (**XpertiFlow CRM — Omnichannel Suite Pro**),
   ```bash
   docker compose exec -e APP_ENV=testing api php artisan test
   ```
+
+---
+
+## Regla de Oro de Entorno: Producción Oficial (https://crm.unitepc.pro)
+
+- **ENTORNO DE REFERENCIA Y VERIFICACIÓN:**
+  El sistema se encuentra **100% en producción en la nube** en el servidor VPS de UNITEPC:
+  - **Dominio Oficial:** `https://crm.unitepc.pro`
+  - **Stack Portainer:** `crm` (ID 78) en `https://200.58.81.22:9443`
+  - **Nginx Proxy Manager:** Host 21 en `http://200.58.81.22:81`
+- **REGLAS MANDATORIAS PARA EL AGENTE:**
+  1. **NUNCA pedirle al usuario que verifique en `localhost` ni en `localhost:9010`.** Todo enlace, verificación o prueba que se solicite al usuario debe ser en el servidor oficial: `https://crm.unitepc.pro/app/...`.
+  2. **Siempre desplegar a producción:** Al completar cambios o nuevas funciones, compilar, enviar a `v2-rebuild` y sincronizar/redesplegar el Stack en Portainer para que el usuario pueda interactuar con los cambios en vivo en el servidor.
+

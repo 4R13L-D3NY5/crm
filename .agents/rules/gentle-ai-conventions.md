@@ -63,3 +63,13 @@ Para cambios sustanciales o nuevas funcionalidades, seguir el ciclo de fases est
   - Proporciona sugerencias contextuales de respuesta a tickets multicanal (WhatsApp, redes sociales, correo), resumen automático de conversaciones y búsqueda de base de conocimientos vectorizada.
 - **Entorno Docker Completo**:
   - Contenedores orquestados: `crm-postgres` (pgvector), `crm-redis`, `crm-mailpit`, `crm-api`, `crm-web`, y `crm-nginx` (proxy inverso unificado).
+
+---
+
+## 6. Regla de Oro de Entorno: Producción Oficial (https://crm.unitepc.pro)
+
+- **Servidor Activo:** El sistema está completamente desplegado y operando en la nube en `https://crm.unitepc.pro` (Portainer Stack `crm` en `https://200.58.81.22:9443`).
+- **Comportamiento Obligatorio del Asistente:**
+  1. **NUNCA pedirle al usuario verificar en `localhost` o `localhost:9010`.** Todo enlace, verificación o prueba presentada al usuario debe apuntar al servidor oficial: `https://crm.unitepc.pro/app/...`.
+  2. **Siempre desplegar a producción:** Al completar cambios o nuevas funciones, compilar, commitear a `v2-rebuild` y sincronizar/redesplegar el Stack en Portainer para que el usuario pueda interactuar con los cambios en vivo en el servidor.
+
