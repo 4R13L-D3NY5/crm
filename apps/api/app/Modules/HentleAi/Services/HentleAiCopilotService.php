@@ -40,6 +40,72 @@ class HentleAiCopilotService
     }
 
     /**
+     * Valida si el límite presupuestario configurado (en USD) no ha sido excedido.
+     */
+    public function assertBudgetAvailable(?string $organizationId = null): void
+    {
+        $setting = $organizationId ? WorkspaceSetting::where('organization_id', $organizationId)->first() : null;
+        if (!$setting) {
+            $setting = WorkspaceSetting::first();
+        }
+        if (!$setting) {
+            return;
+        }
+
+        $aiConfig = $setting->custom_options['ai_config'] ?? [];
+        $budgetEnabled = (bool) ($aiConfig['budget_enabled'] ?? false);
+        $spendingLimit = (float) ($aiConfig['spending_limit_usd'] ?? 0.20);
+        $currentSpent = (float) ($aiConfig['current_spending_usd'] ?? 0.0);
+
+        if ($budgetEnabled && $currentSpent >= $spendingLimit) {
+            $formattedLimit = number_format($spendingLimit, 2);
+            $formattedSpent = number_format($currentSpent, 4);
+            throw new \RuntimeException("Límite de consumo de IA alcanzado (\${$formattedSpent} / \${$formattedLimit} USD). El motor ha sido pausado automáticamente para evitar costos adicionales. Puedes aumentar el límite o reiniciar el contador en Configuración de IA.");
+        }
+    }
+
+    /**
+     * Registra el consumo de tokens y acumula el costo en USD según las tarifas de cada proveedor.
+     */
+    public function recordUsage(int $promptTokens, int $completionTokens, string $provider, ?string $organizationId = null): void
+    {
+        $setting = $organizationId ? WorkspaceSetting::where('organization_id', $organizationId)->first() : null;
+        if (!$setting) {
+            $setting = WorkspaceSetting::first();
+        }
+        if (!$setting) {
+            return;
+        }
+
+        // Tarifas por millón de tokens en USD (MiniMax-Text-01, OpenAI GPT-4o-mini, Gemini, DeepSeek)
+        $rates = [
+            'minimax' => ['input' => 0.20, 'output' => 1.10],
+            'openai' => ['input' => 0.15, 'output' => 0.60],
+            'deepseek' => ['input' => 0.14, 'output' => 0.28],
+            'gemini' => ['input' => 0.075, 'output' => 0.30],
+            'custom' => ['input' => 0.20, 'output' => 1.00],
+        ];
+
+        $rate = $rates[$provider] ?? ['input' => 0.20, 'output' => 1.00];
+        $costUsd = ($promptTokens * ($rate['input'] / 1_000_000)) + ($completionTokens * ($rate['output'] / 1_000_000));
+
+        $custom = $setting->custom_options ?? [];
+        $aiConfig = $custom['ai_config'] ?? [];
+
+        $currentSpent = (float) ($aiConfig['current_spending_usd'] ?? 0.0);
+        $totalTokens = (int) ($aiConfig['total_tokens_used'] ?? 0);
+        $totalRequests = (int) ($aiConfig['total_requests_count'] ?? 0);
+
+        $aiConfig['current_spending_usd'] = round($currentSpent + $costUsd, 6);
+        $aiConfig['total_tokens_used'] = $totalTokens + $promptTokens + $completionTokens;
+        $aiConfig['total_requests_count'] = $totalRequests + 1;
+
+        $custom['ai_config'] = $aiConfig;
+        $setting->custom_options = $custom;
+        $setting->save();
+    }
+
+    /**
      * Envía un prompt directo a cualquier proveedor compatible (MiniMax, Gemini, OpenAI, DeepSeek, Custom).
      */
     public function sendDirectPrompt(
@@ -48,17 +114,23 @@ class HentleAiCopilotService
         string $apiKey = '',
         string $model = 'MiniMax-Text-01',
         string $baseUrl = '',
-        ?string $systemInstruction = null
+        ?string $systemInstruction = null,
+        ?string $organizationId = null,
+        bool $bypassBudget = false,
     ): string {
+        if (!$bypassBudget) {
+            $this->assertBudgetAvailable($organizationId);
+        }
+
         if (empty($apiKey)) {
             throw new \InvalidArgumentException('Se requiere una clave de API válida.');
         }
 
         if ($provider === 'gemini') {
-            return $this->callGemini($prompt, $apiKey, $model, $systemInstruction);
+            return $this->callGemini($prompt, $apiKey, $model, $systemInstruction, $organizationId);
         }
 
-        return $this->callOpenAiCompatible($prompt, $provider, $apiKey, $model, $baseUrl, $systemInstruction);
+        return $this->callOpenAiCompatible($prompt, $provider, $apiKey, $model, $baseUrl, $systemInstruction, $organizationId);
     }
 
     protected function callOpenAiCompatible(
@@ -67,7 +139,8 @@ class HentleAiCopilotService
         string $apiKey,
         string $model,
         string $baseUrl,
-        ?string $systemInstruction = null
+        ?string $systemInstruction = null,
+        ?string $organizationId = null,
     ): string {
         $defaultUrls = [
             'minimax' => 'https://api.minimax.io/v1',
@@ -106,6 +179,12 @@ class HentleAiCopilotService
             throw new \RuntimeException('La API respondió sin contenido de texto.');
         }
 
+        $usage = $response->json('usage') ?? [];
+        $promptTokens = (int) ($usage['prompt_tokens'] ?? max(1, (int) (strlen($prompt) / 4)));
+        $completionTokens = (int) ($usage['completion_tokens'] ?? max(1, (int) (strlen($reply) / 4)));
+
+        $this->recordUsage($promptTokens, $completionTokens, $provider, $organizationId);
+
         return trim($reply);
     }
 
@@ -113,7 +192,8 @@ class HentleAiCopilotService
         string $prompt,
         string $apiKey,
         string $model,
-        ?string $systemInstruction = null
+        ?string $systemInstruction = null,
+        ?string $organizationId = null,
     ): string {
         $cleanModel = !empty($model) ? $model : 'gemini-1.5-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$cleanModel}:generateContent?key={$apiKey}";
@@ -146,6 +226,11 @@ class HentleAiCopilotService
         if (empty($text)) {
             throw new \RuntimeException('Google Gemini no retornó candidatos de texto.');
         }
+
+        $promptTokens = (int) $response->json('usageMetadata.promptTokenCount', max(1, (int) (strlen($prompt) / 4)));
+        $completionTokens = (int) $response->json('usageMetadata.candidatesTokenCount', max(1, (int) (strlen($text) / 4)));
+
+        $this->recordUsage($promptTokens, $completionTokens, 'gemini', $organizationId);
 
         return trim($text);
     }
@@ -202,7 +287,8 @@ PROMPT;
                 apiKey: $config['api_key'],
                 model: $config['model'],
                 baseUrl: $config['base_url'],
-                systemInstruction: $systemInstruction
+                systemInstruction: $systemInstruction,
+                organizationId: $conversation->organization_id
             );
 
             return [
@@ -247,7 +333,8 @@ PROMPT;
                 apiKey: $config['api_key'],
                 model: $config['model'],
                 baseUrl: $config['base_url'],
-                systemInstruction: 'Eres un analista de CRM que sintetiza tickets de atención al cliente de forma clara y directa.'
+                systemInstruction: 'Eres un analista de CRM que sintetiza tickets de atención al cliente de forma clara y directa.',
+                organizationId: $conversation->organization_id
             );
 
             return [

@@ -10,6 +10,12 @@
             :label="aiConfig.has_api_key ? `Activo: ${activeProviderLabel} (${aiConfig.model})` : 'Configuración Pendiente'"
             class="text-weight-bold"
           />
+          <q-badge
+            v-if="aiConfig.budget_enabled"
+            :color="aiConfig.is_budget_exceeded ? 'negative' : 'teal-8'"
+            :label="aiConfig.is_budget_exceeded ? `Límite alcanzado: $${(aiConfig.current_spending_usd || 0).toFixed(4)} / $${(aiConfig.spending_limit_usd || 0.20).toFixed(2)} USD` : `Consumo: $${(aiConfig.current_spending_usd || 0).toFixed(4)} / $${(aiConfig.spending_limit_usd || 0.20).toFixed(2)} USD`"
+            class="text-weight-bold"
+          />
         </div>
         <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
           Motor cognitivo para respuestas inteligentes en la Bandeja Multicanal y búsqueda semántica RAG (pgvector 16).
@@ -253,6 +259,78 @@
             />
           </div>
 
+          <!-- 7. Control de Presupuesto y Consumo de API (Kill-Switch en USD) -->
+          <div class="q-pa-sm rounded-borders q-mt-sm" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--crm-color-border)">
+            <div class="row items-center justify-between">
+              <div class="row items-center q-gutter-x-xs">
+                <q-icon name="sym_r_attach_money" color="positive" size="18px" />
+                <span class="text-caption text-weight-bold text-white">Límite de Consumo de API (Kill-Switch)</span>
+              </div>
+              <q-toggle
+                v-model="configForm.budget_enabled"
+                color="positive"
+                dense
+              />
+            </div>
+            <div class="text-caption text-grey-4 q-mt-xs" style="font-size: 0.72rem">
+              Deshabilita automáticamente las consultas de IA cuando el costo acumulado alcance el presupuesto fijado.
+            </div>
+
+            <div v-if="configForm.budget_enabled" class="q-mt-sm q-gutter-y-xs">
+              <q-input
+                v-model.number="configForm.spending_limit_usd"
+                type="number"
+                label="Límite máximo de gasto (USD)"
+                step="0.05"
+                min="0.01"
+                max="1000"
+                outlined
+                dark
+                dense
+                prefix="$"
+                suffix="USD"
+                hint="ej: 0.20 para detener el consumo al alcanzar 20 centavos de dólar"
+              />
+
+              <!-- Medidor en vivo del consumo -->
+              <div class="q-mt-md q-pa-sm rounded-borders" style="background: rgba(0,0,0,0.25)">
+                <div class="row items-center justify-between text-caption q-mb-xs">
+                  <span class="text-grey-4">Consumo actual:</span>
+                  <span class="font-mono text-weight-bold" :class="aiConfig.is_budget_exceeded ? 'text-negative' : 'text-teal-3'">
+                    ${{ (aiConfig.current_spending_usd || 0).toFixed(4) }} / ${{ (configForm.spending_limit_usd || 0.20).toFixed(2) }} USD
+                  </span>
+                </div>
+
+                <q-linear-progress
+                  :value="Math.min(1, (aiConfig.current_spending_usd || 0) / (configForm.spending_limit_usd || 0.20))"
+                  :color="aiConfig.is_budget_exceeded ? 'negative' : ((aiConfig.current_spending_usd || 0) / (configForm.spending_limit_usd || 0.20) > 0.8 ? 'warning' : 'positive')"
+                  rounded
+                  size="6px"
+                />
+
+                <div class="row items-center justify-between text-caption text-grey-5 q-mt-xs" style="font-size: 0.7rem">
+                  <span>{{ (aiConfig.total_tokens_used || 0).toLocaleString() }} tokens consumidos ({{ aiConfig.total_requests_count || 0 }} peticiones)</span>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="xs"
+                    color="amber-4"
+                    icon="sym_r_restart_alt"
+                    label="Reiniciar a $0.00"
+                    :loading="isResettingBudget"
+                    @click="handleResetBudget"
+                  />
+                </div>
+              </div>
+
+              <div v-if="aiConfig.is_budget_exceeded" class="q-pa-xs rounded-borders bg-negative text-white text-caption q-mt-xs row items-center q-gutter-x-xs">
+                <q-icon name="sym_r_warning" size="16px" />
+                <span>¡Presupuesto alcanzado! El motor de IA está pausado para no generar más costos.</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Banner de Resultado de Prueba en Vivo -->
           <transition name="q-transition--fade">
             <div v-if="testResult" class="q-mt-sm">
@@ -339,6 +417,7 @@ import {
   type AiConfigData,
   type AiTestResult,
   getAiConfig,
+  resetAiBudget,
   testAiConnection,
   updateAiConfig,
 } from '../api/ai-config.api'
@@ -352,6 +431,7 @@ const isArticleModalOpen = ref(false)
 const showApiKey = ref(false)
 const isTesting = ref(false)
 const isSaving = ref(false)
+const isResettingBudget = ref(false)
 const testResult = ref<AiTestResult | null>(null)
 
 const providerOptions = [
@@ -386,6 +466,12 @@ const aiConfig = ref<AiConfigData>({
   api_key_masked: '',
   system_prompt: 'Eres el Copiloto de Inteligencia Artificial para UNITEPC.',
   similarity_threshold: 0.75,
+  budget_enabled: false,
+  spending_limit_usd: 0.20,
+  current_spending_usd: 0.0,
+  total_tokens_used: 0,
+  total_requests_count: 0,
+  is_budget_exceeded: false,
 })
 
 const configForm = reactive({
@@ -395,6 +481,8 @@ const configForm = reactive({
   api_key: '',
   system_prompt: '',
   similarity_threshold: 0.75,
+  budget_enabled: false,
+  spending_limit_usd: 0.20,
 })
 
 const currentModelOptions = computed(() => {
@@ -456,6 +544,8 @@ function openConfigModal() {
   configForm.api_key = ''
   configForm.system_prompt = aiConfig.value.system_prompt
   configForm.similarity_threshold = aiConfig.value.similarity_threshold || 0.75
+  configForm.budget_enabled = aiConfig.value.budget_enabled ?? false
+  configForm.spending_limit_usd = aiConfig.value.spending_limit_usd ?? 0.20
   testResult.value = null
   isConfigModalOpen.value = true
 }
@@ -465,6 +555,27 @@ function onProviderChange(prov: string) {
   const models = providerModelPresets[prov]
   if (models && models.length > 0) {
     configForm.model = models[0]
+  }
+}
+
+async function handleResetBudget() {
+  isResettingBudget.value = true
+  try {
+    await resetAiBudget()
+    await loadAiConfig()
+    $q.notify({
+      type: 'positive',
+      message: 'Contador de consumo reiniciado a $0.00 USD.',
+      position: 'bottom-right',
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al reiniciar contador de consumo.',
+      position: 'bottom-right',
+    })
+  } finally {
+    isResettingBudget.value = false
   }
 }
 
@@ -504,6 +615,8 @@ async function submitAiConfig() {
       api_key: configForm.api_key || undefined,
       system_prompt: configForm.system_prompt,
       similarity_threshold: configForm.similarity_threshold,
+      budget_enabled: configForm.budget_enabled,
+      spending_limit_usd: configForm.spending_limit_usd,
     })
 
     aiConfig.value = updated

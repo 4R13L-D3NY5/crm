@@ -31,6 +31,10 @@ class AiConfigController extends Controller
         $hasKey = !empty($apiKey);
         $maskedKey = $hasKey ? (strlen($apiKey) > 8 ? substr($apiKey, 0, 4) . '••••••••' . substr($apiKey, -4) : '••••••••') : '';
 
+        $spendingLimit = (float) ($aiConfig['spending_limit_usd'] ?? 0.20);
+        $currentSpending = (float) ($aiConfig['current_spending_usd'] ?? 0.0);
+        $budgetEnabled = (bool) ($aiConfig['budget_enabled'] ?? false);
+
         return response()->json([
             'data' => [
                 'provider' => $aiConfig['provider'] ?? 'minimax',
@@ -40,6 +44,12 @@ class AiConfigController extends Controller
                 'api_key_masked' => $maskedKey,
                 'system_prompt' => $aiConfig['system_prompt'] ?? 'Eres el Copiloto de Inteligencia Artificial "Hentle-AI" para UNITEPC. Tu objetivo es asistir a los agentes sugiriendo respuestas empáticas, profesionales y precisas para WhatsApp.',
                 'similarity_threshold' => (float) ($aiConfig['similarity_threshold'] ?? 0.75),
+                'budget_enabled' => $budgetEnabled,
+                'spending_limit_usd' => $spendingLimit,
+                'current_spending_usd' => $currentSpending,
+                'total_tokens_used' => (int) ($aiConfig['total_tokens_used'] ?? 0),
+                'total_requests_count' => (int) ($aiConfig['total_requests_count'] ?? 0),
+                'is_budget_exceeded' => $budgetEnabled && ($currentSpending >= $spendingLimit),
             ],
         ]);
     }
@@ -53,6 +63,8 @@ class AiConfigController extends Controller
             'base_url' => ['nullable', 'string', 'max:255'],
             'system_prompt' => ['nullable', 'string', 'max:3000'],
             'similarity_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'budget_enabled' => ['nullable', 'boolean'],
+            'spending_limit_usd' => ['nullable', 'numeric', 'min:0.01', 'max:10000'],
         ]);
 
         $organization = $request->user()->currentOrganization;
@@ -90,6 +102,11 @@ class AiConfigController extends Controller
             'base_url' => $baseUrl,
             'system_prompt' => $validated['system_prompt'] ?? $currentAiConfig['system_prompt'] ?? '',
             'similarity_threshold' => (float) ($validated['similarity_threshold'] ?? 0.75),
+            'budget_enabled' => isset($validated['budget_enabled']) ? (bool) $validated['budget_enabled'] : (bool) ($currentAiConfig['budget_enabled'] ?? false),
+            'spending_limit_usd' => isset($validated['spending_limit_usd']) ? (float) $validated['spending_limit_usd'] : (float) ($currentAiConfig['spending_limit_usd'] ?? 0.20),
+            'current_spending_usd' => (float) ($currentAiConfig['current_spending_usd'] ?? 0.0),
+            'total_tokens_used' => (int) ($currentAiConfig['total_tokens_used'] ?? 0),
+            'total_requests_count' => (int) ($currentAiConfig['total_requests_count'] ?? 0),
         ];
 
         $custom['ai_config'] = $newAiConfig;
@@ -109,6 +126,45 @@ class AiConfigController extends Controller
                 'api_key_masked' => $maskedKey,
                 'system_prompt' => $newAiConfig['system_prompt'],
                 'similarity_threshold' => $newAiConfig['similarity_threshold'],
+                'budget_enabled' => $newAiConfig['budget_enabled'],
+                'spending_limit_usd' => $newAiConfig['spending_limit_usd'],
+                'current_spending_usd' => $newAiConfig['current_spending_usd'],
+                'total_tokens_used' => $newAiConfig['total_tokens_used'],
+                'total_requests_count' => $newAiConfig['total_requests_count'],
+                'is_budget_exceeded' => $newAiConfig['budget_enabled'] && ($newAiConfig['current_spending_usd'] >= $newAiConfig['spending_limit_usd']),
+            ],
+        ]);
+    }
+
+    public function resetBudget(Request $request): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $setting = WorkspaceSetting::firstOrCreate(
+            ['organization_id' => $organization->id],
+            [
+                'default_language' => 'es',
+                'timezone' => 'America/La_Paz',
+                'sla_timeout_minutes' => 10,
+            ]
+        );
+
+        $custom = $setting->custom_options ?? [];
+        $aiConfig = $custom['ai_config'] ?? [];
+
+        $aiConfig['current_spending_usd'] = 0.0;
+        $aiConfig['total_tokens_used'] = 0;
+        $aiConfig['total_requests_count'] = 0;
+
+        $custom['ai_config'] = $aiConfig;
+        $setting->custom_options = $custom;
+        $setting->save();
+
+        return response()->json([
+            'message' => 'Contador de consumo de IA reiniciado exitosamente a $0.00 USD.',
+            'data' => [
+                'current_spending_usd' => 0.0,
+                'total_tokens_used' => 0,
+                'total_requests_count' => 0,
             ],
         ]);
     }

@@ -9,6 +9,12 @@ export interface AiConfigData {
   api_key?: string
   system_prompt: string
   similarity_threshold: number
+  budget_enabled?: boolean
+  spending_limit_usd?: number
+  current_spending_usd?: number
+  total_tokens_used?: number
+  total_requests_count?: number
+  is_budget_exceeded?: boolean
 }
 
 export interface AiTestPayload {
@@ -40,4 +46,9 @@ export async function updateAiConfig(payload: Partial<AiConfigData>): Promise<Ai
 export async function testAiConnection(payload: AiTestPayload): Promise<AiTestResult> {
   const res = await http.post<AiTestResult>('/ai/test', payload)
   return res.data
+}
+
+export async function resetAiBudget(): Promise<{ current_spending_usd: number; total_tokens_used: number; total_requests_count: number }> {
+  const res = await http.post<{ data: { current_spending_usd: number; total_tokens_used: number; total_requests_count: number }; message: string }>('/ai/budget/reset')
+  return res.data.data
 }

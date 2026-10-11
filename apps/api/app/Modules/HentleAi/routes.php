@@ -16,4 +16,5 @@ Route::post('ai/knowledge-bases/{knowledgeBase}/chunks', [KnowledgeBaseControlle
 Route::get('ai/config', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'show']);
 Route::put('ai/config', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'update']);
 Route::post('ai/test', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'test']);
+Route::post('ai/budget/reset', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'resetBudget']);
 

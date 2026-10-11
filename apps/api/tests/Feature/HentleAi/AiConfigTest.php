@@ -137,4 +137,50 @@ class AiConfigTest extends TestCase
             ->assertJsonPath('data.source', 'hentle_ai_minimax')
             ->assertJsonPath('data.suggestion', '¡Hola! Sí, contamos con la carrera de Ingeniería de Sistemas en varias sedes de UNITEPC.');
     }
+
+    public function test_budget_kill_switch_pauses_requests_when_limit_reached(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $user->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+        $user->update(['current_organization_id' => $organization->id]);
+
+        // Configurar límite de 0.20 USD con budget_enabled = true
+        $this->actingAs($user)->putJson('/api/ai/config', [
+            'provider' => 'minimax',
+            'model' => 'MiniMax-Text-01',
+            'api_key' => 'test-minimax-key',
+            'budget_enabled' => true,
+            'spending_limit_usd' => 0.20,
+        ]);
+
+        $ticket = Conversation::create([
+            'organization_id' => $organization->id,
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+
+        Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $ticket->id,
+            'direction' => 'inbound',
+            'body' => 'Consulta de prueba',
+            'sent_at' => Carbon::now(),
+        ]);
+
+        // Simular que el gasto ya alcanzó 0.20 USD
+        $setting = \App\Modules\Settings\Models\WorkspaceSetting::where('organization_id', $organization->id)->first();
+        $custom = $setting->custom_options;
+        $custom['ai_config']['current_spending_usd'] = 0.205;
+        $setting->update(['custom_options' => $custom]);
+
+        $response = $this->actingAs($user)->postJson("/api/conversations/{$ticket->id}/ai/copilot/suggest");
+        $response->assertStatus(422);
+        $this->assertStringContainsString('Límite de consumo de IA alcanzado', $response->json('message'));
+
+        // Probar reset de presupuesto
+        $resetResponse = $this->actingAs($user)->postJson('/api/ai/budget/reset');
+        $resetResponse->assertStatus(200)
+            ->assertJsonPath('data.current_spending_usd', 0);
+    }
 }
