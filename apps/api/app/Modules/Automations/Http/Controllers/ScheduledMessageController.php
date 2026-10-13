@@ -62,10 +62,19 @@ class ScheduledMessageController extends Controller
             'recipient_phone' => ['required', 'string', 'max:50'],
             'contact_name' => ['nullable', 'string', 'max:150'],
             'contact_id' => ['nullable', 'string', 'exists:contacts,id'],
-            'body' => ['required', 'string', 'max:4000'],
+            'body' => ['nullable', 'string', 'max:4000'],
             'scheduled_at' => ['required', 'date'],
             'whatsapp_account_id' => ['nullable', 'string', 'exists:whatsapp_accounts,id'],
+            'media_url' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:51200'],
         ]);
+
+        $mediaUrl = $validated['media_url'] ?? null;
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $storedPath = $file->store('whatsapp_media', 'public');
+            $mediaUrl = '/storage/' . $storedPath;
+        }
 
         $cleanPhone = preg_replace('/[^0-9+]/', '', $validated['recipient_phone']);
 
@@ -90,12 +99,18 @@ class ScheduledMessageController extends Controller
             ? Carbon::parse($rawScheduledAt)->setTimezone('UTC')
             : Carbon::parse($rawScheduledAt, $tz)->setTimezone('UTC');
 
+        $body = $validated['body'] ?? '';
+        if (blank($body) && $mediaUrl) {
+            $body = '[Archivo adjunto]';
+        }
+
         $scheduledMessage = ScheduledMessage::create([
             'organization_id' => $organization->id,
             'contact_id' => $contact->id,
             'whatsapp_account_id' => $validated['whatsapp_account_id'] ?? null,
             'recipient_phone' => $cleanPhone,
-            'body' => $validated['body'],
+            'body' => $body,
+            'media_url' => $mediaUrl,
             'scheduled_at' => $scheduledAt,
             'status' => 'pending',
         ]);
@@ -103,6 +118,85 @@ class ScheduledMessageController extends Controller
         return response()->json([
             'data' => $scheduledMessage->load(['contact', 'whatsappAccount']),
             'message' => 'Mensaje programado con éxito.',
+        ], 201);
+    }
+
+    public function storeBatch(Request $request): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+
+        $validated = $request->validate([
+            'contact_ids' => ['required', 'array', 'min:1'],
+            'contact_ids.*' => ['required', 'string'],
+            'body' => ['nullable', 'string', 'max:4000'],
+            'scheduled_at' => ['required', 'date'],
+            'whatsapp_account_id' => ['nullable', 'string', 'exists:whatsapp_accounts,id'],
+            'media_url' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:51200'],
+        ]);
+
+        $mediaUrl = $validated['media_url'] ?? null;
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $storedPath = $file->store('whatsapp_media', 'public');
+            $mediaUrl = '/storage/' . $storedPath;
+        }
+
+        $setting = \App\Modules\Settings\Models\WorkspaceSetting::where('organization_id', $organization->id)->first();
+        $tz = $setting?->timezone ?? 'America/La_Paz';
+
+        $rawScheduledAt = $validated['scheduled_at'];
+        $hasTz = str_contains($rawScheduledAt, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $rawScheduledAt);
+        $scheduledAt = $hasTz
+            ? Carbon::parse($rawScheduledAt)->setTimezone('UTC')
+            : Carbon::parse($rawScheduledAt, $tz)->setTimezone('UTC');
+
+        $contacts = Contact::where('organization_id', $organization->id)
+            ->whereIn('id', $validated['contact_ids'])
+            ->whereNotNull('phone')
+            ->get();
+
+        $rawBody = $validated['body'] ?? '';
+        $createdMessages = [];
+
+        foreach ($contacts as $contact) {
+            $cleanPhone = preg_replace('/[^0-9+]/', '', $contact->phone);
+            if (blank($cleanPhone)) continue;
+
+            $renderedBody = str_replace(
+                ['{{nombre}}', '{{name}}', '{nombre}', '{name}'],
+                $contact->name ?: 'Cliente',
+                $rawBody
+            );
+            $renderedBody = str_replace(
+                ['{{telefono}}', '{{phone}}', '{telefono}', '{phone}'],
+                $contact->phone ?: '',
+                $renderedBody
+            );
+
+            if (blank($renderedBody) && $mediaUrl) {
+                $renderedBody = '[Archivo adjunto]';
+            }
+
+            $scheduled = ScheduledMessage::create([
+                'organization_id' => $organization->id,
+                'contact_id' => $contact->id,
+                'whatsapp_account_id' => $validated['whatsapp_account_id'] ?? null,
+                'recipient_phone' => $cleanPhone,
+                'body' => $renderedBody,
+                'media_url' => $mediaUrl,
+                'scheduled_at' => $scheduledAt,
+                'status' => 'pending',
+            ]);
+            $createdMessages[] = $scheduled;
+        }
+
+        return response()->json([
+            'message' => 'Se agendaron ' . count($createdMessages) . ' mensajes para el envío en la fecha establecida.',
+            'data' => [
+                'scheduled_count' => count($createdMessages),
+                'total_selected' => count($validated['contact_ids']),
+            ],
         ], 201);
     }
 

@@ -77,10 +77,11 @@ export async function deleteTag(id: string): Promise<void> {
   await http.delete(`/tags/${id}`)
 }
 
-export async function sendBulkMessage(payload: {
+export async function sendBulkMessage(payload: FormData | {
   contact_ids: string[]
   whatsapp_account_id?: string | null
   message: string
+  file?: File | null
 }): Promise<{
   data: {
     dispatched_count: number
@@ -89,6 +90,16 @@ export async function sendBulkMessage(payload: {
   }
   message: string
 }> {
+  let bodyPayload = payload
+  if (!(payload instanceof FormData)) {
+    const fd = new FormData()
+    payload.contact_ids.forEach((id) => fd.append('contact_ids[]', id))
+    if (payload.whatsapp_account_id) fd.append('whatsapp_account_id', payload.whatsapp_account_id)
+    fd.append('message', payload.message)
+    if (payload.file) fd.append('file', payload.file)
+    bodyPayload = fd
+  }
+
   const response = await http.post<{
     data: {
       dispatched_count: number
@@ -96,7 +107,42 @@ export async function sendBulkMessage(payload: {
       total: number
     }
     message: string
-  }>('/contacts/bulk-message', payload)
+  }>('/contacts/bulk-message', bodyPayload)
+
+  return response.data
+}
+
+export async function scheduleBulkMessage(payload: FormData | {
+  contact_ids: string[]
+  whatsapp_account_id?: string | null
+  body: string
+  scheduled_at: string
+  file?: File | null
+}): Promise<{
+  data: {
+    scheduled_count: number
+    total_selected: number
+  }
+  message: string
+}> {
+  let bodyPayload = payload
+  if (!(payload instanceof FormData)) {
+    const fd = new FormData()
+    payload.contact_ids.forEach((id) => fd.append('contact_ids[]', id))
+    if (payload.whatsapp_account_id) fd.append('whatsapp_account_id', payload.whatsapp_account_id)
+    fd.append('body', payload.body)
+    fd.append('scheduled_at', payload.scheduled_at)
+    if (payload.file) fd.append('file', payload.file)
+    bodyPayload = fd
+  }
+
+  const response = await http.post<{
+    data: {
+      scheduled_count: number
+      total_selected: number
+    }
+    message: string
+  }>('/scheduled-messages/batch', bodyPayload)
 
   return response.data
 }

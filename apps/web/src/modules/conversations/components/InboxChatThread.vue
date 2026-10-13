@@ -203,6 +203,19 @@
             />
           </div>
 
+          <!-- Video Adjunto -->
+          <div v-else-if="msg.media_url && msg.media_type === 'video'" class="message-media-container q-mb-xs">
+            <video
+              controls
+              class="message-video-player"
+              preload="metadata"
+              style="max-width: 100%; max-height: 280px; border-radius: 8px; display: block;"
+            >
+              <source :src="resolveMediaUrl(msg.media_url)">
+              Tu navegador no soporta el reproductor de video.
+            </video>
+          </div>
+
           <!-- Audio / Nota de voz -->
           <div v-if="msg.media_url && (msg.media_type === 'audio' || msg.message_type === 'audio')" class="message-media-container q-mb-xs">
             <div class="row items-center q-gutter-x-xs q-mb-xs text-caption" style="opacity: 0.9">
@@ -672,7 +685,13 @@
 
         <q-card-section class="q-gutter-y-md q-pt-md">
           <div>
-            <div class="text-caption text-weight-bold text-grey-3 q-mb-xs">Fecha y Hora de Envío *</div>
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="text-caption text-weight-bold text-grey-3">Fecha y Hora de Envío *</div>
+              <div class="row items-center q-gutter-x-xs">
+                <q-btn flat dense no-caps size="xs" color="teal-3" label="+1h" @click="setChatQuickSchedule(1)" />
+                <q-btn flat dense no-caps size="xs" color="teal-3" label="Mañana 09:00" @click="setChatQuickScheduleTomorrow(9)" />
+              </div>
+            </div>
             <q-input
               v-model="scheduleForm.scheduled_at"
               outlined
@@ -683,8 +702,51 @@
             />
           </div>
 
+          <!-- Adjunto Multimedia para Mensaje Programado -->
           <div>
-            <div class="text-caption text-weight-bold text-grey-3 q-mb-xs">Contenido del Mensaje *</div>
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="text-caption text-weight-bold text-grey-3">Adjunto Multimedia (Opcional):</div>
+              <input
+                ref="scheduleFileInputRef"
+                type="file"
+                accept="image/*,video/*,.pdf"
+                class="hidden"
+                @change="onScheduleFileSelected"
+              />
+              <q-btn
+                outline
+                dense
+                no-caps
+                size="sm"
+                :color="scheduleFile ? 'positive' : 'teal-4'"
+                icon="sym_r_attach_file"
+                :label="scheduleFile ? 'Cambiar archivo' : 'Adjuntar Foto / Video'"
+                @click="triggerScheduleFileInput"
+              />
+            </div>
+
+            <!-- Preview del archivo adjunto si existe -->
+            <div v-if="scheduleFile" class="row items-center justify-between q-pa-xs q-px-sm bg-grey-9 rounded-borders">
+              <div class="row items-center q-gutter-x-sm ellipsis">
+                <q-icon
+                  :name="scheduleFileType === 'video' ? 'sym_r_videocam' : scheduleFileType === 'image' ? 'sym_r_image' : 'sym_r_description'"
+                  size="18px"
+                  :color="scheduleFileType === 'video' ? 'amber-4' : 'teal-4'"
+                />
+                <span class="text-caption text-white ellipsis text-bold">{{ scheduleFile.name }}</span>
+                <span class="text-caption text-grey-5 font-mono">({{ formatFileSize(scheduleFile.size) }})</span>
+              </div>
+              <q-btn flat round dense icon="sym_r_close" size="xs" color="grey-4" @click="clearScheduleFile" />
+            </div>
+
+            <!-- Miniatura de imagen si es imagen -->
+            <div v-if="scheduleFilePreview && scheduleFileType === 'image'" class="q-mt-xs text-center">
+              <img :src="scheduleFilePreview" alt="Preview adjunto" style="max-height: 120px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);" />
+            </div>
+          </div>
+
+          <div>
+            <div class="text-caption text-weight-bold text-grey-3 q-mb-xs">Contenido del Mensaje / Leyenda:</div>
             <q-input
               v-model="scheduleForm.body"
               outlined
@@ -692,7 +754,7 @@
               dark
               type="textarea"
               rows="4"
-              placeholder="Escribe el mensaje a enviar en la fecha y hora seleccionada..."
+              :placeholder="scheduleFile ? 'Escribe una leyenda opcional para la foto o video...' : 'Escribe el mensaje a enviar en la fecha y hora seleccionada...'"
               class="composer-textarea"
             />
           </div>
@@ -1018,13 +1080,17 @@ const quickMessagesQuery = useQuickMessages()
 const showQuickMessagesModal = ref(false)
 const quickSearch = ref('')
 
-// Programación de envíos diferidos desde chat (Fase 6)
+// Programación de envíos diferidos desde chat
 const showScheduleModal = ref(false)
 const scheduleForm = reactive({
   scheduled_at: '',
   body: '',
   isSubmitting: false,
 })
+const scheduleFileInputRef = ref<HTMLInputElement | null>(null)
+const scheduleFile = ref<File | null>(null)
+const scheduleFileType = ref<'image' | 'video' | 'document' | null>(null)
+const scheduleFilePreview = ref<string>('')
 
 function openScheduleFromChat() {
   const now = new Date()
@@ -1034,7 +1100,66 @@ function openScheduleFromChat() {
 
   scheduleForm.scheduled_at = localISOTime
   scheduleForm.body = composerText.value.trim()
+  if (pendingFile.value) {
+    setScheduleFile(pendingFile.value)
+  }
   showScheduleModal.value = true
+}
+
+function setChatQuickSchedule(hoursAhead: number) {
+  const d = new Date()
+  d.setHours(d.getHours() + hoursAhead)
+  d.setMinutes(0, 0, 0)
+  const tzOffset = d.getTimezoneOffset() * 60000
+  scheduleForm.scheduled_at = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16)
+}
+
+function setChatQuickScheduleTomorrow(hour: number) {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  d.setHours(hour, 0, 0, 0)
+  const tzOffset = d.getTimezoneOffset() * 60000
+  scheduleForm.scheduled_at = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16)
+}
+
+function triggerScheduleFileInput() {
+  scheduleFileInputRef.value?.click()
+}
+
+function onScheduleFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (!target.files || target.files.length === 0) return
+  const file = target.files[0]
+  setScheduleFile(file)
+}
+
+function setScheduleFile(file: File) {
+  if (scheduleFilePreview.value) {
+    URL.revokeObjectURL(scheduleFilePreview.value)
+  }
+  scheduleFile.value = file
+  if (file.type.startsWith('image/')) {
+    scheduleFileType.value = 'image'
+    scheduleFilePreview.value = URL.createObjectURL(file)
+  } else if (file.type.startsWith('video/')) {
+    scheduleFileType.value = 'video'
+    scheduleFilePreview.value = ''
+  } else {
+    scheduleFileType.value = 'document'
+    scheduleFilePreview.value = ''
+  }
+}
+
+function clearScheduleFile() {
+  if (scheduleFilePreview.value) {
+    URL.revokeObjectURL(scheduleFilePreview.value)
+  }
+  scheduleFile.value = null
+  scheduleFileType.value = null
+  scheduleFilePreview.value = ''
+  if (scheduleFileInputRef.value) {
+    scheduleFileInputRef.value.value = ''
+  }
 }
 
 async function submitScheduleFromChat() {
@@ -1044,8 +1169,9 @@ async function submitScheduleFromChat() {
     return
   }
 
-  if (!scheduleForm.scheduled_at || !scheduleForm.body.trim()) {
-    notify.warning({ message: 'Por favor completa la fecha y el mensaje.' })
+  const hasContent = scheduleForm.body.trim().length > 0 || Boolean(scheduleFile.value)
+  if (!scheduleForm.scheduled_at || !hasContent) {
+    notify.warning({ message: 'Por favor completa la fecha y el mensaje o adjunto.' })
     return
   }
 
@@ -1055,16 +1181,28 @@ async function submitScheduleFromChat() {
       ? new Date(scheduleForm.scheduled_at).toISOString()
       : scheduleForm.scheduled_at
 
-    await http.post('/scheduled-messages', {
+    let payload: any = {
       recipient_phone: phone,
       contact_id: props.conversation?.contact?.id,
       contact_name: props.conversation?.contact?.name,
       scheduled_at: scheduledIso,
       body: scheduleForm.body.trim(),
-    })
+    }
+
+    if (scheduleFile.value) {
+      const fd = new FormData()
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) fd.append(k, String(v))
+      })
+      fd.append('file', scheduleFile.value)
+      payload = fd
+    }
+
+    await http.post('/scheduled-messages', payload)
 
     notify.success({ message: `Mensaje programado con éxito para ${props.conversation?.contact?.name || phone}.` })
     showScheduleModal.value = false
+    clearScheduleFile()
     composerText.value = ''
   } catch (error: any) {
     notify.error({ message: error.response?.data?.message || 'Error al programar el mensaje.' })

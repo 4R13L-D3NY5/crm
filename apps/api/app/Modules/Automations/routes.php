@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 // Mensajes Programados
 Route::get('scheduled-messages', [ScheduledMessageController::class, 'index'])->name('scheduled-messages.index');
 Route::post('scheduled-messages', [ScheduledMessageController::class, 'store'])->name('scheduled-messages.store');
+Route::post('scheduled-messages/batch', [ScheduledMessageController::class, 'storeBatch'])->name('scheduled-messages.store-batch');
 Route::post('scheduled-messages/{id}/send-now', [ScheduledMessageController::class, 'sendNow'])->name('scheduled-messages.send-now');
 Route::delete('scheduled-messages/{id}', [ScheduledMessageController::class, 'destroy'])->name('scheduled-messages.destroy');
 

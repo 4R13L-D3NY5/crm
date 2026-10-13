@@ -75,14 +75,24 @@
 
         <div class="row items-center q-gutter-x-sm">
           <q-btn
+            outline
+            dense
+            no-caps
+            color="teal-3"
+            icon="sym_r_schedule_send"
+            label="Programar Envío 📅"
+            class="text-bold q-px-md xf-btn-secondary"
+            @click="openBulkSchedule"
+          />
+          <q-btn
             unelevated
             no-caps
             color="positive"
             text-color="dark"
             icon="sym_r_forward_to_inbox"
-            label="Enviar Mensaje Masivo"
+            label="Enviar Ahora"
             class="text-bold q-px-md shadow-2"
-            @click="isBulkMessageOpen = true"
+            @click="openBulkImmediate"
           />
         </div>
       </div>
@@ -157,6 +167,7 @@
       v-model="isBulkMessageOpen"
       :selected-contact-ids="selectedContactIds"
       :contacts="contacts"
+      :initial-mode="bulkModalMode"
       @sent="onBulkMessagesSent"
     />
 
@@ -206,6 +217,7 @@ const isFormOpen = ref(false)
 const isImportOpen = ref(false)
 const isConfirmDeleteOpen = ref(false)
 const isBulkMessageOpen = ref(false)
+const bulkModalMode = ref<'immediate' | 'scheduled'>('immediate')
 const selectedContactIds = ref<string[]>([])
 
 const selectedContact = ref<Contact | null>(null)
@@ -313,6 +325,16 @@ async function handleBatchImport(items: ImportContactItem[]) {
   } catch {
     notify.error({ message: 'Error durante la importación masiva.' })
   }
+}
+
+function openBulkSchedule() {
+  bulkModalMode.value = 'scheduled'
+  isBulkMessageOpen.value = true
+}
+
+function openBulkImmediate() {
+  bulkModalMode.value = 'immediate'
+  isBulkMessageOpen.value = true
 }
 
 function onBulkMessagesSent() {

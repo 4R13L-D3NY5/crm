@@ -95,12 +95,39 @@ class ContactController
         $validated = $request->validate([
             'contact_ids' => ['required', 'array', 'min:1'],
             'contact_ids.*' => ['required', 'string'],
-            'message' => ['required', 'string', 'max:4000'],
+            'message' => ['nullable', 'string', 'max:4000'],
             'whatsapp_account_id' => ['nullable', 'string', 'exists:whatsapp_accounts,id'],
+            'media_url' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:51200'],
         ]);
 
         $user = $request->user();
         $orgId = $user->current_organization_id;
+
+        $mediaUrl = $validated['media_url'] ?? null;
+        $mediaType = null;
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $mime = (string) $file->getMimeType();
+            $mediaType = match (true) {
+                str_starts_with($mime, 'image/') => 'image',
+                str_starts_with($mime, 'video/') => 'video',
+                str_starts_with($mime, 'audio/') || str_contains($mime, 'ogg') || str_contains($mime, 'webm') => 'audio',
+                default => 'document',
+            };
+            $storedPath = $file->store('whatsapp_media', 'public');
+            $mediaUrl = '/storage/' . $storedPath;
+        } elseif ($mediaUrl) {
+            $path = parse_url($mediaUrl, PHP_URL_PATH);
+            $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+            $mediaType = match ($ext) {
+                'jpg', 'jpeg', 'png', 'webp', 'gif' => 'image',
+                'mp4', 'mov', 'avi', 'mkv', 'webm' => 'video',
+                'mp3', 'ogg', 'wav', 'm4a', 'aac' => 'audio',
+                'pdf', 'doc', 'docx', 'xls', 'xlsx' => 'document',
+                default => 'image',
+            };
+        }
 
         $account = null;
         if (!empty($validated['whatsapp_account_id'])) {
@@ -123,18 +150,23 @@ class ContactController
             ->whereNotNull('phone')
             ->get();
 
+        $rawMessage = $validated['message'] ?? '';
         $sentCount = 0;
         foreach ($contacts as $contact) {
             $body = str_replace(
                 ['{{nombre}}', '{{name}}', '{nombre}', '{name}'],
                 $contact->name ?: 'Cliente',
-                $validated['message']
+                $rawMessage
             );
             $body = str_replace(
                 ['{{telefono}}', '{{phone}}', '{telefono}', '{phone}'],
                 $contact->phone ?: '',
                 $body
             );
+
+            if (blank($body) && $mediaUrl) {
+                $body = '[Archivo adjunto]';
+            }
 
             $conversation = \App\Modules\Conversations\Models\Conversation::firstOrCreate(
                 [
@@ -160,7 +192,9 @@ class ContactController
                 'conversation_id' => $conversation->id,
                 'user_id' => $user->id,
                 'direction' => 'outbound',
-                'message_type' => 'text',
+                'message_type' => $mediaType ?: 'text',
+                'media_type' => $mediaType,
+                'media_url' => $mediaUrl,
                 'message_status' => 'pending',
                 'body' => $body,
                 'sent_at' => now(),

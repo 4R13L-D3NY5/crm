@@ -53,15 +53,29 @@ class ScheduledMessageDispatcher
                 ]
             );
 
+            $mediaType = null;
+            if ($scheduled->media_url) {
+                $path = parse_url($scheduled->media_url, PHP_URL_PATH);
+                $ext = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
+                $mediaType = match ($ext) {
+                    'jpg', 'jpeg', 'png', 'webp', 'gif' => 'image',
+                    'mp4', 'mov', 'avi', 'mkv', 'webm' => 'video',
+                    'mp3', 'ogg', 'wav', 'm4a', 'aac' => 'audio',
+                    'pdf', 'doc', 'docx', 'xls', 'xlsx' => 'document',
+                    default => 'image',
+                };
+            }
+
             // Crear el mensaje saliente en la bandeja
             $message = Message::create([
                 'organization_id' => $scheduled->organization_id,
                 'conversation_id' => $conversation->id,
                 'user_id' => null,
                 'direction' => 'outbound',
-                'message_type' => 'text',
+                'message_type' => $mediaType ?: 'text',
+                'media_type' => $mediaType,
                 'message_status' => 'pending',
-                'body' => $scheduled->body,
+                'body' => $scheduled->body ?: ($scheduled->media_url ? '[Archivo adjunto]' : ''),
                 'media_url' => $scheduled->media_url,
                 'sent_at' => null,
             ]);
