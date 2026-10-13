@@ -136,8 +136,8 @@
 
     <!-- Modal Configuración de IA (Multi-proveedor: MiniMax, Gemini, OpenAI, DeepSeek) -->
     <q-dialog v-model="isConfigModalOpen" persistent>
-      <q-card style="width: 680px; max-width: 95vw" class="whaticket-modal-card q-pa-md">
-        <q-card-section class="row items-center justify-between">
+      <q-card style="width: 680px; max-width: 95vw; max-height: 90vh;" class="whaticket-modal-card q-pa-md column no-wrap">
+        <q-card-section class="row items-center justify-between col-auto">
           <div>
             <div class="text-h6 text-bold text-white">Configuración del Motor IA (Hentle-AI)</div>
             <div class="text-caption text-grey-4">Enlaza tu API Key física y selecciona tu modelo favorito en cualquier momento.</div>
@@ -145,7 +145,7 @@
           <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <!-- 1. Selector de Proveedor -->
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-sm-6">
@@ -365,7 +365,7 @@
           </transition>
         </q-card-section>
 
-        <q-card-actions align="between" class="q-px-md q-pb-md">
+        <q-card-actions align="between" class="q-px-md q-pb-md col-auto">
           <q-btn
             outline
             icon="sym_r_bolt"
@@ -394,18 +394,18 @@
 
     <!-- Modal Nuevo Artículo -->
     <q-dialog v-model="isArticleModalOpen">
-      <q-card style="width: 580px; max-width: 95vw" class="whaticket-modal-card q-pa-md">
-        <q-card-section>
+      <q-card style="width: 580px; max-width: 95vw; max-height: 90vh;" class="whaticket-modal-card q-pa-md column no-wrap">
+        <q-card-section class="col-auto">
           <div class="text-h6 text-bold text-white">Nuevo Artículo de Conocimiento</div>
           <div class="text-caption text-grey-4">El contenido se indexará semánticamente en PostgreSQL con pgvector.</div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <q-input v-model="newArticle.title" label="Título del Artículo / Tema" outlined dark dense />
           <q-input v-model="newArticle.content" label="Contenido detallado (FAQ, requisitos, carreras, costos)" type="textarea" rows="5" outlined dark />
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated

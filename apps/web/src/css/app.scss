@@ -424,3 +424,68 @@ a {
     color: #0f172a !important;
   }
 }
+
+// ========================================================
+// GARANTÍA GLOBAL DE SCROLL Y VISIBILIDAD EN TODOS LOS MODALES
+// ========================================================
+.q-dialog__inner {
+  padding: 16px;
+  max-height: 100vh;
+  box-sizing: border-box;
+
+  > .q-card {
+    max-height: calc(100vh - 32px);
+    display: flex;
+    flex-direction: column;
+
+    // Encabezado y acciones fijas en los extremos
+    > .q-card-section:first-child,
+    > .q-card-actions {
+      flex-shrink: 0;
+    }
+
+    // Secciones centrales con scroll automático
+    > .q-card-section:not(.q-card-actions):not(:first-child),
+    > .q-card-section.scroll,
+    > .scroll {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+  }
+}
+
+// Estilo de Scrollbars Modernos para todos los modales y áreas con scroll
+.q-dialog .q-card,
+.q-dialog .q-card-section,
+.scroll {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 9999px;
+
+    &:hover {
+      background: rgba(16, 185, 129, 0.5);
+    }
+  }
+}
+
+.body--light {
+  .q-dialog .q-card,
+  .q-dialog .q-card-section,
+  .scroll {
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+
+      &:hover {
+        background: rgba(16, 185, 129, 0.7);
+      }
+    }
+  }
+}

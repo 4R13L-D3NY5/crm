@@ -4,8 +4,8 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 480px; max-width: 95vw" class="whatsapp-simulate-card">
-      <q-card-section class="row items-center justify-between q-pb-none">
+    <q-card style="width: 480px; max-width: 95vw; max-height: 90vh;" class="whatsapp-simulate-card column no-wrap">
+      <q-card-section class="row items-center justify-between q-pb-none col-auto">
         <div class="row items-center q-gutter-x-sm">
           <q-avatar size="28px" :style="{ background: platformMeta.color + '22' }">
             <q-icon :name="platformMeta.icon" size="16px" :style="{ color: platformMeta.color }" />
@@ -20,7 +20,7 @@
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
       </q-card-section>
 
-      <q-card-section class="q-pt-md">
+      <q-card-section class="q-pt-md col scroll">
         <q-form class="q-gutter-y-sm" @submit.prevent="handleSubmit">
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-md-6">
@@ -201,6 +201,9 @@ function handleSubmit() {
   background: var(--crm-bg-card);
   border: 1px solid var(--crm-color-border);
   border-radius: var(--crm-radius-card);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 .simulate-hint {

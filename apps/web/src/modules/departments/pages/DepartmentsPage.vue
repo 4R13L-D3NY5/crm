@@ -104,15 +104,15 @@
 
     <!-- Modal Crear / Editar Fila y BotFlow -->
     <q-dialog v-model="isDialogOpen">
-      <q-card style="width: 620px; max-width: 95vw" class="xf-modal-card q-pa-md">
-        <q-card-section>
+      <q-card style="width: 620px; max-width: 95vw; max-height: 90vh;" class="xf-modal-card q-pa-md column no-wrap">
+        <q-card-section class="col-auto">
           <div class="text-h6 text-bold text-white">
             {{ currentDept ? 'Editar Fila & Enrutamiento' : 'Nueva Fila de Atención' }}
           </div>
           <div class="text-caption text-grey-4">Define el nombre de la cola, color de identificación y saludo automático.</div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <q-input v-model="form.name" label="Nombre del Departamento / Fila" outlined dark dense />
 
           <div class="row items-center justify-between bg-dark q-pa-sm rounded-borders">
@@ -138,7 +138,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated

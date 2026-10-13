@@ -4,8 +4,8 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 580px; max-width: 95vw" class="channel-form-card">
-      <q-card-section class="row items-center justify-between q-pb-none">
+    <q-card style="width: 580px; max-width: 95vw; max-height: 90vh;" class="channel-form-card column no-wrap">
+      <q-card-section class="row items-center justify-between q-pb-none col-auto">
         <div>
           <div class="text-subtitle1 text-weight-bold text-white">Conectar Nuevo Canal</div>
           <div class="text-caption text-grey-4">Elige la plataforma que deseas integrar a la bandeja multicanal</div>
@@ -13,7 +13,7 @@
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
       </q-card-section>
 
-      <q-card-section class="q-pt-md">
+      <q-card-section class="q-pt-md col scroll">
         <!-- Selector Visual de Plataforma -->
         <div class="platform-selector q-mb-md">
           <button

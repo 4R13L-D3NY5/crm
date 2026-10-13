@@ -440,8 +440,8 @@
 
     <!-- DIÁLOGO 1: CREAR / EDITAR CATEGORÍA -->
     <q-dialog v-model="isDialogOpen" persistent>
-      <q-card class="xf-modal-card" style="min-width: 480px; max-width: 580px">
-        <q-card-section>
+      <q-card class="xf-modal-card column no-wrap" style="min-width: 480px; max-width: 580px; max-height: 90vh;">
+        <q-card-section class="col-auto">
           <div class="text-h6 text-white text-bold">
             {{ selectedCategory ? 'Editar Categoría / Carrera' : 'Nueva Categoría / Subcategoría' }}
           </div>
@@ -450,7 +450,7 @@
           </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <q-input
             v-model="form.name"
             label="Nombre de la Categoría o Carrera *"
@@ -607,7 +607,7 @@
           />
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md">
+        <q-card-actions align="right" class="q-pa-md col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated
@@ -625,8 +625,8 @@
 
     <!-- DIÁLOGO 2: VINCULAR / REUTILIZAR CATEGORÍA EXISTENTE BAJO UNA RAMA -->
     <q-dialog v-model="isLinkDialogOpen">
-      <q-card class="xf-modal-card" style="min-width: 440px">
-        <q-card-section>
+      <q-card class="xf-modal-card column no-wrap" style="min-width: 440px; max-height: 90vh;">
+        <q-card-section class="col-auto">
           <div class="row items-center q-gutter-x-sm">
             <q-icon name="sym_r_link" color="purple-3" size="24px" />
             <div class="text-h6 text-white text-bold">Vincular Categoría Existente</div>
@@ -637,7 +637,7 @@
           </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <q-select
             v-model="selectedCategoryToLink"
             :options="linkableCategoryOptions"
@@ -666,7 +666,7 @@
           </q-select>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md">
+        <q-card-actions align="right" class="q-pa-md col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated
@@ -683,8 +683,8 @@
 
     <!-- DIÁLOGO 3: CREAR / EDITAR ESTADO PERSONALIZADO -->
     <q-dialog v-model="isStatusDialogOpen" persistent>
-      <q-card class="xf-modal-card" style="min-width: 480px; max-width: 580px">
-        <q-card-section>
+      <q-card class="xf-modal-card column no-wrap" style="min-width: 480px; max-width: 580px; max-height: 90vh;">
+        <q-card-section class="col-auto">
           <div class="text-h6 text-white text-bold">
             {{ selectedStatus ? 'Editar Estado de Lead' : 'Nuevo Estado de Lead' }}
           </div>
@@ -693,7 +693,7 @@
           </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <q-input
             v-model="statusForm.name"
             label="Nombre del Estado *"
@@ -817,7 +817,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md">
+        <q-card-actions align="right" class="q-pa-md col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated

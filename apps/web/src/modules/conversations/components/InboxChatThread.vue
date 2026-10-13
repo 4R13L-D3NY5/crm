@@ -667,8 +667,8 @@
 
     <!-- Modal Programar Mensaje Directo desde Chat (Fase 6) -->
     <q-dialog v-model="showScheduleModal">
-      <q-card style="width: 480px; max-width: 95vw;" class="quick-messages-picker-card q-pa-md">
-        <q-card-section class="row items-center justify-between q-pb-none">
+      <q-card style="width: 500px; max-width: 95vw; max-height: 90vh;" class="quick-messages-picker-card q-pa-md column no-wrap">
+        <q-card-section class="row items-center justify-between q-pb-none col-auto">
           <div class="row items-center q-gutter-x-sm">
             <q-avatar size="34px" color="primary" text-color="white">
               <q-icon name="sym_r_schedule_send" size="18px" />
@@ -683,7 +683,7 @@
           <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md q-pt-md">
+        <q-card-section class="q-gutter-y-md q-pt-md col scroll">
           <div>
             <div class="row items-center justify-between q-mb-xs">
               <div class="text-caption text-weight-bold text-grey-3">Fecha y Hora de Envío *</div>
@@ -760,7 +760,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pt-none">
+        <q-card-actions align="right" class="q-pt-sm col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated

@@ -335,8 +335,8 @@
 
     <!-- DIÁLOGO: CREAR / EDITAR REGLA DE TIEMPO -->
     <q-dialog v-model="isDialogOpen" persistent>
-      <q-card class="xf-modal-card" style="min-width: 540px; max-width: 660px">
-        <q-card-section>
+      <q-card class="xf-modal-card column no-wrap" style="min-width: 540px; max-width: 660px; max-height: 90vh;">
+        <q-card-section class="col-auto">
           <div class="row items-center q-gutter-x-sm">
             <q-icon name="sym_r_timer" color="amber-4" size="24px" />
             <div class="text-h6 text-white text-bold">
@@ -348,7 +348,7 @@
           </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <!-- Nombre y Descripción -->
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-md-8">
@@ -589,7 +589,7 @@
           />
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pa-md">
+        <q-card-actions align="right" class="q-pa-md col-auto">
           <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
           <q-btn
             unelevated

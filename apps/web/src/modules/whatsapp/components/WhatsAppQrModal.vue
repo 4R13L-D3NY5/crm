@@ -4,7 +4,7 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 480px; max-width: 95vw" class="whatsapp-qr-card text-center q-pa-lg">
+    <q-card style="width: 480px; max-width: 95vw; max-height: 90vh;" class="whatsapp-qr-card text-center q-pa-lg scroll">
       <div class="row items-center justify-between q-mb-sm">
         <div class="text-subtitle1 text-weight-bold text-white">Vincular Dispositivo WhatsApp</div>
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />

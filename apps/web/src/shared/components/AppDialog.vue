@@ -3,8 +3,8 @@
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="app-dialog">
-      <q-card-section class="app-dialog__header">
+    <q-card class="app-dialog column no-wrap" style="max-height: 90vh;">
+      <q-card-section class="app-dialog__header col-auto">
         <div>
           <div class="app-dialog__eyebrow">
             {{ eyebrow }}
@@ -15,17 +15,17 @@
         </div>
       </q-card-section>
 
-      <q-separator />
+      <q-separator class="col-auto" />
 
-      <q-card-section class="app-dialog__body">
+      <q-card-section class="app-dialog__body col scroll">
         <slot />
       </q-card-section>
 
-      <q-separator />
+      <q-separator class="col-auto" />
 
       <q-card-actions
         align="right"
-        class="app-dialog__actions"
+        class="app-dialog__actions col-auto"
       >
         <slot name="actions" />
       </q-card-actions>
@@ -80,6 +80,7 @@ const emit = defineEmits<{
 
 .app-dialog__body {
   padding: 28px;
+  overflow-y: auto;
 }
 
 .app-dialog__actions {

@@ -698,8 +698,8 @@
 
     <!-- MODAL 4: AJUSTAR CUOTAS (+/- CANALES Y USUARIOS) -->
     <q-dialog v-model="quotaModalOpen">
-      <q-card style="width: 540px; max-width: 95vw;" class="saas-modal-card q-pa-md">
-        <q-card-section>
+      <q-card style="width: 540px; max-width: 95vw; max-height: 90vh;" class="saas-modal-card q-pa-md column no-wrap">
+        <q-card-section class="col-auto">
           <div class="row items-center justify-between">
             <div>
               <div class="text-h6 text-weight-bold text-ink">Ajustar Cuotas (+/- Canales y Operadores)</div>
@@ -709,7 +709,7 @@
           </div>
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md">
+        <q-card-section class="q-gutter-y-md col scroll">
           <!-- Control de Líneas WhatsApp / Canales -->
           <div class="quota-control-box q-pa-sm rounded-borders bg-surface-subtle">
             <div class="row items-center justify-between q-mb-xs">
@@ -852,7 +852,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="col-auto">
           <q-btn flat label="Cancelar" v-close-popup no-caps />
           <q-btn
             color="teal"

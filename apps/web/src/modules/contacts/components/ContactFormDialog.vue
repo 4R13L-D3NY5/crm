@@ -4,8 +4,8 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 540px; max-width: 95vw" class="contact-dialog-card">
-      <q-card-section class="row items-center justify-between q-pb-none">
+    <q-card style="width: 540px; max-width: 95vw; max-height: 90vh;" class="contact-dialog-card column no-wrap">
+      <q-card-section class="row items-center justify-between q-pb-none col-auto">
         <div>
           <div class="text-h6 text-bold text-white">
             {{ isEditing ? 'Editar Contacto' : 'Nuevo Contacto' }}
@@ -17,7 +17,7 @@
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
       </q-card-section>
 
-      <q-card-section class="q-pt-md">
+      <q-card-section class="q-pt-md col scroll">
         <q-form class="q-gutter-y-sm" @submit.prevent="handleSubmit">
           <div class="row q-col-gutter-sm">
             <div class="col-12 col-md-6">
@@ -270,6 +270,9 @@ function handleSubmit() {
   background: var(--crm-bg-card, #111827);
   border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.08));
   border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 .status-form-dot {

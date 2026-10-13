@@ -289,8 +289,8 @@
 
     <!-- Modal: Programar Mensaje -->
     <q-dialog v-model="isCreateDialogOpen" persistent>
-      <q-card style="width: 540px; max-width: 95vw;" class="xf-dialog-card q-pa-md">
-        <q-card-section class="row items-center justify-between q-pb-none">
+      <q-card style="width: 540px; max-width: 95vw; max-height: 90vh;" class="xf-dialog-card q-pa-md column no-wrap">
+        <q-card-section class="row items-center justify-between q-pb-none col-auto">
           <div class="row items-center q-gutter-x-sm">
             <q-avatar size="36px" color="primary-subtle" text-color="primary">
               <q-icon name="sym_r_schedule_send" size="20px" />
@@ -303,7 +303,7 @@
           <q-btn flat round dense icon="sym_r_close" color="grey-5" v-close-popup />
         </q-card-section>
 
-        <q-card-section class="q-gutter-y-md q-pt-md">
+        <q-card-section class="q-gutter-y-md q-pt-md col scroll">
           <!-- Destinatario -->
           <div>
             <div class="text-caption text-weight-bold text-ink q-mb-xs">Destinatario WhatsApp *</div>
@@ -384,7 +384,7 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-pt-none q-px-md">
+        <q-card-actions align="right" class="q-pt-sm q-px-md col-auto">
           <q-btn flat label="Cancelar" color="grey-6" no-caps v-close-popup />
           <q-btn
             unelevated

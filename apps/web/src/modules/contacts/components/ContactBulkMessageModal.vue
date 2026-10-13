@@ -4,9 +4,9 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 720px; max-width: 95vw" class="bulk-message-dialog">
+    <q-card style="width: 720px; max-width: 95vw; max-height: 90vh;" class="bulk-message-dialog column no-wrap">
       <!-- Encabezado con Gradiente WhatsApp -->
-      <q-card-section class="bulk-message-dialog__header row items-center justify-between q-py-md">
+      <q-card-section class="bulk-message-dialog__header row items-center justify-between q-py-md col-auto">
         <div class="row items-center q-gutter-x-md">
           <q-avatar size="44px" color="teal-9" text-color="teal-2" class="shadow-2">
             <q-icon :name="sendMode === 'scheduled' ? 'sym_r_schedule_send' : 'sym_r_forward_to_inbox'" size="26px" />
@@ -28,9 +28,9 @@
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
       </q-card-section>
 
-      <q-separator dark class="bulk-message-dialog__separator" />
+      <q-separator dark class="bulk-message-dialog__separator col-auto" />
 
-      <q-card-section class="q-gutter-y-md q-pt-md">
+      <q-card-section class="q-gutter-y-md q-pt-md col scroll">
         <!-- Resumen de Destinatarios -->
         <div class="recipient-stats-card row items-center justify-between q-pa-sm">
           <div class="row items-center q-gutter-x-sm">
@@ -303,10 +303,10 @@
         </div>
       </q-card-section>
 
-      <q-separator dark class="bulk-message-dialog__separator" />
+      <q-separator dark class="bulk-message-dialog__separator col-auto" />
 
       <!-- Acciones del Modal -->
-      <q-card-actions align="right" class="q-pa-md q-gutter-x-sm">
+      <q-card-actions align="right" class="q-pa-md q-gutter-x-sm col-auto">
         <q-btn flat dark no-caps label="Cancelar" v-close-popup :disable="isSending" />
         <q-btn
           unelevated
@@ -620,6 +620,9 @@ function resetForm() {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
 .bulk-message-dialog__header {

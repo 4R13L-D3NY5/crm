@@ -3,9 +3,9 @@
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card dark class="contact-quick-info-card shadow-24" style="min-width: 440px; max-width: 520px; border-radius: 14px;">
+    <q-card dark class="contact-quick-info-card shadow-24 column no-wrap" style="min-width: 440px; max-width: 520px; max-height: 90vh; border-radius: 14px;">
       <!-- Encabezado con Canal de Origen -->
-      <q-card-section class="q-pb-none">
+      <q-card-section class="q-pb-none col-auto">
         <div class="row items-center justify-between no-wrap">
           <div class="row items-center q-gutter-x-sm">
             <SocialChannelBadge
@@ -36,10 +36,10 @@
         </div>
       </q-card-section>
 
-      <q-separator dark class="q-my-md" />
+      <q-separator dark class="q-my-md col-auto" />
 
       <!-- Cuerpo Principal -->
-      <q-card-section class="q-py-none q-gutter-y-md">
+      <q-card-section class="q-py-none q-gutter-y-md col scroll">
         <!-- 1. Bloque de Red Social y Procedencia -->
         <div class="contact-info-block origin-block">
           <div class="text-caption text-weight-bold text-grey-3 q-mb-xs flex items-center q-gutter-x-xs">
@@ -191,10 +191,10 @@
         </div>
       </q-card-section>
 
-      <q-separator dark class="q-my-md" />
+      <q-separator dark class="q-my-md col-auto" />
 
       <!-- Acciones del Modal -->
-      <q-card-actions align="between" class="q-px-md q-pb-md">
+      <q-card-actions align="between" class="q-px-md q-pb-md col-auto">
         <q-btn
           flat
           dense

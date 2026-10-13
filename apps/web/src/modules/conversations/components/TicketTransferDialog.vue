@@ -4,13 +4,13 @@
     persistent
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 440px; max-width: 95vw" class="transfer-dialog-card">
-      <q-card-section class="row items-center justify-between q-pb-none">
+    <q-card style="width: 440px; max-width: 95vw; max-height: 90vh;" class="transfer-dialog-card column no-wrap">
+      <q-card-section class="row items-center justify-between q-pb-none col-auto">
         <div class="text-subtitle1 text-weight-bold text-white">Transferir Conversación</div>
         <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
       </q-card-section>
 
-      <q-card-section class="q-pt-md">
+      <q-card-section class="q-pt-md col scroll">
         <q-form class="q-gutter-y-sm" @submit.prevent="handleSubmit">
           <div>
             <label class="text-caption text-grey-4 q-mb-xs block">Operador de Destino</label>
