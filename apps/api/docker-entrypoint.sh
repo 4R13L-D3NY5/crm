@@ -21,7 +21,10 @@ if [ "$RUN_MIGRATIONS" != "false" ]; then
 fi
 
 # Run initial seed if requested
-if [ "$SEED_DEMO" = "true" ]; then
+if [ "$SEED_CLEAN" = "true" ]; then
+    echo "[Entrypoint] Seeding clean production environment (UNITEPC)..."
+    php artisan db:seed --class=CleanProductionSeeder --force --no-interaction || true
+elif [ "$SEED_DEMO" = "true" ]; then
     echo "[Entrypoint] Checking demo seed data..."
     php artisan db:seed --class=DemoCrmSeeder --force --no-interaction || true
 fi

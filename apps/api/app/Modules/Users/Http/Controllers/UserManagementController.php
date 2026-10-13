@@ -39,6 +39,18 @@ class UserManagementController extends Controller
     {
         $organization = $request->user()->currentOrganization;
 
+        $currentUsersCount = $organization->users()->count();
+        $maxAgents = $organization->max_agents ?? 3;
+
+        if ($currentUsersCount >= $maxAgents) {
+            return response()->json([
+                'message' => "Has alcanzado el límite máximo de {$maxAgents} operadores/agentes permitidos en tu suscripción (Plan " . ucfirst($organization->plan ?? 'básico') . "). Contacta a soporte para adquirir agentes adicionales.",
+                'code' => 'QUOTA_AGENTS_EXCEEDED',
+                'current_count' => $currentUsersCount,
+                'max_allowed' => $maxAgents,
+            ], 422);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],

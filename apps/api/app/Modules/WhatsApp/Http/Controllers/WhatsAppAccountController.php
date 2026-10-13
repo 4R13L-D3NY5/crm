@@ -27,6 +27,21 @@ class WhatsAppAccountController
     public function store(\Illuminate\Http\Request $request): JsonResponse
     {
         $organization = $request->user()->currentOrganization;
+
+        $currentAccountsCount = WhatsAppAccount::query()
+            ->where('organization_id', $organization->id)
+            ->count();
+        $maxLines = $organization->max_whatsapp_lines ?? 1;
+
+        if ($currentAccountsCount >= $maxLines) {
+            return response()->json([
+                'message' => "Has alcanzado el límite máximo de {$maxLines} canal(es) de tu suscripción (Plan " . ucfirst($organization->plan ?? 'básico') . "). Contacta a soporte para habilitar canales adicionales.",
+                'code' => 'QUOTA_CHANNELS_EXCEEDED',
+                'current_count' => $currentAccountsCount,
+                'max_allowed' => $maxLines,
+            ], 422);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'session_type' => ['nullable', 'string', 'in:baileys_qr,meta_cloud,facebook,instagram,tiktok'],

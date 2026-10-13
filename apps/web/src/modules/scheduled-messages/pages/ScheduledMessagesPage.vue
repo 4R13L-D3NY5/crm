@@ -6,7 +6,6 @@
         <div class="row items-center q-gutter-x-sm">
           <q-icon name="sym_r_schedule_send" size="28px" color="primary" />
           <h1 class="text-h5 text-weight-bold text-ink q-my-none">Envíos Programados</h1>
-          <q-badge color="primary" rounded label="Fase 6" class="text-bold q-ml-xs" />
         </div>
         <p class="text-caption text-muted q-mt-xs q-mb-none">
           Automatiza y agenda recordatorios, notificaciones comerciales y mensajes diferidos por WhatsApp.

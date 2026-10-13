@@ -180,8 +180,9 @@ async function handleCreateAccount(payload: CreateWhatsAppAccountPayload) {
     if (newAcc.session_type === 'baileys_qr') {
       openConnectQr(newAcc)
     }
-  } catch {
-    notify.error({ message: 'No se pudo crear la línea de WhatsApp.' })
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.message || err.message
+    notify.error({ message: errorMsg || 'No se pudo crear la línea de WhatsApp.' })
   }
 }
 

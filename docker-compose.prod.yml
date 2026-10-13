@@ -56,7 +56,8 @@ services:
       SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS:-crm.unitepc.pro,unitepc.pro}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-https://crm.unitepc.pro,https://unitepc.pro}"
       RUN_MIGRATIONS: "true"
-      SEED_DEMO: "${SEED_DEMO:-true}"
+      SEED_DEMO: "${SEED_DEMO:-false}"
+      SEED_CLEAN: "${SEED_CLEAN:-true}"
       WHATSAPP_API_BASE_URL: "https://graph.facebook.com/v23.0"
       WHATSAPP_BAILEYS_BASE_URL: "http://whatsapp-service:3000"
     volumes:

@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DemoCrmSeeder::class,
             WhaticketDemoSeeder::class,
+            TenantBillingSeeder::class,
         ]);
     }
 }

@@ -141,13 +141,12 @@
       </router-link>
     </div>
 
-    <!-- Footer Discreto: Fase 1 Activa -->
+    <!-- Footer Institucional -->
     <div class="login-card__footer text-center q-mt-lg">
       <div class="row items-center justify-center q-gutter-x-xs text-caption text-grey-5">
-        <span class="phase-indicator-dot"></span>
-        <span>Fase 1: Directorio & Contactos</span>
+        <span>© 2026 XpertiFlow CRM</span>
         <span>•</span>
-        <span>V2 Modular</span>
+        <span>Suite Omnicanal Enterprise</span>
       </div>
     </div>
   </div>

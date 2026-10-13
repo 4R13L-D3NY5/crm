@@ -27,12 +27,6 @@
               <span class="xf-logo-badge-pill">V2</span>
             </div>
           </div>
-
-          <!-- Pill Indicador de Fase Activa -->
-          <div class="phase-active-pill q-ml-sm gt-xs">
-            <span class="phase-active-dot"></span>
-            <span>Fase 6: Productividad & Envíos Programados (Completada 100%)</span>
-          </div>
         </div>
 
         <q-space />
@@ -198,10 +192,10 @@
     >
       <div class="xf-sidebar-content">
         <div>
-          <!-- Encabezado de Navegación de Fase -->
+          <!-- Encabezado de Navegación -->
           <div class="xf-nav-section-header">
             <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
-              Fase 6 • Suite Omnicanal V2
+              Suite Omnicanal V2
             </div>
           </div>
 
@@ -419,20 +413,25 @@
               </q-item-section>
               <q-item-section>Planes & Precios</q-item-section>
             </q-item>
+
+            <!-- 14. SuperAdmin SaaS (Master Control) -->
+            <q-item
+              clickable
+              to="/app/superadmin"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_admin_panel_settings" size="18px" color="indigo-4" />
+              </q-item-section>
+              <q-item-section>
+                <div class="row items-center no-wrap justify-between">
+                  <span>SuperAdmin SaaS</span>
+                  <span class="xf-superadmin-badge">Master</span>
+                </div>
+              </q-item-section>
+            </q-item>
           </q-list>
-
-          <!-- Tarjeta Minimalista del Roadmap V2 -->
-          <div class="xf-roadmap-card q-mx-sm q-mt-md">
-            <div class="row items-center justify-between q-mb-xs">
-              <span class="text-caption text-weight-bold text-ink">Roadmap V2</span>
-              <span class="text-caption text-positive text-weight-bold">Fase 6 / 6 (100%)</span>
-            </div>
-            <p class="text-caption text-muted q-mb-xs roadmap-text">
-              Productividad, envíos programados y difusión masiva anti-ban 100% activa.
-            </p>
-            <q-linear-progress :value="1.0" color="positive" rounded size="4px" />
-          </div>
-
         </div>
 
         <!-- Footer Sidebar: Toggle Modo Oscuro / Claro -->
@@ -621,26 +620,6 @@ async function handleLogout() {
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-.phase-active-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 99px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--crm-color-primary);
-}
-
-.phase-active-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--crm-color-primary);
-}
-
 .xf-org-select {
   min-width: 150px;
   :deep(.q-field__control) {
@@ -755,6 +734,17 @@ async function handleLogout() {
       border: 1px solid rgba(16, 185, 129, 0.18);
     }
 
+    .xf-superadmin-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(99, 102, 241, 0.12);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
     &:hover {
       background: var(--crm-bg-card-hover);
 
@@ -779,18 +769,6 @@ async function handleLogout() {
       }
     }
   }
-}
-
-.xf-roadmap-card {
-  padding: 10px 12px;
-  background: var(--crm-bg-card);
-  border: 1px solid var(--crm-color-border);
-  border-radius: 8px;
-}
-
-.roadmap-text {
-  font-size: 0.7rem;
-  line-height: 1.35;
 }
 
 .xf-sidebar-footer {

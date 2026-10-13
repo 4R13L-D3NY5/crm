@@ -4,17 +4,29 @@ namespace App\Modules\Tenancy\Models;
 
 use App\Models\User;
 use Database\Factories\OrganizationFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'slug'])]
 class Organization extends Model
 {
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory, HasUlids;
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'expires_at' => 'datetime',
+        'last_payment_at' => 'datetime',
+        'monthly_price_usd' => 'float',
+        'max_whatsapp_lines' => 'integer',
+        'extra_whatsapp_lines' => 'integer',
+        'max_agents' => 'integer',
+        'extra_agents' => 'integer',
+        'features' => 'array',
+    ];
 
     protected static function newFactory(): OrganizationFactory
     {
@@ -26,5 +38,10 @@ class Organization extends Model
         return $this->belongsToMany(User::class)
             ->withPivot('id', 'role')
             ->withTimestamps();
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(TenantInvoice::class);
     }
 }

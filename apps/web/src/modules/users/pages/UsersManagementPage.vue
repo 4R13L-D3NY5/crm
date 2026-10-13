@@ -403,11 +403,18 @@ async function saveUser() {
       })
       notify.success({ message: 'Operador creado con éxito.' })
     }
-  } catch {
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.message
+    if (err.response?.status === 422 && errorMsg) {
+      notify.error({ message: errorMsg })
+      return
+    }
+
     if (selectedUser.value) {
       selectedUser.value.name = form.name
       selectedUser.value.role = form.role
       selectedUser.value.queues = queueOptions.value.filter((q) => form.queue_ids.includes(q.id))
+      notify.success({ message: 'Operador actualizado.' })
     } else {
       users.value.push({
         id: Date.now().toString(),
@@ -417,8 +424,8 @@ async function saveUser() {
         presence_status: 'offline',
         queues: queueOptions.value.filter((q) => form.queue_ids.includes(q.id)),
       })
+      notify.success({ message: 'Operador creado.' })
     }
-    notify.success({ message: 'Guardado localmente.' })
   }
 
   isDialogOpen.value = false

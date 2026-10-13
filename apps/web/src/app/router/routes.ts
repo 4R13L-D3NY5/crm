@@ -26,6 +26,7 @@ import TokensPage from '@/modules/tokens/pages/TokensPage.vue'
 import ApiDocsPage from '@/modules/docs/pages/ApiDocsPage.vue'
 import LandingLayout from '@/shared/layouts/LandingLayout.vue'
 import PricingPage from '@/modules/pricing/pages/PricingPage.vue'
+import SuperAdminPortal from '@/modules/superadmin/pages/SuperAdminPortal.vue'
 
 const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'quick-messages', name: 'quick-messages.index', component: QuickMessagesPage },
@@ -39,6 +40,7 @@ const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'tokens', name: 'tokens.index', component: TokensPage },
   { path: 'docs', name: 'docs.index', component: ApiDocsPage },
   { path: 'pricing', name: 'pricing.app', component: PricingPage },
+  { path: 'superadmin', name: 'superadmin.portal', component: SuperAdminPortal, alias: ['saas-billing', 'master-control'] },
 ]
 
 export const routes: RouteRecordRaw[] = [
