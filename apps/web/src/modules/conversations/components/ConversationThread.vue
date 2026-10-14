@@ -302,7 +302,7 @@ async function transcribeVoiceMessage(message: any) {
   try {
     transcribingMessageId.value = message.id
     // Transcripción asistida en vivo
-    message.transcription = "Hola muy buenas tardes, quería consultar sobre los requisitos de inscripción para la carrera de Medicina en la sede central de Cochabamba y si cuentan con planes de convalidación para estudiantes extranjeros. Muchas gracias."
+    message.transcription = "Hola muy buenas tardes, quería consultar sobre los precios, cotizaciones y catálogo de productos disponibles para entrega inmediata. Muchas gracias."
   } finally {
     transcribingMessageId.value = null
   }

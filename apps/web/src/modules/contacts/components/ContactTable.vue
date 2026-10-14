@@ -112,7 +112,7 @@
             {{ contact.email || '-' }}
           </td>
 
-          <!-- Carrera / Categoría -->
+          <!-- Categorías / Clasificación -->
           <td class="text-left">
             <div v-if="contact.categories && contact.categories.length > 0" class="row q-gutter-xs items-center">
               <q-chip

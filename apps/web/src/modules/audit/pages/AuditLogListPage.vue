@@ -177,9 +177,9 @@ const logs = ref<any[]>([
   {
     id: '1',
     event: 'supervisor.ghost_message',
-    user: { name: 'Admin UNITEPC', email: 'admin@unitepc.edu.bo' },
+    user: { name: 'Administrador CRM', email: 'admin@xpertiflow.com' },
     ip_address: '192.168.100.37',
-    metadata: { note: 'El estudiante consulta aranceles de Medicina', supervisor_mode: true },
+    metadata: { note: 'El cliente consulta cotización del plan empresarial Cloud', supervisor_mode: true },
     created_at: '2026-08-29T20:15:00Z',
   },
   {
@@ -187,15 +187,15 @@ const logs = ref<any[]>([
     event: 'ticket.transferred',
     user: { name: 'Alvaro Orellana', email: 'alvaro@correo.com' },
     ip_address: '192.168.100.12',
-    metadata: { from_queue: 'Admisiones', to_queue: 'Financiera' },
+    metadata: { from_queue: 'Ventas & Nuevos Clientes', to_queue: 'Soporte Técnico' },
     created_at: '2026-08-29T19:40:00Z',
   },
   {
     id: '3',
     event: 'contacts.imported',
-    user: { name: 'Admin UNITEPC', email: 'admin@unitepc.edu.bo' },
+    user: { name: 'Administrador CRM', email: 'admin@xpertiflow.com' },
     ip_address: '192.168.100.37',
-    metadata: { count: 24, file: 'prospectos_agosto.xlsx' },
+    metadata: { count: 24, file: 'prospectos_comerciales.xlsx' },
     created_at: '2026-08-29T18:22:00Z',
   },
 ])

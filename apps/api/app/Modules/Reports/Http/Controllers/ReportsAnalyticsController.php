@@ -27,11 +27,15 @@ class ReportsAnalyticsController extends Controller
 
         $query = Conversation::where('organization_id', $organization->id);
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('created_at', [
-                Carbon::parse($request->input('start_date'))->startOfDay(),
-                Carbon::parse($request->input('end_date'))->endOfDay(),
-            ]);
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : null;
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : null;
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $query->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('created_at', '<=', $endDate);
         }
 
         $totalCreated = (clone $query)->count();
@@ -118,11 +122,15 @@ class ReportsAnalyticsController extends Controller
 
         $convQuery = Conversation::where('organization_id', $organization->id);
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $convQuery->whereBetween('created_at', [
-                Carbon::parse($request->input('start_date'))->startOfDay(),
-                Carbon::parse($request->input('end_date'))->endOfDay(),
-            ]);
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : null;
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : null;
+
+        if ($startDate && $endDate) {
+            $convQuery->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $convQuery->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $convQuery->where('created_at', '<=', $endDate);
         }
 
         $conversations = $convQuery->with([
@@ -255,7 +263,7 @@ class ReportsAnalyticsController extends Controller
     }
 
     /**
-     * Reporte Académico por Categorías (Sedes, Facultades y Carreras)
+     * Reporte de Demanda por Categorías y Subcategorías
      */
     public function categories(Request $request): JsonResponse
     {
@@ -274,6 +282,12 @@ class ReportsAnalyticsController extends Controller
         if ($startDate && $endDate) {
             $contactQuery->whereBetween('created_at', [$startDate, $endDate]);
             $convQuery->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $contactQuery->where('created_at', '>=', $startDate);
+            $convQuery->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $contactQuery->where('created_at', '<=', $endDate);
+            $convQuery->where('created_at', '<=', $endDate);
         }
 
         $validContactIds = $contactQuery->pluck('id')->all();
@@ -306,7 +320,7 @@ class ReportsAnalyticsController extends Controller
             $catConvMap[$p->category_id][] = $p->conversation_id;
         }
 
-        // Categorías raíz (Sedes o Facultades principales sin parent_id primario)
+        // Categorías raíz (Categorías principales sin parent_id primario)
         $rootCategories = $allCategories->filter(function ($c) {
             return empty($c->parent_id) && $c->parents->isEmpty();
         });
@@ -332,7 +346,7 @@ class ReportsAnalyticsController extends Controller
 
             $allSubIds = $children->pluck('id')->push($root->id)->all();
 
-            // Contactos únicos de la sede (incluyendo sus carreras)
+            // Contactos únicos de la categoría principal (incluyendo sus subcategorías)
             $campusContactIds = [];
             $campusConvIds = [];
 
@@ -348,7 +362,7 @@ class ReportsAnalyticsController extends Controller
             $campusContactIds = array_unique($campusContactIds);
             $campusConvIds = array_unique($campusConvIds);
 
-            // Contar estados en esta sede
+            // Contar estados en esta categoría
             $wonCount = 0;
             $lostCount = 0;
             foreach ($campusContactIds as $cid) {
@@ -365,7 +379,7 @@ class ReportsAnalyticsController extends Controller
                 ? round(($wonCount / count($campusContactIds)) * 100, 1)
                 : 0.0;
 
-            // Desglose de subcategorías (carreras)
+            // Desglose de subcategorías
             $subcategoriesData = [];
             foreach ($children as $sub) {
                 $subContactIds = array_unique($catContactMap[$sub->id] ?? []);
@@ -394,7 +408,7 @@ class ReportsAnalyticsController extends Controller
 
                 $subcategoriesData[] = $subItem;
 
-                // Acumulador para ranking global de carreras
+                // Acumulador para ranking global de subcategorías
                 $careerKey = $sub->code ?: $sub->name;
                 if (! isset($careerRanking[$careerKey])) {
                     $careerRanking[$careerKey] = [
@@ -416,7 +430,7 @@ class ReportsAnalyticsController extends Controller
                 'name' => $root->name,
                 'code' => $root->code,
                 'color' => $root->color ?: '#06b6d4',
-                'icon' => $root->icon ?: 'sym_r_location_city',
+                'icon' => $root->icon ?: 'sym_r_category',
                 'contacts_count' => count($campusContactIds),
                 'conversations_count' => count($campusConvIds),
                 'won_leads' => $wonCount,
@@ -426,10 +440,10 @@ class ReportsAnalyticsController extends Controller
             ];
         }
 
-        // Ordenar sedes por volumen de contactos
+        // Ordenar categorías principales por volumen de contactos
         usort($campusList, fn ($a, $b) => $b['contacts_count'] <=> $a['contacts_count']);
 
-        // Calcular porcentajes para sedes
+        // Calcular porcentajes para categorías principales
         foreach ($campusList as &$c) {
             $c['percentage'] = $totalCategorizedContacts > 0
                 ? round(($c['contacts_count'] / $totalCategorizedContacts) * 100, 1)
@@ -437,7 +451,7 @@ class ReportsAnalyticsController extends Controller
         }
         unset($c);
 
-        // Ranking de carreras ordenado
+        // Ranking de subcategorías ordenado
         uasort($careerRanking, fn ($a, $b) => $b['contacts_count'] <=> $a['contacts_count']);
         $topCareers = [];
         foreach (array_slice($careerRanking, 0, 8) as $item) {
@@ -458,9 +472,13 @@ class ReportsAnalyticsController extends Controller
                     'total_categorized_conversations' => $totalCategorizedConversations,
                     'top_campus' => $topCampusName,
                     'top_career' => $topCareerName,
+                    'top_category' => $topCampusName,
+                    'top_subcategory' => $topCareerName,
                 ],
                 'campuses' => $campusList,
+                'categories' => $campusList,
                 'top_careers' => $topCareers,
+                'top_subcategories' => $topCareers,
             ],
         ]);
     }
@@ -475,11 +493,15 @@ class ReportsAnalyticsController extends Controller
         $ratingsQuery = Conversation::where('organization_id', $organization->id)
             ->whereNotNull('rating');
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $ratingsQuery->whereBetween('created_at', [
-                Carbon::parse($request->input('start_date'))->startOfDay(),
-                Carbon::parse($request->input('end_date'))->endOfDay(),
-            ]);
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : null;
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : null;
+
+        if ($startDate && $endDate) {
+            $ratingsQuery->whereBetween('created_at', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $ratingsQuery->where('created_at', '>=', $startDate);
+        } elseif ($endDate) {
+            $ratingsQuery->where('created_at', '<=', $endDate);
         }
 
         $totalRatings = $ratingsQuery->count();
@@ -573,14 +595,14 @@ class ReportsAnalyticsController extends Controller
             }
         } elseif ($type === 'categories') {
             fputcsv($handle, [
-                'Sede / Categoria Principal',
-                'Codigo Sede',
-                'Carrera / Subcategoria',
-                'Codigo Carrera',
+                'Categoría Principal',
+                'Código Categoría',
+                'Subcategoría',
+                'Código Subcategoría',
                 'Total Contactos',
                 'Total Conversaciones',
-                'Inscritos (Ganados)',
-                'Tasa de Conversion %',
+                'Ganados (Cierres)',
+                'Tasa de Conversión %',
             ]);
 
             $catData = $this->categories($request)->getData(true)['data']['campuses'] ?? [];

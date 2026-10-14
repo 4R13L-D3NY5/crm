@@ -19,7 +19,7 @@ class VoiceTranscriptionService
         $message->update(['transcription_status' => 'pending']);
 
         // Simulación inteligente de Whisper / Speech-to-Text
-        $transcriptionText = $message->transcription ?: "Hola muy buenas tardes, quería consultar sobre los requisitos de inscripción para la carrera de Medicina en la sede central de Cochabamba y si cuentan con planes de convalidación para estudiantes extranjeros. Muchas gracias.";
+        $transcriptionText = $message->transcription ?: "Hola muy buenas tardes, quería consultar sobre los precios, cotizaciones y catálogo de productos disponibles para entrega inmediata. Muchas gracias.";
 
         $message->update([
             'transcription' => $transcriptionText,

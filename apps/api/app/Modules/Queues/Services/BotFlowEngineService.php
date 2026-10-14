@@ -60,7 +60,7 @@ class BotFlowEngineService
 
         // 3. Si no coincide y tiene handoff a IA activo
         if ($flow->handoff_to_ai) {
-            $aiReplyText = "🤖 *Hentle-AI Asistente:* Comprendo tu consulta: \"{$input}\". En UNITEPC contamos con más de 25 carreras a nivel nacional, preuniversitarios y convenios internacionales. ¿Deseas que te transfiera con un asesor humano o prefieres ver las opciones de sedes?";
+            $aiReplyText = "🤖 *Asistente Virtual:* Comprendo tu consulta: \"{$input}\". ¿Deseas que te transfiera con un asesor humano de nuestro equipo o prefieres que te ayude a encontrar información sobre nuestros productos y servicios?";
 
             $botMsg = Message::create([
                 'organization_id' => $conversation->organization_id,

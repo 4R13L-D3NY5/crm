@@ -5,7 +5,7 @@
       <div>
         <h1 class="text-h5 text-bold text-white q-my-none">Parametrización & Catálogos</h1>
         <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
-          Configuración dinámica de taxonomía de leads (categorías, facultades, carreras, sedes con dependencias cruzadas) y estados del sistema.
+          Configuración dinámica de taxonomía de leads (categorías, subcategorías, líneas de negocio) y estados del sistema.
         </p>
       </div>
 
@@ -14,13 +14,13 @@
           v-if="activeTab === 'categories' && categories.length === 0"
           outline
           color="teal-4"
-          icon="sym_r_school"
-          label="Cargar Plantilla Universitaria"
+          icon="sym_r_category"
+          label="Cargar Plantilla Comercial"
           no-caps
           :loading="seeding"
           @click="seedAcademicTemplate"
         >
-          <q-tooltip>Carga automática de ejemplo: Oferta Académica (Ingenierías, Salud) y Sedes con carreras compartidas</q-tooltip>
+          <q-tooltip>Carga automática de ejemplo: Categorías principales (Productos, Servicios) y subcategorías vinculadas</q-tooltip>
         </q-btn>
 
         <q-btn
@@ -75,7 +75,7 @@
             dense
             outlined
             dark
-            placeholder="Buscar por nombre, código o carrera..."
+            placeholder="Buscar por nombre, código o subcategoría..."
             class="xf-filter-input"
             clearable
           >
@@ -103,14 +103,14 @@
         <q-icon name="sym_r_account_tree" size="56px" color="teal-4" class="q-mb-md" />
         <div class="text-h6 text-white text-bold">No hay categorías configuradas</div>
         <p class="text-caption text-grey-4 q-mt-sm" style="max-width: 520px; margin: 8px auto 20px">
-          Puedes crear una estructura multinivel a la medida (por ejemplo: Universidad &gt; Facultad &gt; Carrera, y Sedes &gt; Sede La Paz &gt; Carrera compartida), o cargar la plantilla académica base en 1 clic.
+          Puedes crear una estructura multinivel a la medida (por ejemplo: Línea de Negocio &gt; Categoría &gt; Subcategoría), o cargar la plantilla comercial base en 1 clic.
         </p>
         <div class="row justify-center q-gutter-sm">
           <q-btn
             unelevated
             class="xf-btn-primary"
-            icon="sym_r_school"
-            label="Cargar Plantilla Universitaria (UNITEPC)"
+            icon="sym_r_category"
+            label="Cargar Plantilla Comercial Base"
             no-caps
             :loading="seeding"
             @click="seedAcademicTemplate"
@@ -285,13 +285,13 @@
             v-if="statuses.length === 0"
             outline
             color="teal-4"
-            icon="sym_r_school"
-            label="Cargar Flujo Universitario Simplificado"
+            icon="sym_r_timeline"
+            label="Cargar Flujo Comercial Estándar"
             no-caps
             :loading="seedingStatus"
             @click="seedAcademicStatuses"
           >
-            <q-tooltip>Carga: No Contactado ➔ Contactado ➔ Interesado ➔ Inscrito / Descartado</q-tooltip>
+            <q-tooltip>Carga: No Contactado ➔ Contactado ➔ Interesado ➔ Ganado / Descartado</q-tooltip>
           </q-btn>
 
           <q-btn
@@ -309,14 +309,14 @@
         <q-icon name="sym_r_toggle_on" size="56px" color="teal-4" class="q-mb-md" />
         <div class="text-h6 text-white text-bold">No hay estados personalizados configurados</div>
         <p class="text-caption text-grey-4 q-mt-sm" style="max-width: 520px; margin: 8px auto 20px">
-          Puedes crear tus propios estados y definir sus reglas de dependencia (ej: "Inscrito" solo se permite si antes fue "Contactado"), o cargar el flujo base universitario con 1 clic.
+          Puedes crear tus propios estados y definir sus reglas de dependencia (ej: "Ganado" solo se permite si antes fue "Contactado"), o cargar el flujo comercial base con 1 clic.
         </p>
         <div class="row justify-center q-gutter-sm">
           <q-btn
             unelevated
             class="xf-btn-primary"
-            icon="sym_r_school"
-            label="Cargar Flujo Universitario Simplificado"
+            icon="sym_r_timeline"
+            label="Cargar Flujo Comercial Estándar"
             no-caps
             :loading="seedingStatus"
             @click="seedAcademicStatuses"
@@ -443,7 +443,7 @@
       <q-card class="xf-modal-card column no-wrap" style="min-width: 480px; max-width: 580px; max-height: 90vh;">
         <q-card-section class="col-auto">
           <div class="text-h6 text-white text-bold">
-            {{ selectedCategory ? 'Editar Categoría / Carrera' : 'Nueva Categoría / Subcategoría' }}
+            {{ selectedCategory ? 'Editar Categoría / Subcategoría' : 'Nueva Categoría / Subcategoría' }}
           </div>
           <div class="text-caption text-grey-4">
             Configura el nombre, código identificador, dependencias jerárquicas y color único.
@@ -453,11 +453,11 @@
         <q-card-section class="q-gutter-y-md col scroll">
           <q-input
             v-model="form.name"
-            label="Nombre de la Categoría o Carrera *"
+            label="Nombre de la Categoría o Subcategoría *"
             outlined
             dark
             dense
-            placeholder="ej: Ingeniería de Sistemas, Sede La Paz..."
+            placeholder="ej: Soluciones Corporativas, Soporte Técnico..."
           />
 
           <!-- Código Identificador Parametrizable -->
@@ -467,7 +467,7 @@
             outlined
             dark
             dense
-            placeholder="ej: SIS-101, FAC-ING, SEDE-LPZ"
+            placeholder="ej: SOL-CORP, SRV-EMP, DEV-SOFT"
             hint="Código corto para reconocer rápidamente la categoría en listados y chats"
             @update:model-value="form.code = (form.code || '').toUpperCase()"
           >
@@ -904,17 +904,16 @@ const duplicateColorCategory = computed(() => {
 })
 
 const iconOptions = [
-  { label: 'Universidad / Educación', value: 'sym_r_school' },
-  { label: 'Ingeniería', value: 'sym_r_engineering' },
-  { label: 'Sistemas / Código', value: 'sym_r_terminal' },
-  { label: 'Electrónica / Hardware', value: 'sym_r_memory' },
-  { label: 'Salud / Médico', value: 'sym_r_medical_services' },
-  { label: 'Medicina / Corazón', value: 'sym_r_cardiology' },
-  { label: 'Odontología', value: 'sym_r_dentistry' },
-  { label: 'Sede / Ciudad', value: 'sym_r_location_city' },
-  { label: 'Edificio / Campus', value: 'sym_r_apartment' },
   { label: 'Categoría General', value: 'sym_r_category' },
   { label: 'Etiqueta Comercial', value: 'sym_r_sell' },
+  { label: 'Árbol / Taxonomía', value: 'sym_r_account_tree' },
+  { label: 'Portafolio / Negocios', value: 'sym_r_business_center' },
+  { label: 'Sistemas / Código', value: 'sym_r_terminal' },
+  { label: 'Hardware / Equipamiento', value: 'sym_r_memory' },
+  { label: 'Servicios & Soporte', value: 'sym_r_support_agent' },
+  { label: 'Sucursal / Ubicación', value: 'sym_r_location_city' },
+  { label: 'Edificio / Oficina', value: 'sym_r_apartment' },
+  { label: 'Salud & Bienestar', value: 'sym_r_medical_services' },
 ]
 
 const parentCategoryOptions = computed(() => {
@@ -1106,7 +1105,7 @@ async function seedAcademicTemplate() {
   seeding.value = true
   try {
     await http.post('/categories/seed-template')
-    notify.success('Plantilla académica con carreras compartidas cargada exitosamente')
+    notify.success('Plantilla comercial de categorías y subcategorías cargada exitosamente')
     await fetchCategories()
   } catch (error: any) {
     notify.error(error.response?.data?.message || 'Error al cargar plantilla')
@@ -1262,10 +1261,10 @@ async function seedAcademicStatuses() {
   seedingStatus.value = true
   try {
     await http.post('/custom-statuses/seed-academic')
-    notify.success('Flujo de estados universitarios cargado exitosamente')
+    notify.success('Flujo de estados comerciales cargado exitosamente')
     await fetchStatuses()
   } catch (error: any) {
-    notify.error(error.response?.data?.message || 'Error al cargar flujo universitario')
+    notify.error(error.response?.data?.message || 'Error al cargar flujo comercial')
   } finally {
     seedingStatus.value = false
   }

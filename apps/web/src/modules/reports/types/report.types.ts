@@ -85,7 +85,7 @@ export interface AgentReportData {
 }
 
 // ==========================================
-// Tipos para Reporte Académico por Categorías (Sedes / Carreras)
+// Tipos para Reporte de Demanda por Categorías y Subcategorías
 // ==========================================
 export interface CategorySubcategoryReportItem {
   id: string
@@ -113,6 +113,8 @@ export interface CategoryCampusReportItem {
   subcategories: CategorySubcategoryReportItem[]
 }
 
+export type CategoryMainReportItem = CategoryCampusReportItem
+
 export interface TopCareerReportItem {
   name: string
   code: string | null
@@ -122,18 +124,24 @@ export interface TopCareerReportItem {
   percentage: number
 }
 
+export type TopSubcategoryReportItem = TopCareerReportItem
+
 export interface CategoryReportSummary {
   total_categorized_contacts: number
   total_uncategorized_contacts: number
   total_categorized_conversations: number
   top_campus: string
   top_career: string
+  top_category?: string
+  top_subcategory?: string
 }
 
 export interface CategoryReportData {
   summary: CategoryReportSummary
   campuses: CategoryCampusReportItem[]
   top_careers: TopCareerReportItem[]
+  categories?: CategoryCampusReportItem[]
+  top_subcategories?: TopCareerReportItem[]
 }
 
 // ==========================================

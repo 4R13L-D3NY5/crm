@@ -25,7 +25,7 @@ class NoteEntityAnalyzerService
 
     /**
      * Escanea el contenido de una nota para detectar menciones de:
-     * - Categorías / Carreras
+     * - Categorías / Subcategorías
      * - Estados personalizados (Custom Statuses)
      * - Etiquetas (Tags)
      */

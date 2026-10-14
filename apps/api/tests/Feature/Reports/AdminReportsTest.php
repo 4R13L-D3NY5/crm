@@ -261,6 +261,6 @@ class AdminReportsTest extends TestCase
         // 2. Exportación de categorías en CSV
         $responseCategories = $this->actingAs($admin)->get('/api/reports/export?type=categories&download=1');
         $responseCategories->assertStatus(200);
-        $this->assertStringContainsString('Sede / Categoria Principal', (string) $responseCategories->getContent());
+        $this->assertStringContainsString('Categoría Principal', (string) $responseCategories->getContent());
     }
 }

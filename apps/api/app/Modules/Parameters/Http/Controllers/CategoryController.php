@@ -274,169 +274,157 @@ class CategoryController extends Controller
     }
 
     /**
-     * Siembra rápida de plantilla de ejemplo universitaria con soporte de ramas cruzadas
+     * Siembra rápida de plantilla comercial de ejemplo con categorías, subcategorías y ramas cruzadas
      */
     public function seedTemplate(Request $request): JsonResponse
     {
         $organization = $request->user()->currentOrganization;
 
-        // 1. Rama Oferta Académica
-        $academica = Category::create([
+        // 1. Rama Productos & Soluciones
+        $soluciones = Category::create([
             'organization_id' => $organization->id,
-            'name' => 'Oferta Académica',
-            'code' => 'OFE-ACAD',
-            'slug' => 'oferta-academica',
+            'name' => 'Productos & Soluciones',
+            'code' => 'PROD-SOL',
+            'slug' => 'productos-soluciones',
             'color' => '#10b981',
-            'icon' => 'sym_r_school',
+            'icon' => 'sym_r_category',
             'is_selectable' => false,
             'sort_order' => 1,
         ]);
 
-        $ingenierias = Category::create([
+        $cloudSoft = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $academica->id,
-            'name' => 'Facultad de Ingenierías',
-            'code' => 'FAC-ING',
-            'slug' => 'facultad-ingenierias',
+            'parent_id' => $soluciones->id,
+            'name' => 'Soluciones Cloud & Software',
+            'code' => 'SOL-CLOUD',
+            'slug' => 'soluciones-cloud-software',
             'color' => '#06b6d4',
-            'icon' => 'sym_r_engineering',
+            'icon' => 'sym_r_cloud',
             'is_selectable' => false,
             'sort_order' => 1,
         ]);
-        $ingenierias->parents()->attach($academica->id, [
+        $cloudSoft->parents()->attach($soluciones->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        $sistemas = Category::create([
+        $devSoft = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $ingenierias->id,
-            'name' => 'Ingeniería de Sistemas',
-            'code' => 'ING-SIS',
-            'slug' => 'ingenieria-de-sistemas',
+            'parent_id' => $cloudSoft->id,
+            'name' => 'Desarrollo de Software',
+            'code' => 'DEV-SOFT',
+            'slug' => 'desarrollo-software',
             'color' => '#3b82f6',
             'icon' => 'sym_r_terminal',
             'is_selectable' => true,
             'sort_order' => 1,
         ]);
-        $sistemas->parents()->attach($ingenierias->id, [
+        $devSoft->parents()->attach($cloudSoft->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        $electronica = Category::create([
+        $infra = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $ingenierias->id,
-            'name' => 'Ingeniería Electrónica',
-            'code' => 'ING-ELEC',
-            'slug' => 'ingenieria-electronica',
+            'parent_id' => $cloudSoft->id,
+            'name' => 'Infraestructura & Servidores',
+            'code' => 'INF-SRV',
+            'slug' => 'infraestructura-servidores',
             'color' => '#6366f1',
             'icon' => 'sym_r_memory',
             'is_selectable' => true,
             'sort_order' => 2,
         ]);
-        $electronica->parents()->attach($ingenierias->id, [
+        $infra->parents()->attach($cloudSoft->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        $salud = Category::create([
+        $consultoria = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $academica->id,
-            'name' => 'Ciencias de la Salud',
-            'code' => 'FAC-SALUD',
-            'slug' => 'ciencias-de-la-salud',
+            'parent_id' => $soluciones->id,
+            'name' => 'Consultoría Especializada',
+            'code' => 'CONS-ESP',
+            'slug' => 'consultoria-especializada',
             'color' => '#ec4899',
-            'icon' => 'sym_r_medical_services',
+            'icon' => 'sym_r_business_center',
             'is_selectable' => false,
             'sort_order' => 2,
         ]);
-        $salud->parents()->attach($academica->id, [
+        $consultoria->parents()->attach($soluciones->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        $medicina = Category::create([
+        $seguridad = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $salud->id,
-            'name' => 'Medicina',
-            'code' => 'MED',
-            'slug' => 'medicina',
+            'parent_id' => $consultoria->id,
+            'name' => 'Ciberseguridad & Auditoría',
+            'code' => 'CIBER-SEC',
+            'slug' => 'ciberseguridad-auditoria',
             'color' => '#f43f5e',
-            'icon' => 'sym_r_cardiology',
+            'icon' => 'sym_r_policy',
             'is_selectable' => true,
             'sort_order' => 1,
         ]);
-        $medicina->parents()->attach($salud->id, [
+        $seguridad->parents()->attach($consultoria->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        // 2. Rama Sedes
-        $sedes = Category::create([
+        // 2. Rama Servicios & Soporte
+        $servicios = Category::create([
             'organization_id' => $organization->id,
-            'name' => 'Sedes Institucionales',
-            'code' => 'SEDES',
-            'slug' => 'sedes-institucionales',
+            'name' => 'Servicios & Soporte',
+            'code' => 'SRV-SUPP',
+            'slug' => 'servicios-soporte',
             'color' => '#f59e0b',
-            'icon' => 'sym_r_location_city',
+            'icon' => 'sym_r_support_agent',
             'is_selectable' => false,
             'sort_order' => 2,
         ]);
 
-        $sedeLaPaz = Category::create([
+        $implementacion = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $sedes->id,
-            'name' => 'Sede La Paz',
-            'code' => 'SEDE-LPZ',
-            'slug' => 'sede-la-paz',
+            'parent_id' => $servicios->id,
+            'name' => 'Servicios de Implementación',
+            'code' => 'SRV-IMP',
+            'slug' => 'servicios-implementacion',
             'color' => '#eab308',
-            'icon' => 'sym_r_apartment',
+            'icon' => 'sym_r_handyman',
             'is_selectable' => true,
             'sort_order' => 1,
         ]);
-        $sedeLaPaz->parents()->attach($sedes->id, [
+        $implementacion->parents()->attach($servicios->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        $sedeCbba = Category::create([
+        $soporte = Category::create([
             'organization_id' => $organization->id,
-            'parent_id' => $sedes->id,
-            'name' => 'Sede Cochabamba',
-            'code' => 'SEDE-CBB',
-            'slug' => 'sede-cochabamba',
+            'parent_id' => $servicios->id,
+            'name' => 'Mantenimiento & Soporte Continuo',
+            'code' => 'MANT-SOP',
+            'slug' => 'mantenimiento-soporte-continuo',
             'color' => '#84cc16',
-            'icon' => 'sym_r_apartment',
+            'icon' => 'sym_r_build',
             'is_selectable' => true,
             'sort_order' => 2,
         ]);
-        $sedeCbba->parents()->attach($sedes->id, [
+        $soporte->parents()->attach($servicios->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
         ]);
 
-        // 3. DEMOSTRACIÓN DE REUTILIZACIÓN MULTI-PADRE (Ingeniería de Sistemas existe una vez pero cuelga de Fac. Ingenierías y Sede La Paz)
-        $sistemas->parents()->attach($sedeLaPaz->id, [
+        // 3. Demostración de reutilización multi-padre (Desarrollo cuelga también de Implementación)
+        $devSoft->parents()->attach($implementacion->id, [
             'id' => (string) Str::ulid(),
             'organization_id' => $organization->id,
             'sort_order' => 1,
-        ]);
-
-        $sistemas->parents()->attach($sedeCbba->id, [
-            'id' => (string) Str::ulid(),
-            'organization_id' => $organization->id,
-            'sort_order' => 1,
-        ]);
-
-        $medicina->parents()->attach($sedeCbba->id, [
-            'id' => (string) Str::ulid(),
-            'organization_id' => $organization->id,
-            'sort_order' => 2,
         ]);
 
         return response()->json([
-            'message' => 'Plantilla académica universitaria con carreras reutilizadas cargada exitosamente.',
+            'message' => 'Plantilla comercial de categorías y subcategorías cargada exitosamente.',
         ]);
     }
 

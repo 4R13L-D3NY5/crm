@@ -272,7 +272,7 @@
               </div>
             </div>
 
-            <!-- 2. Tiempo de No Respuesta del Cliente / Postulante -->
+            <!-- 2. Tiempo de No Respuesta del Cliente / Prospecto -->
             <div class="col-12 col-md-4">
               <div class="xf-param-pill">
                 <div class="row items-center q-gutter-x-xs text-caption text-grey-4">
@@ -447,7 +447,7 @@
             <div class="row items-center justify-between">
               <div class="row items-center q-gutter-x-xs">
                 <q-icon name="sym_r_person" size="18px" color="cyan-4" />
-                <span class="text-subtitle2 text-bold text-white">Alerta de Inactividad del Cliente / Postulante</span>
+                <span class="text-subtitle2 text-bold text-white">Alerta de Inactividad del Cliente / Prospecto</span>
               </div>
               <q-toggle
                 v-model="form.notify_client_inactivity"

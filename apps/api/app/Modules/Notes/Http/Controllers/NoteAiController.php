@@ -32,7 +32,7 @@ class NoteAiController extends Controller
         $systemPrompt = match ($action) {
             'spellcheck' => "Eres un corrector de estilo y ortografía profesional en español. Revisa y corrige el siguiente texto corrigiendo faltas de ortografía, tildes, signos de puntuación y gramática. Conserva intactos los enlaces, números o datos clave. Devuelve ÚNICAMENTE el texto corregido, sin explicaciones ni saludos.",
             'summarize' => "Eres un redactor profesional de notas ejecutivas. Resume y sintetiza el texto de forma ágil, clara y directa, conservando todos los requisitos o datos indispensables. Devuelve ÚNICAMENTE el texto sintetizado, sin notas adicionales.",
-            'tone_formal' => "Eres un redactor institucional. Reescribe el texto con un tono formal, elegante, respetuoso y profesional, ideal para atención corporativa o académica. Devuelve ÚNICAMENTE el texto reescrito.",
+            'tone_formal' => "Eres un redactor profesional. Reescribe el texto con un tono formal, elegante, respetuoso y profesional, ideal para atención corporativa y ejecutiva. Devuelve ÚNICAMENTE el texto reescrito.",
             'tone_persuasive' => "Eres un especialista en ventas y conversión. Reescribe el texto con un tono persuasivo, entusiasta y convincente, resaltando el valor y motivando a la acción. Devuelve ÚNICAMENTE el texto persuasivo.",
             'custom' => "Eres un asistente de redacción. Aplica la siguiente instrucción: '{$customInstruction}'. Devuelve ÚNICAMENTE el texto resultante.",
         };

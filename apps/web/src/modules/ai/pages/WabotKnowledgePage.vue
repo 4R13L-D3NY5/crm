@@ -121,7 +121,7 @@
         No hay artículos en la Base de Conocimiento.
       </div>
       <div class="text-caption text-grey-4 q-mt-xs q-mb-lg" style="max-width: 500px">
-        Agrega preguntas frecuentes o información de carreras para que el copiloto de IA pueda citar datos precisos.
+        Agrega preguntas frecuentes o información de productos y servicios para que el copiloto de IA pueda citar datos precisos.
       </div>
       <q-btn
         color="primary"
@@ -402,7 +402,7 @@
 
         <q-card-section class="q-gutter-y-md col scroll">
           <q-input v-model="newArticle.title" label="Título del Artículo / Tema" outlined dark dense />
-          <q-input v-model="newArticle.content" label="Contenido detallado (FAQ, requisitos, carreras, costos)" type="textarea" rows="5" outlined dark />
+          <q-input v-model="newArticle.content" label="Contenido detallado (FAQ, requisitos, productos, precios, políticas)" type="textarea" rows="5" outlined dark />
         </q-card-section>
 
         <q-card-actions align="right" class="col-auto">
@@ -516,14 +516,14 @@ interface ArticleItem {
 const articles = ref<ArticleItem[]>([
   {
     id: '1',
-    title: 'Oferta Académica y Sedes Nacionales',
-    content: 'Contamos con más de 25 carreras a nivel nacional con campus en Cochabamba, La Paz, El Alto, Santa Cruz, Cobija, Puerto Quijarro, Ivirgarzama y Guayaramerín.',
+    title: 'Catálogo de Productos y Servicios Principales',
+    content: 'Contamos con un portafolio integral de soluciones corporativas, software cloud y servicios de implementación con cobertura y soporte a nivel nacional.',
     chunks_count: 3,
   },
   {
     id: '2',
-    title: 'Requisitos de Inscripción y Becas',
-    content: 'Para inscribirse se requiere cédula de identidad, título de bachiller y certificado de nacimiento. Ofrecemos becas académicas, beca patriota y convenios institucionales.',
+    title: 'Políticas Comerciales, Métodos de Pago y Garantía',
+    content: 'Aceptamos transferencias bancarias, códigos QR y pagos con tarjeta. Ofrecemos facturación formal, planes a medida y garantía de satisfacción.',
     chunks_count: 2,
   },
 ])

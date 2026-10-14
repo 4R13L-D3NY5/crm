@@ -152,8 +152,8 @@ class CustomStatusController extends Controller
     }
 
     /**
-     * Siembra rápida del flujo de estados simplificado para universidades/leads:
-     * No Contactado -> Contactado -> Interesado -> Inscrito / Descartado
+     * Siembra rápida del flujo de estados comercial estándar para leads:
+     * No Contactado -> Contactado -> Interesado -> Ganado / Descartado
      */
     public function seedAcademic(Request $request): JsonResponse
     {
@@ -190,25 +190,25 @@ class CustomStatusController extends Controller
             'name' => 'Interesado / En Seguimiento',
             'slug' => 'interesado-en-seguimiento',
             'color' => '#f59e0b',
-            'icon' => 'sym_r_school',
+            'icon' => 'sym_r_thumb_up',
             'stage_type' => 'in_progress',
             'is_default' => false,
             'sort_order' => 3,
         ]);
         $interesado->allowedPreviousStatuses()->sync([$contactado->id]);
 
-        // 4. Inscrito (Ganado - Depende de Contactado o Interesado)
-        $inscrito = CustomStatus::create([
+        // 4. Ganado / Venta Cerrada (Ganado - Depende de Contactado o Interesado)
+        $ganado = CustomStatus::create([
             'organization_id' => $organization->id,
-            'name' => 'Inscrito',
-            'slug' => 'inscrito',
+            'name' => 'Ganado / Venta Cerrada',
+            'slug' => 'ganado-venta-cerrada',
             'color' => '#10b981',
             'icon' => 'sym_r_check_circle',
             'stage_type' => 'won',
             'is_default' => false,
             'sort_order' => 4,
         ]);
-        $inscrito->allowedPreviousStatuses()->sync([$contactado->id, $interesado->id]);
+        $ganado->allowedPreviousStatuses()->sync([$contactado->id, $interesado->id]);
 
         // 5. No Interesado / Descartado (Perdido - Permitido desde etapas activas)
         $descartado = CustomStatus::create([
@@ -224,7 +224,7 @@ class CustomStatusController extends Controller
         $descartado->allowedPreviousStatuses()->sync([$noContactado->id, $contactado->id, $interesado->id]);
 
         return response()->json([
-            'message' => 'Flujo de estados universitarios cargado exitosamente.',
+            'message' => 'Flujo de estados comerciales cargado exitosamente.',
         ]);
     }
 }

@@ -327,7 +327,7 @@
                   v-model="preferences.whatsapp_signature"
                   outlined
                   dense
-                  placeholder="ej: ~ Lic. José Claure | Asesor Académico"
+                  placeholder="ej: ~ Juan Pérez | Asesor Comercial"
                   @blur="handleSavePreferences"
                 >
                   <template #append>

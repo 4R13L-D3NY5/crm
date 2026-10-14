@@ -21,7 +21,7 @@ class AiCopilotController extends Controller
             ->findOrFail($id);
 
         $lastMessage = $ticket->messages()->where('direction', 'inbound')->latest('sent_at')->first();
-        $queryText = $lastMessage?->body ?? 'Información de inscripciones y carreras';
+        $queryText = $lastMessage?->body ?? 'Información de productos y cotizaciones';
 
         $likeOp = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
@@ -36,8 +36,8 @@ class AiCopilotController extends Controller
 
         $contextKnowledge = $relevantChunks->pluck('content')->implode("\n");
 
-        $suggestion = "¡Hola {$ticket->contact?->name}! Gracias por contactarte con UNITEPC. " .
-            ($contextKnowledge ?: "Contamos con más de 25 carreras a nivel nacional y promociones de matrícula en todas nuestras sedes. ¿En qué carrera estás interesado?");
+        $suggestion = "¡Hola {$ticket->contact?->name}! Gracias por comunicarte con nosotros. " .
+            ($contextKnowledge ?: "¿En qué producto, servicio o cotización podemos asesorarte el día de hoy?");
 
         return response()->json([
             'data' => [
@@ -64,7 +64,7 @@ class AiCopilotController extends Controller
         $summary = "📌 Resumen del Prospecto {$ticket->contact?->name}:\n" .
             "- Estado del ticket: {$ticket->status}\n" .
             "- Total de mensajes intercambiados: {$messagesCount}\n" .
-            "- Interés: Consultó información sobre sedes académicas y requisitos de postulación.";
+            "- Interés: Consultó información sobre productos, servicios y cotizaciones comerciales.";
 
         return response()->json([
             'data' => [

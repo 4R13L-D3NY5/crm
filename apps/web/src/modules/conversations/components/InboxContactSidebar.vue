@@ -117,7 +117,7 @@
             icon="sym_r_add"
             @click="openAssignDialog"
           >
-            <q-tooltip>Asignar categoría, carrera o sede</q-tooltip>
+            <q-tooltip>Asignar categoría o subcategoría</q-tooltip>
           </q-btn>
         </div>
 
@@ -158,7 +158,7 @@
         <q-card style="width: 420px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
           <q-card-section>
             <div class="text-subtitle1 text-bold text-white">Asignar Clasificación al Chat</div>
-            <div class="text-caption text-grey-4">Selecciona la carrera, sede o categoría de interés del postulante.</div>
+            <div class="text-caption text-grey-4">Selecciona la categoría o subcategoría de interés del contacto.</div>
           </q-card-section>
 
           <q-card-section class="q-gutter-y-sm">
@@ -242,7 +242,7 @@
             <q-input
               v-model="changeStatusNote"
               label="Nota interna (opcional)"
-              placeholder="ej: Postulante confirmó interés en la carrera..."
+              placeholder="ej: Contacto confirmó interés en el producto/servicio..."
               outlined
               dark
               dense

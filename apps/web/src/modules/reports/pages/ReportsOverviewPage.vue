@@ -10,7 +10,7 @@
           </q-badge>
         </div>
         <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
-          Supervisión en tiempo real de SLAs, asesores, procedencia y demanda por Sedes y Carreras.
+          Supervisión en tiempo real de SLAs, asesores, tiempos de respuesta y demanda por categorías y subcategorías.
         </p>
       </div>
 
@@ -30,9 +30,45 @@
             { label: '7 Días', value: '7d' },
             { label: '30 Días', value: '30d' },
             { label: 'Histórico', value: 'all' },
+            { label: 'Personalizado', value: 'custom' },
           ]"
           @update:model-value="onPresetChange"
         />
+
+        <!-- Controles de Rango Personalizado -->
+        <div v-if="selectedPreset === 'custom'" class="row items-center q-gutter-x-xs q-px-sm q-py-xs rounded-borders" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);">
+          <q-input
+            v-model="customStartDate"
+            dense
+            outlined
+            dark
+            type="date"
+            label="Fecha Inicio"
+            style="width: 145px;"
+            @keydown.enter="applyCustomDateFilter"
+          />
+          <span class="text-grey-5 q-px-xs">➔</span>
+          <q-input
+            v-model="customEndDate"
+            dense
+            outlined
+            dark
+            type="date"
+            label="Fecha Fin"
+            style="width: 145px;"
+            @keydown.enter="applyCustomDateFilter"
+          />
+          <q-btn
+            unelevated
+            dense
+            color="primary"
+            icon="sym_r_filter_alt"
+            class="q-px-sm"
+            @click="applyCustomDateFilter"
+          >
+            <q-tooltip>Aplicar rango de fechas personalizado</q-tooltip>
+          </q-btn>
+        </div>
 
         <!-- Botón Exportar CSV -->
         <q-btn
@@ -76,8 +112,8 @@
         :class="{ 'xf-subnav-btn--active': activeTab === 'categories' }"
         @click="activeTab = 'categories'"
       >
-        <q-icon name="sym_r_school" size="18px" />
-        <span>Sedes & Oferta Académica</span>
+        <q-icon name="sym_r_category" size="18px" />
+        <span>Categorías & Subcategorías</span>
       </button>
 
       <button
@@ -378,16 +414,16 @@
     </div>
 
     <!-- ======================================================== -->
-    <!-- PESTAÑA 3: SEDES & OFERTA ACADÉMICA (CATEGORÍAS)         -->
+    <!-- PESTAÑA 3: CATEGORÍAS & SUBCATEGORÍAS                    -->
     <!-- ======================================================== -->
     <div v-else-if="activeTab === 'categories'">
-      <!-- Tarjetas Resumen Académico -->
+      <!-- Tarjetas Resumen de Categorías -->
       <div class="row q-col-gutter-md q-mb-md">
         <div class="col-12 col-sm-6 col-md-3">
           <q-card flat bordered class="xf-kpi-card">
             <div class="xf-kpi-card__title">CONTACTOS CATEGORIZADOS</div>
             <div class="xf-kpi-card__number text-white">{{ categoriesSummary.total_categorized_contacts }}</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Con sede o carrera asignada</div>
+            <div class="text-caption text-grey-5 q-mt-xs">Con categoría o subcategoría asignada</div>
           </q-card>
         </div>
 
@@ -395,33 +431,33 @@
           <q-card flat bordered class="xf-kpi-card">
             <div class="xf-kpi-card__title">CONVERSACIONES REGISTRADAS</div>
             <div class="xf-kpi-card__number text-cyan-4">{{ categoriesSummary.total_categorized_conversations }}</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Consultas académicas</div>
+            <div class="text-caption text-grey-5 q-mt-xs">Consultas clasificadas</div>
           </q-card>
         </div>
 
         <div class="col-12 col-sm-6 col-md-3">
           <q-card flat bordered class="xf-kpi-card">
-            <div class="xf-kpi-card__title">SEDE CON MAYOR DEMANDA</div>
-            <div class="text-h6 text-bold text-teal-3 ellipsis q-mt-xs">{{ categoriesSummary.top_campus }}</div>
-            <div class="text-caption text-grey-5">Líder en volumen nacional</div>
+            <div class="xf-kpi-card__title">CATEGORÍA PRINCIPAL TOP</div>
+            <div class="text-h6 text-bold text-teal-3 ellipsis q-mt-xs">{{ categoriesSummary.top_category || categoriesSummary.top_campus }}</div>
+            <div class="text-caption text-grey-5">Mayor volumen de contactos</div>
           </q-card>
         </div>
 
         <div class="col-12 col-sm-6 col-md-3">
           <q-card flat bordered class="xf-kpi-card">
-            <div class="xf-kpi-card__title">CARRERA MÁS CONSULTADA</div>
-            <div class="text-h6 text-bold text-amber-3 ellipsis q-mt-xs">{{ categoriesSummary.top_career }}</div>
-            <div class="text-caption text-grey-5">Mayor atracción de prospectos</div>
+            <div class="xf-kpi-card__title">SUBCATEGORÍA MÁS CONSULTADA</div>
+            <div class="text-h6 text-bold text-amber-3 ellipsis q-mt-xs">{{ categoriesSummary.top_subcategory || categoriesSummary.top_career }}</div>
+            <div class="text-caption text-grey-5">Mayor interés de prospectos</div>
           </q-card>
         </div>
       </div>
 
-      <!-- Ranking Nacional de Carreras Más Demandadas -->
+      <!-- Ranking de Subcategorías Más Demandadas -->
       <q-card flat bordered class="xf-table-card q-mb-lg q-pa-md">
         <div class="row items-center justify-between q-mb-md">
           <div class="row items-center q-gutter-x-sm">
             <q-icon name="sym_r_trending_up" size="20px" color="amber-4" />
-            <span class="text-subtitle1 text-bold text-white">Top Carreras con Mayor Atracción de Prospectos</span>
+            <span class="text-subtitle1 text-bold text-white">Top Subcategorías con Mayor Atracción de Prospectos</span>
           </div>
           <span class="text-caption text-grey-5">Consolidado general</span>
         </div>
@@ -461,15 +497,15 @@
         </div>
       </q-card>
 
-      <!-- Desglose por Sedes y Carreras -->
+      <!-- Desglose por Categorías y Subcategorías -->
       <div class="row q-col-gutter-md">
         <div v-for="campus in campusList" :key="campus.id" class="col-12 col-lg-6">
           <q-card flat bordered class="campus-card q-pa-md">
-            <!-- Header Sede -->
+            <!-- Header Categoría Principal -->
             <div class="row items-center justify-between q-mb-sm">
               <div class="row items-center q-gutter-x-sm">
                 <q-avatar size="36px" :style="{ backgroundColor: campus.color + '22', border: '1px solid ' + campus.color }">
-                  <q-icon :name="campus.icon || 'sym_r_location_city'" size="20px" :style="{ color: campus.color }" />
+                  <q-icon :name="campus.icon || 'sym_r_category'" size="20px" :style="{ color: campus.color }" />
                 </q-avatar>
                 <div>
                   <div class="text-subtitle1 text-bold text-white">{{ campus.name }}</div>
@@ -484,22 +520,22 @@
                   {{ campus.conversion_rate }}% conversión
                 </q-badge>
                 <div class="text-caption text-grey-5 q-mt-xs">
-                  {{ campus.won_leads }} matriculados
+                  {{ campus.won_leads }} cierres ganados
                 </div>
               </div>
             </div>
 
             <q-separator dark class="q-my-sm" />
 
-            <!-- Carreras de esta Sede -->
+            <!-- Subcategorías de esta Categoría -->
             <div v-if="campus.subcategories.length > 0" class="subcategories-table-wrap">
               <q-markup-table dense flat dark class="xf-subtable">
                 <thead>
                   <tr>
-                    <th class="text-left">CARRERA / PROGRAMA</th>
+                    <th class="text-left">SUBCATEGORÍA / PRODUCTO</th>
                     <th class="text-center">PROSPECTOS</th>
                     <th class="text-center">CONVERSACIONES</th>
-                    <th class="text-right">MATRICULADOS</th>
+                    <th class="text-right">CIERRES GANADOS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -521,7 +557,7 @@
               </q-markup-table>
             </div>
             <div v-else class="text-caption text-grey-6 italic text-center q-pa-md">
-              Sin subcategorías o carreras asignadas aún a esta sede.
+              Sin subcategorías asignadas aún a esta categoría principal.
             </div>
           </q-card>
         </div>
@@ -537,7 +573,7 @@
           {{ csatData.average_score }} <span class="text-h5 text-grey-4">/ 5.0</span>
         </div>
         <div class="text-h6 text-white q-mt-sm">
-          {{ csatData.satisfaction_percentage }}% Índice de Satisfacción del Estudiante
+          {{ csatData.satisfaction_percentage }}% Índice de Satisfacción del Cliente
         </div>
         <div class="text-caption text-grey-4 q-mt-xs">
           Basado en {{ csatData.total_responses }} encuestas de satisfacción completadas al cierre de ticket.
@@ -579,11 +615,13 @@ import type {
 const notify = useAppNotify()
 
 const activeTab = ref<'general' | 'agents' | 'categories' | 'csat'>('general')
-const selectedPreset = ref<'today' | '7d' | '30d' | 'all'>('30d')
+const selectedPreset = ref<'today' | '7d' | '30d' | 'all' | 'custom'>('30d')
 const isExporting = ref(false)
 const agentSearch = ref('')
 
-// Fechas activas
+// Fechas activas y rango personalizado
+const customStartDate = ref('')
+const customEndDate = ref('')
 const dateFilters = reactive({
   start_date: '' as string | undefined,
   end_date: '' as string | undefined,
@@ -622,7 +660,7 @@ const agentsSummary = reactive<AgentReportSummary>({
   avg_resolution_time: '0s',
 })
 
-// Reporte de Categorías (Sedes / Carreras)
+// Reporte de Categorías y Subcategorías
 const campusList = ref<CategoryCampusReportItem[]>([])
 const topCareers = ref<TopCareerReportItem[]>([])
 const categoriesSummary = reactive<CategoryReportSummary>({
@@ -631,6 +669,8 @@ const categoriesSummary = reactive<CategoryReportSummary>({
   total_categorized_conversations: 0,
   top_campus: 'N/A',
   top_career: 'N/A',
+  top_category: 'N/A',
+  top_subcategory: 'N/A',
 })
 
 // Reporte CSAT
@@ -662,25 +702,55 @@ function getComplianceColor(rate: number): string {
   return 'negative'
 }
 
-function computePresetDates(preset: 'today' | '7d' | '30d' | 'all') {
+function computePresetDates(preset: 'today' | '7d' | '30d' | 'all' | 'custom') {
   const now = new Date()
   const formatDate = (d: Date) => d.toISOString().split('T')[0]
 
   if (preset === 'today') {
-    dateFilters.start_date = formatDate(now)
-    dateFilters.end_date = formatDate(now)
+    const todayStr = formatDate(now)
+    dateFilters.start_date = todayStr
+    dateFilters.end_date = todayStr
+    customStartDate.value = todayStr
+    customEndDate.value = todayStr
   } else if (preset === '7d') {
     const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     dateFilters.start_date = formatDate(past)
     dateFilters.end_date = formatDate(now)
+    customStartDate.value = formatDate(past)
+    customEndDate.value = formatDate(now)
   } else if (preset === '30d') {
     const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     dateFilters.start_date = formatDate(past)
     dateFilters.end_date = formatDate(now)
+    customStartDate.value = formatDate(past)
+    customEndDate.value = formatDate(now)
+  } else if (preset === 'custom') {
+    if (!customStartDate.value || !customEndDate.value) {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      customStartDate.value = formatDate(past)
+      customEndDate.value = formatDate(now)
+    }
+    dateFilters.start_date = customStartDate.value
+    dateFilters.end_date = customEndDate.value
   } else {
     dateFilters.start_date = undefined
     dateFilters.end_date = undefined
   }
+}
+
+function applyCustomDateFilter() {
+  if (!customStartDate.value || !customEndDate.value) {
+    notify.warning({ message: 'Por favor selecciona fecha de inicio y fecha final.' })
+    return
+  }
+  if (customStartDate.value > customEndDate.value) {
+    notify.warning({ message: 'La fecha de inicio no puede ser posterior a la fecha final.' })
+    return
+  }
+  dateFilters.start_date = customStartDate.value
+  dateFilters.end_date = customEndDate.value
+  loadAllReports()
+  notify.info({ message: `Filtrando reportes del ${customStartDate.value} al ${customEndDate.value}` })
 }
 
 async function loadAllReports() {
@@ -723,7 +793,7 @@ async function loadAllReports() {
   }
 }
 
-function onPresetChange(val: 'today' | '7d' | '30d' | 'all') {
+function onPresetChange(val: 'today' | '7d' | '30d' | 'all' | 'custom') {
   computePresetDates(val)
   loadAllReports()
 }

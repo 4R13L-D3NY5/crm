@@ -76,7 +76,7 @@
           </q-input>
         </div>
 
-        <!-- Filtro por Categoría / Carrera -->
+        <!-- Filtro por Categoría / Subcategoría -->
         <div class="col-12 col-sm-6 col-md-2">
           <q-select
             v-model="selectedCategory"
@@ -88,7 +88,7 @@
             option-value="id"
             option-label="name"
             :options="categoryOptions"
-            label="Carrera / Área"
+            label="Categoría / Área"
             class="xf-filter-select"
             @update:model-value="applyFilters"
           />

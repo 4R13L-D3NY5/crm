@@ -168,7 +168,7 @@
             </div>
           </div>
 
-          <!-- Categorías Multicarrera -->
+          <!-- Categorías / Clasificación -->
           <div v-if="conversation?.categories?.length" class="row q-gutter-xs q-mt-sm">
             <q-chip
               v-for="cat in conversation.categories"

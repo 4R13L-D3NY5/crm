@@ -146,7 +146,7 @@
               :disable="!form.content.trim()"
               @click="scanEntities"
             >
-              <q-tooltip>Detectar si el texto menciona Carreras, Estados de Lead o Etiquetas</q-tooltip>
+              <q-tooltip>Detectar si el texto menciona Categorías, Estados de Lead o Etiquetas</q-tooltip>
             </q-btn>
           </div>
 
@@ -294,7 +294,7 @@
 
         <!-- Selectores de Metadatos de Enlace -->
         <div class="row q-col-gutter-sm">
-          <!-- Categorías / Carreras -->
+          <!-- Categorías / Subcategorías -->
           <div class="col-12 col-sm-4">
             <q-select
               v-model="form.category_ids"
@@ -307,7 +307,7 @@
               option-value="id"
               option-label="name"
               :options="categoriesOptions"
-              label="Categorías / Carreras"
+              label="Categorías / Subcategorías"
               class="xf-input-field"
             />
           </div>
@@ -480,7 +480,7 @@ const colorPalette = [
 
 const visibilityOptions = [
   { label: 'Visibilidad Total (Todo el equipo)', value: 'all' },
-  { label: 'Solo Carreras Asignadas al Asesor', value: 'categories' },
+  { label: 'Solo Categorías Asignadas al Asesor', value: 'categories' },
   { label: 'Privada (Solo Administradores)', value: 'private' },
 ]
 
@@ -563,7 +563,7 @@ async function scanEntities() {
     if (result.total_detected === 0) {
       $q.notify({
         type: 'info',
-        message: 'No se detectaron menciones de carreras, estados o etiquetas en el texto.',
+        message: 'No se detectaron menciones de categorías, estados o etiquetas en el texto.',
         position: 'bottom-right',
       })
     } else {

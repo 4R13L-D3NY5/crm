@@ -99,7 +99,7 @@ class Category extends Model
     }
 
     /**
-     * Retorna la ruta jerárquica de la categoría (ej: "Oferta Académica > Ingenierías > Sistemas")
+     * Retorna la ruta jerárquica de la categoría (ej: "Productos & Soluciones > Cloud & Software > Desarrollo")
      */
     public function getFullPathAttribute(): string
     {

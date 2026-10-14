@@ -69,7 +69,7 @@
       v-if="hasEntities"
       class="xf-keep-card__entities row items-center q-gutter-xs q-mb-sm"
     >
-      <!-- Categorías / Carreras -->
+      <!-- Categorías / Subcategorías -->
       <q-chip
         v-for="cat in note.categories"
         :key="cat.id"
@@ -206,7 +206,7 @@ const cardBorderColor = computed(() => {
 const visibilityLabel = computed(() => {
   switch (props.note.visibility) {
     case 'categories':
-      return 'Carreras / Áreas'
+      return 'Por Categorías'
     case 'private':
       return 'Privada'
     case 'all':

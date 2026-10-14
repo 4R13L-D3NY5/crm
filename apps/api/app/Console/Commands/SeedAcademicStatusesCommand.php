@@ -78,7 +78,7 @@ class SeedAcademicStatusesCommand extends Command
                 'name' => 'Interesado / En Seguimiento',
                 'slug' => 'interesado-en-seguimiento',
                 'color' => '#f59e0b',
-                'icon' => 'sym_r_school',
+                'icon' => 'sym_r_thumb_up',
                 'stage_type' => 'in_progress',
                 'is_default' => false,
                 'sort_order' => 3,
@@ -86,11 +86,11 @@ class SeedAcademicStatusesCommand extends Command
             ]);
             $interesado->allowedPreviousStatuses()->sync([$contactado->id]);
 
-            // 4. Inscrito (Ganado / Won - Requiere: Contactado o Interesado)
-            $inscrito = CustomStatus::create([
+            // 4. Ganado / Venta Cerrada (Ganado / Won - Requiere: Contactado o Interesado)
+            $ganado = CustomStatus::create([
                 'organization_id' => $org->id,
-                'name' => 'Inscrito',
-                'slug' => 'inscrito',
+                'name' => 'Ganado / Venta Cerrada',
+                'slug' => 'ganado-venta-cerrada',
                 'color' => '#10b981',
                 'icon' => 'sym_r_check_circle',
                 'stage_type' => 'won',
@@ -98,7 +98,7 @@ class SeedAcademicStatusesCommand extends Command
                 'sort_order' => 4,
                 'is_active' => true,
             ]);
-            $inscrito->allowedPreviousStatuses()->sync([$contactado->id, $interesado->id]);
+            $ganado->allowedPreviousStatuses()->sync([$contactado->id, $interesado->id]);
 
             // 5. No Interesado / Descartado (Perdido / Lost - Requiere: No Contactado, Contactado o Interesado)
             $descartado = CustomStatus::create([
