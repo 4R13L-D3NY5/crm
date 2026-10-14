@@ -21,7 +21,7 @@
           size="sm"
           color="deep-purple-3"
           icon="sym_r_sticky_note_2"
-          label="Notas Keep (#)"
+          label="Notas (#)"
           @click="openKeepNotes"
         />
         <q-btn
@@ -110,7 +110,7 @@
           <div class="row items-center justify-between">
             <div class="text-h6 row items-center q-gutter-x-xs">
               <q-icon name="sym_r_sticky_note_2" color="deep-purple-4" size="22px" />
-              <span>Notas Keep</span>
+              <span>Notas de Conocimiento</span>
             </div>
             <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
           </div>

@@ -315,4 +315,49 @@ class NoteManagementTest extends TestCase
         $validRes->assertStatus(422)
             ->assertJsonPath('code', 'AI_CONFIG_MISSING');
     }
+
+    public function test_owner_can_create_and_manage_notes(): void
+    {
+        $owner = User::create([
+            'name' => 'Owner Keeper',
+            'email' => 'owner-keep@crm.test',
+            'password' => bcrypt('password123'),
+            'current_organization_id' => $this->organization->id,
+        ]);
+        $owner->organizations()->attach($this->organization->id, [
+            'id' => (string) Str::ulid(),
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($owner);
+
+        // Crear nota como owner
+        $createRes = $this->postJson('/api/notes', [
+            'title' => 'Nota creada por Owner',
+            'content' => 'Contenido de la nota creada por el owner de la organización.',
+            'color' => '#1e293b',
+            'visibility' => 'all',
+        ]);
+
+        $createRes->assertStatus(201)
+            ->assertJsonPath('data.title', 'Nota creada por Owner');
+
+        $noteId = $createRes->json('data.id');
+
+        // Toggle pin como owner
+        $pinRes = $this->patchJson("/api/notes/{$noteId}/pin");
+        $pinRes->assertStatus(200)
+            ->assertJsonPath('data.is_pinned', true);
+
+        // Toggle archive como owner
+        $archiveRes = $this->patchJson("/api/notes/{$noteId}/archive");
+        $archiveRes->assertStatus(200)
+            ->assertJsonPath('data.is_archived', true);
+
+        // Delete como owner
+        $deleteRes = $this->deleteJson("/api/notes/{$noteId}");
+        $deleteRes->assertStatus(200);
+
+        $this->assertSoftDeleted('notes', ['id' => $noteId]);
+    }
 }

@@ -83,7 +83,7 @@ class Note extends Model
     {
         $query->where('notes.organization_id', $organizationId);
 
-        if ($user->currentOrganizationRole() === 'admin') {
+        if ($user->isAdmin()) {
             return $query;
         }
 

@@ -123,6 +123,11 @@ class User extends Authenticatable
         return $organization?->pivot?->role;
     }
 
+    public function isAdmin(): bool
+    {
+        return in_array($this->currentOrganizationRole(), ['admin', 'owner', 'superadmin'], true);
+    }
+
     public function permissions(): array
     {
         return RolePermissions::forRole($this->currentOrganizationRole());
@@ -130,7 +135,7 @@ class User extends Authenticatable
 
     public function hasPermission(string $permission): bool
     {
-        if ($this->currentOrganizationRole() === 'admin') {
+        if ($this->isAdmin()) {
             return true;
         }
 

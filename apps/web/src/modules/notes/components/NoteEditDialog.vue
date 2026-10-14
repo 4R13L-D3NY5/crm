@@ -15,7 +15,7 @@
           </q-avatar>
           <div>
             <div class="text-subtitle1 text-weight-bold text-white">
-              {{ isEditing ? 'Editar Nota Keep' : 'Nueva Nota de Conocimiento' }}
+              {{ isEditing ? 'Editar Nota' : 'Nueva Nota de Conocimiento' }}
             </div>
             <div class="text-caption text-grey-4" style="font-size: 0.72rem">
               Organiza micro-conocimiento, guías y respuestas para el equipo
@@ -377,7 +377,7 @@
             dense
             color="primary"
             icon="sym_r_save"
-            :label="isEditing ? 'Actualizar Nota' : 'Guardar en Keep'"
+            :label="isEditing ? 'Actualizar Nota' : 'Guardar Nota'"
             class="q-px-md text-weight-bold"
             :loading="isSaving"
             :disable="!form.content.trim()"

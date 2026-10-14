@@ -274,7 +274,7 @@
               <q-item-section>Respuestas Rápidas</q-item-section>
             </q-item>
 
-            <!-- 5.1 Notas Keep & Micro-Conocimiento -->
+            <!-- 5.1 Notas & Micro-Conocimiento -->
             <q-item
               clickable
               to="/app/notes"
@@ -284,7 +284,7 @@
               <q-item-section avatar>
                 <q-icon name="sym_r_sticky_note_2" size="18px" />
               </q-item-section>
-              <q-item-section>Notas & Base Keep</q-item-section>
+              <q-item-section>Notas & Base de Conocimiento</q-item-section>
             </q-item>
 
             <!-- 6. Audiencia & Contactos -->

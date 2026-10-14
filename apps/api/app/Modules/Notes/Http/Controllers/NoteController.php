@@ -103,7 +103,7 @@ class NoteController extends Controller
 
         return response()->json([
             'data' => (new NoteResource($note))->resolve(),
-            'message' => 'Nota guardada exitosamente en el tablero Keep.',
+            'message' => 'Nota guardada exitosamente en el tablero de notas.',
         ], 201);
     }
 
@@ -166,7 +166,7 @@ class NoteController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
-        if ($request->user()?->currentOrganizationRole() !== 'admin') {
+        if (! $request->user()?->isAdmin()) {
             return response()->json([
                 'message' => 'Solo los administradores pueden eliminar notas del sistema.',
             ], 403);
@@ -182,7 +182,7 @@ class NoteController extends Controller
 
     public function togglePin(Request $request, string $id): JsonResponse
     {
-        if ($request->user()?->currentOrganizationRole() !== 'admin') {
+        if (! $request->user()?->isAdmin()) {
             return response()->json([
                 'message' => 'Solo los administradores pueden fijar o desfijar notas.',
             ], 403);
@@ -203,7 +203,7 @@ class NoteController extends Controller
 
     public function toggleArchive(Request $request, string $id): JsonResponse
     {
-        if ($request->user()?->currentOrganizationRole() !== 'admin') {
+        if (! $request->user()?->isAdmin()) {
             return response()->json([
                 'message' => 'Solo los administradores pueden archivar o desarchivar notas.',
             ], 403);

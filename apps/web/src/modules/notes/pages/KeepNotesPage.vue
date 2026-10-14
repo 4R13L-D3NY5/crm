@@ -9,7 +9,7 @@
           </q-avatar>
           <div>
             <h1 class="text-h6 text-weight-bold text-white q-my-none">
-              Notas & Base de Conocimiento (Keep)
+              Notas & Base de Conocimiento
             </h1>
             <p class="text-caption text-grey-4 q-my-none">
               Espacio ágil de micro-conocimiento, respuestas rápidas y guías con IA

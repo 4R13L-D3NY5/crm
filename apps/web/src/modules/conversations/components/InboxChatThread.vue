@@ -310,14 +310,14 @@
             <q-tooltip>Atajos de respuesta rápida</q-tooltip>
           </q-btn>
 
-          <!-- Notas Keep & Micro-Conocimiento (#) -->
+          <!-- Notas & Micro-Conocimiento (#) -->
           <q-btn
             flat
             dense
             size="sm"
             color="deep-purple-3"
             icon="sym_r_sticky_note_2"
-            label="Notas Keep (#)"
+            label="Notas (#)"
             class="q-px-xs"
             @click="openKeepNotesPicker"
           >
@@ -649,14 +649,14 @@
       </q-card>
     </q-dialog>
 
-    <!-- Modal Seleccionar Nota Keep para el Chat -->
+    <!-- Modal Seleccionar Nota de Conocimiento para el Chat -->
     <q-dialog v-model="showKeepNotesModal">
       <q-card style="min-width: 520px; max-width: 95vw" class="quick-messages-picker-card">
         <q-card-section class="q-pb-none">
           <div class="row items-center justify-between">
             <div class="text-subtitle1 text-weight-bold text-white row items-center q-gutter-x-xs">
               <q-icon name="sym_r_sticky_note_2" color="deep-purple-3" size="20px" />
-              <span>Base de Conocimiento & Notas Keep</span>
+              <span>Base de Conocimiento & Notas</span>
             </div>
             <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
           </div>
