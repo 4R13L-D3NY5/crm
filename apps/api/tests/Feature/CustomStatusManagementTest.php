@@ -178,7 +178,7 @@ class CustomStatusManagementTest extends TestCase
 
         $this->assertDatabaseHas('custom_statuses', [
             'organization_id' => $this->organization->id,
-            'name' => 'Inscrito',
+            'name' => 'Ganado / Venta Cerrada',
         ]);
 
         $this->assertDatabaseHas('custom_statuses', [

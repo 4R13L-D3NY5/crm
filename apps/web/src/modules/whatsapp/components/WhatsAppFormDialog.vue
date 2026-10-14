@@ -210,13 +210,28 @@
                   outlined
                   dark
                   dense
-                  placeholder="@empresa_ig"
+                  placeholder="@universidad_unitepc"
                 />
               </div>
             </div>
 
             <div>
-              <label class="text-caption text-grey-4 q-mb-xs block">Meta User/Page Access Token *</label>
+              <label class="text-caption text-grey-4 q-mb-xs block">ID de Página Facebook vinculada (opcional)</label>
+              <q-input
+                v-model="form.business_account_id"
+                outlined
+                dark
+                dense
+                placeholder="Ej. 187805724574229"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_public" size="16px" class="text-grey-5" />
+                </template>
+              </q-input>
+            </div>
+
+            <div>
+              <label class="text-caption text-grey-4 q-mb-xs block">Meta Page Access Token *</label>
               <q-input
                 v-model="form.access_token"
                 outlined

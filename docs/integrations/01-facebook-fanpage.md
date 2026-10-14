@@ -14,10 +14,11 @@ Meta **no permite** conectar perfiles personales de Facebook a herramientas exte
 2. Ve al menú superior > **Páginas** > **Crear nueva página** (o ingresa directo a [facebook.com/pages/create](https://www.facebook.com/pages/create)).
 3. Ingresa el **Nombre de la página** y la **Categoría**.
 4. Haz clic en **Crear página**.
-5. **Obtén tu Page ID**:
-   - Mira la URL en la barra de direcciones de tu navegador:  
-     `https://www.facebook.com/profile.php?id=61595163417207&sk=about`  
-   - El número que está después de `id=` es tu **Facebook Page ID** (ej: `61595163417207`).
+5. **Obtén tu Page ID (Enlaces Directos)**:
+   - **Enlace directo en Meta Business Suite:** Abre 👉 [https://business.facebook.com/settings/pages](https://business.facebook.com/settings/pages) (haz clic en tu Fanpage y verás el número de ID directamente debajo del nombre).
+   - **Enlace directo vía Graph API Explorer:** Abre 👉 [https://developers.facebook.com/tools/explorer/?method=GET&path=me%2Faccounts%3Ffields%3Dname%2Cid&version=v22.0](https://developers.facebook.com/tools/explorer/?method=GET&path=me%2Faccounts%3Ffields%3Dname%2Cid&version=v22.0) y dale a **Submit**.
+   - **En la URL de Facebook:** Mira la barra de direcciones de tu navegador: `https://www.facebook.com/profile.php?id=61595163417207` (el número después de `id=` es tu **Page ID**).
+
 
 ---
 

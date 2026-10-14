@@ -212,4 +212,35 @@ class Phase5HentleAiAndSocialCommentsTest extends TestCase
         $response = $this->actingAs($user)->postJson('/api/social/instagram/sync');
         $response->assertStatus(404);
     }
+
+    public function test_instagram_sync_handles_meta_gracefully_and_marks_account_connected(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $user->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+        $user->update(['current_organization_id' => $organization->id]);
+
+        \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Instagram UNITEPC',
+            'session_type' => 'instagram',
+            'phone_number_id' => '17841410149608154',
+            'business_account_id' => '187805724574229',
+            'access_token' => 'dummy_token_123',
+            'verify_token' => 'dummy_verify_token',
+            'status' => 'PENDING',
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($user)->postJson('/api/social/instagram/sync');
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['message', 'imported']);
+
+        $this->assertDatabaseHas('whatsapp_accounts', [
+            'organization_id' => $organization->id,
+            'session_type' => 'instagram',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+    }
 }

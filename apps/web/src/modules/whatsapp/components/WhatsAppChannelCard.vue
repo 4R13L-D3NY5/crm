@@ -57,10 +57,10 @@
                 v-if="account.session_type === 'instagram'"
                 clickable
                 v-close-popup
-                class="text-pink-4"
+                class="text-grey-3"
                 @click="handleSyncInstagram"
               >
-                <q-item-section avatar><q-icon name="sym_r_sync" size="16px" color="pink-4" /></q-item-section>
+                <q-item-section avatar><q-icon name="sym_r_sync" size="16px" color="grey-3" /></q-item-section>
                 <q-item-section>Sincronizar DMs Instagram</q-item-section>
               </q-item>
 
@@ -137,7 +137,7 @@
           no-caps
           icon="sym_r_sync"
           label="Sincronizar"
-          color="blue-4"
+          color="grey-3"
           :loading="isSyncing"
           @click="handleSyncFacebook"
         />
@@ -149,7 +149,7 @@
           no-caps
           icon="sym_r_sync"
           label="Sincronizar"
-          color="pink-4"
+          color="grey-3"
           :loading="isSyncing"
           @click="handleSyncInstagram"
         />

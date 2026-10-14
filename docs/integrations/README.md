@@ -15,6 +15,7 @@ Esta carpeta contiene manuales paso a paso diseñados para que cualquier adminis
 | [03. Instagram Direct](./03-instagram-direct.md) | Instagram Direct y Respuestas a Comentarios | Instagram Graph API | Intermedio |
 | [04. TikTok Business](./04-tiktok-business.md) | TikTok Mensajería y Comentarios de Leads | TikTok for Business API | Intermedio |
 | [05. Despliegue en Producción](./05-production-deployment-webhooks.md) | Todos los Canales | Dominios HTTPS, Nginx y Webhooks Reales | Operativo |
+| [06. Guía para Equipos de TI del Cliente](./guia-credenciales-ti-cliente.md) | Facebook, Instagram y TikTok | Ficha técnica y generación autónoma de Tokens | Práctico TI |
 
 ---
 

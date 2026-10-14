@@ -126,16 +126,37 @@ class SyncSocialMessagesCommand extends Command
             ->where('session_type', 'facebook')
             ->first();
 
-        $pageId = $fbAccount?->phone_number_id ?? '1417856484734200';
+        $pageId = $account->business_account_id
+            ?? $fbAccount?->phone_number_id
+            ?? $fbAccount?->business_account_id
+            ?? '187805724574229';
+
         $igAccountId = $account->phone_number_id;
         $token = $account->access_token;
 
+        // Intentar resolver Page Token si el token actual es de usuario
         try {
-            $url = "https://graph.facebook.com/v21.0/{$pageId}/conversations?platform=instagram&fields=id,updated_time,participants{id,username},messages{id,message,from,created_time}&access_token={$token}";
+            $tokenRes = $client->get("https://graph.facebook.com/v22.0/{$pageId}?fields=access_token&access_token={$token}");
+            $tokenData = json_decode($tokenRes->getBody()->getContents(), true);
+            if (!empty($tokenData['access_token'])) {
+                $token = $tokenData['access_token'];
+                if ($account->access_token !== $token && str_starts_with($token, 'EAA')) {
+                    $account->update(['access_token' => $token]);
+                }
+            }
+        } catch (Throwable) {
+        }
+
+        $conversationsData = [];
+        try {
+            $url = "https://graph.facebook.com/v22.0/{$pageId}/conversations?platform=instagram&limit=10&fields=id,updated_time,participants{id,username}&access_token={$token}";
             $response = $client->get($url);
-            $data = json_decode($response->getBody()->getContents(), true);
+            if ($response->getStatusCode() === 200) {
+                $data = json_decode($response->getBody()->getContents(), true);
+                $conversationsData = data_get($data, 'data', []);
+            }
         } catch (Throwable $e) {
-            $this->error("Error al sincronizar Instagram: " . $e->getMessage());
+            $this->warn("Aviso Instagram [{$account->name}]: Meta no devolvió hilos históricos (" . $e->getMessage() . "). Los mensajes entrarán en tiempo real por Webhook.");
             return;
         }
 

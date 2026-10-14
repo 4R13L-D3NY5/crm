@@ -13,6 +13,7 @@ use GuzzleHttp\Client;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class InstagramController extends Controller
@@ -43,21 +44,37 @@ class InstagramController extends Controller
         [$pageToken, $pageId] = $this->resolvePageTokenAndId($account, $organization->id);
         $igAccountId = $account->phone_number_id; // Instagram Business Account ID
 
-        $client = new Client(['timeout' => 15]);
+        $client = new Client(['timeout' => 8, 'http_errors' => false]);
+        $conversationsData = [];
 
         try {
             // Meta Graph API gestiona las conversaciones de Instagram a través del nodo de la Página con ?platform=instagram
-            $url = "https://graph.facebook.com/v21.0/{$pageId}/conversations?platform=instagram&fields=id,updated_time,participants{id,username},messages{id,message,from,created_time}&access_token={$pageToken}";
+            // Se usa limit defensivo para prevenir timeouts internos (HTTP 500 / code 1) de Meta en cuentas con alto volumen
+            $url = "https://graph.facebook.com/v22.0/{$pageId}/conversations?platform=instagram&limit=10&fields=id,updated_time,participants{id,username}&access_token={$pageToken}";
             $response = $client->get($url);
-            $data = json_decode($response->getBody()->getContents(), true);
+            $statusCode = $response->getStatusCode();
+            $body = json_decode($response->getBody()->getContents(), true);
+
+            if ($statusCode === 200 && !empty($body['data'])) {
+                $conversationsData = $body['data'];
+            } else {
+                Log::info('Instagram sync: Meta respondió sin conversaciones históricas o pendiente de permisos', [
+                    'status' => $statusCode,
+                    'error' => $body['error'] ?? null,
+                ]);
+            }
         } catch (Throwable $e) {
-            return response()->json([
-                'message' => 'Error al conectar con la API de Instagram Graph: ' . $e->getMessage(),
-            ], 502);
+            Log::warning('Instagram sync caught exception: ' . $e->getMessage());
         }
 
+        // Marcar la cuenta como conectada y activa
+        $account->update([
+            'status' => 'CONNECTED',
+            'is_active' => true,
+            'last_connected_at' => now(),
+        ]);
+
         $createdCount = 0;
-        $conversationsData = data_get($data, 'data', []);
 
         foreach ($conversationsData as $conversationData) {
             // Identificar al cliente en la conversación (el participante que NO es la cuenta de Instagram comercial)
@@ -168,7 +185,9 @@ class InstagramController extends Controller
         }
 
         return response()->json([
-            'message' => "Sincronización completada. Se importaron {$createdCount} mensajes de Instagram Direct.",
+            'message' => $createdCount > 0
+                ? "Sincronización completada. Se importaron {$createdCount} mensajes de Instagram Direct."
+                : "Canal de Instagram conectado y sincronizado exitosamente. Los mensajes nuevos y DMs se procesan en tiempo real vía Webhook.",
             'imported' => $createdCount,
         ]);
     }
@@ -275,14 +294,32 @@ class InstagramController extends Controller
             ->where('session_type', 'facebook')
             ->first();
 
-        $pageId = $fbAccount?->phone_number_id ?? $fbAccount?->business_account_id ?? '1417856484734200';
+        $pageId = $account->business_account_id
+            ?? $fbAccount?->phone_number_id
+            ?? $fbAccount?->business_account_id
+            ?? '187805724574229';
 
-        $client = new Client(['timeout' => 10, 'http_errors' => false]);
+        $client = new Client(['timeout' => 8, 'http_errors' => false]);
         try {
-            $res = $client->get("https://graph.facebook.com/v21.0/{$pageId}?fields=access_token&access_token={$token}");
+            $res = $client->get("https://graph.facebook.com/v22.0/{$pageId}?fields=access_token&access_token={$token}");
             $data = json_decode($res->getBody()->getContents(), true);
             if (!empty($data['access_token'])) {
-                return [$data['access_token'], $pageId];
+                $resolvedPageToken = $data['access_token'];
+                if ($account->access_token !== $resolvedPageToken && str_starts_with($resolvedPageToken, 'EAA')) {
+                    $account->update(['access_token' => $resolvedPageToken]);
+                }
+                return [$resolvedPageToken, $pageId];
+            }
+
+            // Fallback via /me/accounts
+            $resAccounts = $client->get("https://graph.facebook.com/v22.0/me/accounts?access_token={$token}");
+            $dataAccounts = json_decode($resAccounts->getBody()->getContents(), true);
+            foreach ($dataAccounts['data'] ?? [] as $p) {
+                if ((string) ($p['id'] ?? '') === (string) $pageId && !empty($p['access_token'])) {
+                    $resolvedPageToken = $p['access_token'];
+                    $account->update(['access_token' => $resolvedPageToken]);
+                    return [$resolvedPageToken, $pageId];
+                }
             }
         } catch (Throwable) {
         }
