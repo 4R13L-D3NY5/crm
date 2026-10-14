@@ -310,6 +310,20 @@
             <q-tooltip>Atajos de respuesta rápida</q-tooltip>
           </q-btn>
 
+          <!-- Notas Keep & Micro-Conocimiento (#) -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            color="deep-purple-3"
+            icon="sym_r_sticky_note_2"
+            label="Notas Keep (#)"
+            class="q-px-xs"
+            @click="openKeepNotesPicker"
+          >
+            <q-tooltip>Base de conocimiento y notas rápidas (#)</q-tooltip>
+          </q-btn>
+
           <!-- Programar Envío Diferido (Fase 6) -->
           <q-btn
             flat
@@ -635,6 +649,124 @@
       </q-card>
     </q-dialog>
 
+    <!-- Modal Seleccionar Nota Keep para el Chat -->
+    <q-dialog v-model="showKeepNotesModal">
+      <q-card style="min-width: 520px; max-width: 95vw" class="quick-messages-picker-card">
+        <q-card-section class="q-pb-none">
+          <div class="row items-center justify-between">
+            <div class="text-subtitle1 text-weight-bold text-white row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_sticky_note_2" color="deep-purple-3" size="20px" />
+              <span>Base de Conocimiento & Notas Keep</span>
+            </div>
+            <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+          </div>
+          <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
+            Inserta respuestas y guías institucionales. Las notas relevantes para este contacto se muestran primero.
+          </p>
+          <q-input
+            v-model="keepNotesSearch"
+            dense
+            outlined
+            dark
+            placeholder="Buscar por #atajo, título o palabras clave..."
+            class="q-mt-sm"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_search" size="18px" color="deep-purple-3" />
+            </template>
+            <template #append v-if="keepNotesSearch">
+              <q-icon name="sym_r_close" size="16px" class="cursor-pointer" @click="keepNotesSearch = ''" />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-section style="max-height: 380px" class="scroll q-py-sm">
+          <div v-if="loadingKeepNotes" class="row justify-center q-py-lg">
+            <q-spinner-dots size="36px" color="deep-purple-3" />
+          </div>
+          <div v-else-if="prioritizedKeepNotes.length === 0" class="text-center text-grey-5 q-py-lg">
+            No se encontraron notas disponibles que coincidan con la búsqueda.
+          </div>
+          <div v-else class="column q-gutter-y-sm">
+            <div
+              v-for="note in prioritizedKeepNotes"
+              :key="note.id"
+              class="keep-chat-note-item q-pa-sm rounded-borders cursor-pointer"
+              :style="{ borderLeft: `4px solid ${note.color || '#8b5cf6'}` }"
+              @click="applyKeepNote(note)"
+            >
+              <div class="row items-center justify-between no-wrap q-mb-xs">
+                <div class="row items-center q-gutter-x-xs ellipsis">
+                  <span class="text-weight-bold text-white ellipsis text-caption">
+                    {{ note.title || 'Nota sin título' }}
+                  </span>
+                  <q-badge
+                    v-if="note.shortcut"
+                    rounded
+                    color="deep-purple-9"
+                    text-color="deep-purple-1"
+                    class="font-mono text-caption"
+                  >
+                    #{{ note.shortcut }}
+                  </q-badge>
+                  <q-badge
+                    v-if="isNoteRecommended(note)"
+                    rounded
+                    color="teal-9"
+                    text-color="teal-1"
+                    class="text-caption text-weight-bold"
+                  >
+                    🎯 Recomendada
+                  </q-badge>
+                </div>
+
+                <q-btn
+                  flat
+                  round
+                  dense
+                  size="xs"
+                  color="teal-3"
+                  icon="sym_r_add"
+                  @click.stop="applyKeepNote(note)"
+                >
+                  <q-tooltip>Insertar en el chat</q-tooltip>
+                </q-btn>
+              </div>
+
+              <div class="text-caption text-grey-3 ellipsis-3-lines" style="line-height: 1.4;">
+                {{ note.content }}
+              </div>
+
+              <div class="row items-center q-gutter-xs q-mt-xs">
+                <q-chip
+                  v-for="cat in note.categories"
+                  :key="cat.id"
+                  dense
+                  size="xs"
+                  color="grey-9"
+                  text-color="teal-3"
+                  icon="sym_r_school"
+                >
+                  {{ cat.name }}
+                </q-chip>
+                <q-chip
+                  v-for="st in note.custom_statuses"
+                  :key="st.id"
+                  dense
+                  size="xs"
+                  color="grey-9"
+                  text-color="blue-3"
+                  icon="sym_r_flag"
+                >
+                  {{ st.name }}
+                </q-chip>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Modal Zoom de Imagen -->
     <q-dialog v-model="showImageModal">
       <q-card class="image-zoom-card">
@@ -782,6 +914,8 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { http } from '@/shared/api/http'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
+import { getNotes } from '@/modules/notes/api/notes.api'
+import type { Note } from '@/modules/notes/types/note.types'
 import { getHentleAiSuggestion } from '../api/conversations.api'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import type { Conversation, ConversationMessage } from '../types/conversation.types'
@@ -1297,11 +1431,91 @@ function applyQuickMessage(template: string) {
   showQuickMessagesModal.value = false
 }
 
+// Invocación y gestión de Notas Keep desde el Chat
+const showKeepNotesModal = ref(false)
+const keepNotesSearch = ref('')
+const keepNotesList = ref<Note[]>([])
+const loadingKeepNotes = ref(false)
+
+async function openKeepNotesPicker() {
+  showKeepNotesModal.value = true
+  loadingKeepNotes.value = true
+  try {
+    keepNotesList.value = await getNotes({ is_archived: false })
+  } catch (e) {
+    console.error('Error cargando notas Keep para el chat', e)
+  } finally {
+    loadingKeepNotes.value = false
+  }
+}
+
+function isNoteRecommended(note: Note): boolean {
+  const currentStatusId = props.conversation.custom_status_id
+  if (currentStatusId && note.custom_statuses?.some((s) => s.id === currentStatusId)) {
+    return true
+  }
+  const contactCatIds = (props.conversation.contact as any)?.categories?.map((c: any) => c.id) || []
+  if (contactCatIds.length > 0 && note.categories?.some((c) => contactCatIds.includes(c.id))) {
+    return true
+  }
+  return false
+}
+
+const prioritizedKeepNotes = computed(() => {
+  let list = keepNotesList.value
+  if (keepNotesSearch.value.trim()) {
+    const term = keepNotesSearch.value.trim().toLowerCase().replace(/^#+/, '')
+    list = list.filter((n) =>
+      (n.shortcut && n.shortcut.toLowerCase().includes(term)) ||
+      (n.title && n.title.toLowerCase().includes(term)) ||
+      n.content.toLowerCase().includes(term)
+    )
+  }
+
+  return [...list].sort((a, b) => {
+    const aRec = isNoteRecommended(a) ? 1 : 0
+    const bRec = isNoteRecommended(b) ? 1 : 0
+    if (aRec !== bRec) return bRec - aRec
+
+    const aPin = a.is_pinned ? 1 : 0
+    const bPin = b.is_pinned ? 1 : 0
+    if (aPin !== bPin) return bPin - aPin
+
+    return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime()
+  })
+})
+
+function applyKeepNote(note: Note) {
+  const contactName = props.conversation.contact?.name || 'cliente'
+  const contactPhone = props.conversation.contact?.phone || ''
+
+  const result = note.content
+    .replace(/\{\{\s*name\s*\}\}/gi, contactName)
+    .replace(/\{\{\s*phone\s*\}\}/gi, contactPhone)
+    .replace(/\{\{\s*greeting\s*\}\}/gi, 'Hola')
+
+  if (composerText.value === '#' || composerText.value.trim() === '#') {
+    composerText.value = result
+  } else if (composerText.value.endsWith(' #')) {
+    composerText.value = composerText.value.slice(0, -2) + '\n' + result
+  } else if (composerText.value.endsWith('#')) {
+    composerText.value = composerText.value.slice(0, -1) + result
+  } else if (composerText.value.trim()) {
+    composerText.value += '\n' + result
+  } else {
+    composerText.value = result
+  }
+
+  showKeepNotesModal.value = false
+}
+
 watch(
   () => composerText.value,
   (val) => {
     if (val === '/') {
       showQuickMessagesModal.value = true
+    } else if (val === '#' || val === ' #' || (typeof val === 'string' && val.endsWith(' #'))) {
+      openKeepNotesPicker()
     }
   },
 )
@@ -1751,5 +1965,17 @@ onUnmounted(() => {
   background: rgba(245, 158, 11, 0.08);
   border: 1px solid rgba(245, 158, 11, 0.28);
   border-radius: 8px;
+}
+
+.keep-chat-note-item {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(51, 65, 85, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+  }
 }
 </style>

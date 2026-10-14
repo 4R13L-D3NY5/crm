@@ -15,6 +15,7 @@ import { whatsappRoutes } from '@/modules/whatsapp/routes'
 
 // Nuevas Páginas de Whaticket
 import QuickMessagesPage from '@/modules/quick-messages/pages/QuickMessagesPage.vue'
+import KeepNotesPage from '@/modules/notes/pages/KeepNotesPage.vue'
 import ScheduledMessagesPage from '@/modules/scheduled-messages/pages/ScheduledMessagesPage.vue'
 import WabotKnowledgePage from '@/modules/ai/pages/WabotKnowledgePage.vue'
 import UsersManagementPage from '@/modules/users/pages/UsersManagementPage.vue'
@@ -30,6 +31,7 @@ import SuperAdminPortal from '@/modules/superadmin/pages/SuperAdminPortal.vue'
 
 const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'quick-messages', name: 'quick-messages.index', component: QuickMessagesPage },
+  { path: 'notes', name: 'notes.index', component: KeepNotesPage },
   { path: 'scheduled-messages', name: 'scheduled-messages.index', component: ScheduledMessagesPage },
   { path: 'wabot', name: 'wabot.index', component: WabotKnowledgePage, alias: ['ai/knowledge', 'ai', 'ai/config', 'ai-config'] },
   { path: 'users', name: 'users.index', component: UsersManagementPage },

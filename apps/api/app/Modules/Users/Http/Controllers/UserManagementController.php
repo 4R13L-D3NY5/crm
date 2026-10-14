@@ -17,7 +17,7 @@ class UserManagementController extends Controller
         $organization = $request->user()->currentOrganization;
 
         $users = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))
-            ->with(['queues'])
+            ->with(['queues', 'categories'])
             ->get()
             ->map(function ($u) use ($organization) {
                 $role = $u->organizations()->where('organizations.id', $organization->id)->first()?->pivot?->role ?? 'agent';
@@ -29,6 +29,7 @@ class UserManagementController extends Controller
                     'presence_status' => $u->presence_status ?? 'offline',
                     'last_seen_at' => $u->last_seen_at?->toIso8601String(),
                     'queues' => $u->queues->map(fn ($q) => ['id' => $q->id, 'name' => $q->name, 'color' => $q->color]),
+                    'categories' => $u->categories->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'color' => $c->color]),
                 ];
             });
 
@@ -58,6 +59,8 @@ class UserManagementController extends Controller
             'role' => ['required', 'string', 'in:admin,supervisor,agent'],
             'queue_ids' => ['nullable', 'array'],
             'queue_ids.*' => ['exists:queues,id'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['exists:categories,id'],
         ]);
 
         $user = User::create([
@@ -77,6 +80,14 @@ class UserManagementController extends Controller
             $user->queues()->sync($validated['queue_ids']);
         }
 
+        if (isset($validated['category_ids'])) {
+            $syncData = [];
+            foreach ($validated['category_ids'] as $catId) {
+                $syncData[$catId] = ['organization_id' => $organization->id];
+            }
+            $user->categories()->sync($syncData);
+        }
+
         return response()->json([
             'data' => [
                 'id' => $user->id,
@@ -85,6 +96,7 @@ class UserManagementController extends Controller
                 'role' => $validated['role'],
                 'presence_status' => 'offline',
                 'queues' => $user->queues,
+                'categories' => $user->categories,
             ],
             'message' => 'Operador creado exitosamente.',
         ], 201);
@@ -100,6 +112,8 @@ class UserManagementController extends Controller
             'role' => ['sometimes', 'string', 'in:admin,supervisor,agent'],
             'queue_ids' => ['nullable', 'array'],
             'queue_ids.*' => ['exists:queues,id'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['exists:categories,id'],
         ]);
 
         if (isset($validated['name'])) {
@@ -114,6 +128,14 @@ class UserManagementController extends Controller
             $user->queues()->sync($validated['queue_ids']);
         }
 
+        if (isset($validated['category_ids'])) {
+            $syncData = [];
+            foreach ($validated['category_ids'] as $catId) {
+                $syncData[$catId] = ['organization_id' => $organization->id];
+            }
+            $user->categories()->sync($syncData);
+        }
+
         return response()->json([
             'data' => [
                 'id' => $user->id,
@@ -121,6 +143,7 @@ class UserManagementController extends Controller
                 'email' => $user->email,
                 'role' => $validated['role'] ?? $user->currentOrganizationRole(),
                 'queues' => $user->queues,
+                'categories' => $user->categories,
             ],
             'message' => 'Operador actualizado correctamente.',
         ]);

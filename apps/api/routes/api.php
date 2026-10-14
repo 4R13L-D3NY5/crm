@@ -50,6 +50,7 @@ Route::middleware('web')->group(function (): void {
         require app_path('Modules/Pipelines/routes.php');
         require app_path('Modules/Queues/routes.php');
         require app_path('Modules/QuickMessages/routes.php');
+        require app_path('Modules/Notes/routes.php');
         require app_path('Modules/Reports/routes.php');
         require app_path('Modules/Settings/routes.php');
         require app_path('Modules/Social/routes.php');
@@ -57,5 +58,6 @@ Route::middleware('web')->group(function (): void {
         require app_path('Modules/Users/routes.php');
         require app_path('Modules/WhatsApp/routes.php');
         require app_path('Modules/Tenancy/routes.php');
+        require app_path('Modules/Notifications/routes.php');
     });
 });

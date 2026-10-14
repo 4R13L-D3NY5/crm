@@ -101,6 +101,13 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Modules\Parameters\Models\Category::class, 'user_categories', 'user_id', 'category_id')
+            ->withPivot('organization_id')
+            ->withTimestamps();
+    }
+
     public function currentOrganizationRole(): ?string
     {
         if ($this->current_organization_id === null) {

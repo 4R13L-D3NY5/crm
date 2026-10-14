@@ -86,6 +86,18 @@ class Category extends Model
             ->withTimestamps();
     }
 
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\User::class, 'user_categories', 'category_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    public function notes(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Modules\Notes\Models\Note::class, 'note_categories', 'category_id', 'note_id')
+            ->withTimestamps();
+    }
+
     /**
      * Retorna la ruta jerárquica de la categoría (ej: "Oferta Académica > Ingenierías > Sistemas")
      */

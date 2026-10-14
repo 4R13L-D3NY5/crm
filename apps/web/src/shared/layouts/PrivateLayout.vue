@@ -49,6 +49,9 @@
             </template>
           </q-select>
 
+          <!-- Centro de Notificaciones Persistente -->
+          <NotificationBell />
+
           <!-- Avatar / Menú de Usuario con Indicador de Presencia -->
           <q-btn flat round dense class="q-ml-xs relative-position">
             <q-avatar size="32px" class="xf-avatar-user">
@@ -271,6 +274,19 @@
               <q-item-section>Respuestas Rápidas</q-item-section>
             </q-item>
 
+            <!-- 5.1 Notas Keep & Micro-Conocimiento -->
+            <q-item
+              clickable
+              to="/app/notes"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_sticky_note_2" size="18px" />
+              </q-item-section>
+              <q-item-section>Notas & Base Keep</q-item-section>
+            </q-item>
+
             <!-- 6. Audiencia & Contactos -->
             <q-item
               clickable
@@ -477,6 +493,7 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import type { PresenceStatus } from '@/modules/auth/types/auth.types'
 import UserSettingsModal from '@/shared/components/UserSettingsModal.vue'
+import NotificationBell from '@/modules/notifications/components/NotificationBell.vue'
 import { useAppTheme } from '@/shared/composables/useAppTheme'
 
 const $q = useQuasar()

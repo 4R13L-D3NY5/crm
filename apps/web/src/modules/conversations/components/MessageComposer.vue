@@ -14,7 +14,16 @@
         ]"
       />
 
-      <div class="message-composer__shortcuts-hint">
+      <div class="message-composer__shortcuts-hint row items-center q-gutter-x-xs">
+        <q-btn
+          flat
+          dense
+          size="sm"
+          color="deep-purple-3"
+          icon="sym_r_sticky_note_2"
+          label="Notas Keep (#)"
+          @click="openKeepNotes"
+        />
         <q-btn
           flat
           dense
@@ -93,11 +102,65 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Diálogo de Notas Keep -->
+    <q-dialog v-model="showKeepNotes">
+      <q-card style="min-width: 440px; max-width: 95vw">
+        <q-card-section class="q-pb-none">
+          <div class="row items-center justify-between">
+            <div class="text-h6 row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_sticky_note_2" color="deep-purple-4" size="22px" />
+              <span>Notas Keep</span>
+            </div>
+            <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+          </div>
+          <q-input
+            v-model="keepSearch"
+            dense
+            outlined
+            placeholder="Buscar por #atajo, título o palabras clave..."
+            class="q-mt-sm"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_search" />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-section style="max-height: 340px" class="scroll">
+          <div v-if="loadingKeepNotes" class="text-center q-py-md">
+            <q-spinner-dots size="32px" color="primary" />
+          </div>
+          <div v-else-if="filteredKeepNotes.length === 0" class="text-center text-grey-5 q-py-md">
+            No se encontraron notas disponibles.
+          </div>
+          <q-list v-else separator>
+            <q-item
+              v-for="note in filteredKeepNotes"
+              :key="note.id"
+              clickable
+              v-close-popup
+              @click="insertKeepNote(note.content)"
+            >
+              <q-item-section>
+                <div class="row items-center q-gutter-x-xs">
+                  <span class="text-bold text-deep-purple-4">{{ note.title || 'Nota sin título' }}</span>
+                  <q-badge v-if="note.shortcut" color="deep-purple-9" text-color="deep-purple-1">#{{ note.shortcut }}</q-badge>
+                </div>
+                <q-item-label caption lines="2" class="q-mt-xs">{{ note.content }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { getNotes } from '@/modules/notes/api/notes.api'
+import type { Note } from '@/modules/notes/types/note.types'
 import type { QuickMessage } from '../types/conversation.types'
 
 const props = defineProps<{
@@ -115,6 +178,47 @@ const activeMode = ref<'internal' | 'whatsapp'>(props.initialMode || 'whatsapp')
 const body = ref('')
 const showQuickMessages = ref(false)
 const quickSearch = ref('')
+
+const showKeepNotes = ref(false)
+const keepSearch = ref('')
+const keepNotesList = ref<Note[]>([])
+const loadingKeepNotes = ref(false)
+
+async function openKeepNotes() {
+  showKeepNotes.value = true
+  if (keepNotesList.value.length === 0) {
+    loadingKeepNotes.value = true
+    try {
+      keepNotesList.value = await getNotes({ is_archived: false })
+    } catch (e) {
+      console.error('Error fetching keep notes in composer', e)
+    } finally {
+      loadingKeepNotes.value = false
+    }
+  }
+}
+
+const filteredKeepNotes = computed(() => {
+  if (!keepSearch.value.trim()) return keepNotesList.value
+  const term = keepSearch.value.trim().toLowerCase().replace(/^#+/, '')
+  return keepNotesList.value.filter(
+    (n) =>
+      (n.shortcut && n.shortcut.toLowerCase().includes(term)) ||
+      (n.title && n.title.toLowerCase().includes(term)) ||
+      n.content.toLowerCase().includes(term),
+  )
+})
+
+function insertKeepNote(text: string) {
+  if (body.value.startsWith('#')) {
+    body.value = text
+  } else if (body.value.trim()) {
+    body.value += '\n' + text
+  } else {
+    body.value = text
+  }
+  showKeepNotes.value = false
+}
 
 watch(
   () => props.loading,
@@ -148,6 +252,8 @@ function onInput(val: string | number | null) {
   const str = String(val || '')
   if (str.startsWith('/') && str.length === 1) {
     showQuickMessages.value = true
+  } else if (str.startsWith('#') && str.length === 1) {
+    openKeepNotes()
   }
 }
 
