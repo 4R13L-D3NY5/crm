@@ -123,6 +123,55 @@
           {{ formatDate(account.last_connected_at) }}
         </div>
       </div>
+
+      <!-- Anti-Ban Guard: Contador de Chats y Límite Diario -->
+      <div v-if="account.anti_ban" class="anti-ban-section q-mt-sm q-pa-sm">
+        <div class="row items-center justify-between text-caption q-mb-xs">
+          <div class="row items-center q-gutter-x-xs">
+            <q-icon
+              :name="account.anti_ban.risk_level === 'danger' ? 'sym_r_warning' : (account.anti_ban.risk_level === 'warning' ? 'sym_r_error' : 'sym_r_shield')"
+              size="15px"
+              :color="antiBanColor"
+            />
+            <span class="text-caption text-bold" :class="`text-${antiBanColor}`">
+              Anti-Ban Guard
+            </span>
+            <span v-if="account.anti_ban.is_qr" class="text-grey-5" style="font-size: 0.68rem">
+              (QR)
+            </span>
+          </div>
+
+          <div class="row items-center q-gutter-x-xs">
+            <span class="text-bold text-white font-mono" style="font-size: 0.73rem">
+              {{ account.anti_ban.chats_today }} / {{ account.anti_ban.daily_limit }} chats
+            </span>
+            <q-btn
+              flat
+              dense
+              round
+              icon="sym_r_settings"
+              size="xs"
+              color="grey-4"
+              @click.stop="openEditLimitDialog"
+            >
+              <q-tooltip class="bg-dark text-white">Configurar límite diario de chats</q-tooltip>
+            </q-btn>
+          </div>
+        </div>
+
+        <q-linear-progress
+          :value="account.anti_ban.usage_percent / 100"
+          rounded
+          size="5px"
+          :color="antiBanColor"
+          track-color="dark"
+        />
+
+        <div class="row items-center justify-between text-grey-5 q-mt-xs" style="font-size: 0.68rem">
+          <span>{{ account.anti_ban.usage_percent }}% del límite diario</span>
+          <span>{{ account.anti_ban.outbound_today }} msgs salientes</span>
+        </div>
+      </div>
     </q-card-section>
 
     <!-- Footer con Acciones Rápidas -->
@@ -348,6 +397,56 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Modal para Configurar Límite Anti-Ban -->
+    <q-dialog v-model="showLimitDialog">
+      <q-card style="width: 420px; max-width: 95vw" class="credentials-card">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="row items-center q-gutter-x-sm">
+            <q-avatar size="28px" color="teal-9" text-color="teal-2" icon="sym_r_shield" />
+            <div>
+              <div class="text-subtitle2 text-weight-bold text-white">Límite Diario Anti-Ban</div>
+              <div class="text-caption text-grey-4">{{ account.name }}</div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pt-md q-gutter-y-sm">
+          <p class="text-caption text-grey-4 q-mb-sm">
+            Establece el número máximo de chats que esta línea debe atender al día para proteger tu número de penalizaciones o bloqueos de WhatsApp.
+          </p>
+
+          <q-input
+            v-model.number="newDailyLimit"
+            type="number"
+            outlined
+            dark
+            dense
+            min="10"
+            max="10000"
+            label="Límite diario de chats"
+            hint="Recomendado para QR: 80 - 150 chats/día"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_speed" color="teal-4" />
+            </template>
+          </q-input>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-px-md q-py-sm">
+          <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+          <q-btn
+            unelevated
+            label="Guardar Límite"
+            color="primary"
+            no-caps
+            :loading="isUpdatingLimit"
+            @click="handleSaveLimit"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-card>
 </template>
 
@@ -355,7 +454,11 @@
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useQueryClient } from '@tanstack/vue-query'
-import { syncFacebookMessages, syncInstagramMessages } from '../api/whatsapp.api'
+import {
+  syncFacebookMessages,
+  syncInstagramMessages,
+  updateWhatsAppDailyLimit,
+} from '../api/whatsapp.api'
 import type { WhatsAppAccount } from '../types/whatsapp.types'
 
 const props = defineProps<{
@@ -518,9 +621,63 @@ async function handleSyncInstagram() {
     isSyncing.value = false
   }
 }
+
+// Anti-Ban Guard Helpers
+const antiBanColor = computed(() => {
+  if (!props.account.anti_ban) return 'teal-4'
+  switch (props.account.anti_ban.risk_level) {
+    case 'danger':
+      return 'negative'
+    case 'warning':
+      return 'amber-5'
+    case 'safe':
+    default:
+      return 'teal-4'
+  }
+})
+
+const showLimitDialog = ref(false)
+const newDailyLimit = ref(props.account.daily_limit || props.account.anti_ban?.daily_limit || 100)
+const isUpdatingLimit = ref(false)
+
+function openEditLimitDialog() {
+  newDailyLimit.value = props.account.daily_limit || props.account.anti_ban?.daily_limit || 100
+  showLimitDialog.value = true
+}
+
+async function handleSaveLimit() {
+  if (!newDailyLimit.value || newDailyLimit.value < 1) return
+  isUpdatingLimit.value = true
+  try {
+    await updateWhatsAppDailyLimit(props.account.id, newDailyLimit.value)
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] })
+    $q.notify({
+      type: 'positive',
+      message: 'Límite de seguridad Anti-Ban actualizado.',
+      position: 'bottom-right',
+      timeout: 2000,
+    })
+    showLimitDialog.value = false
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al actualizar el límite',
+      position: 'bottom-right',
+      timeout: 3000,
+    })
+  } finally {
+    isUpdatingLimit.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">
+.anti-ban-section {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
 .whatsapp-channel-card {
   background: var(--crm-bg-card);
   border: 1px solid var(--crm-color-border);

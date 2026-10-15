@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'access_token',
     'is_active',
     'is_default',
+    'daily_limit',
     'last_connected_at',
 ])]
 class WhatsAppAccount extends Model
@@ -70,5 +71,15 @@ class WhatsAppAccount extends Model
         return $this->belongsToMany(\App\Models\User::class, 'whatsapp_account_users', 'whatsapp_account_id', 'user_id')
             ->withPivot(['can_view', 'can_reply'])
             ->withTimestamps();
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(\App\Modules\Conversations\Models\Conversation::class, 'whatsapp_account_id');
+    }
+
+    public function messageMappings(): HasMany
+    {
+        return $this->hasMany(WhatsAppMessageMapping::class, 'whatsapp_account_id');
     }
 }

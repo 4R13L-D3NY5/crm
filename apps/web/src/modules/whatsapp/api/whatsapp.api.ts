@@ -109,3 +109,14 @@ export async function syncInstagramMessages(
   return response.data
 }
 
+export async function updateWhatsAppDailyLimit(
+  id: string,
+  dailyLimit: number,
+): Promise<WhatsAppAccount> {
+  const response = await http.put<{ data: WhatsAppAccount; message: string }>(
+    `/whatsapp/accounts/${id}/limit`,
+    { daily_limit: dailyLimit },
+  )
+  return response.data.data
+}
+

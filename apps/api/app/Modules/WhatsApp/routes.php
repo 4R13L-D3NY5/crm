@@ -12,6 +12,7 @@ Route::post('whatsapp/accounts', [WhatsAppAccountController::class, 'store']);
 Route::delete('whatsapp/accounts/{id}', [WhatsAppAccountController::class, 'destroy']);
 Route::get('whatsapp/accounts/current', [WhatsAppAccountController::class, 'show']);
 Route::put('whatsapp/accounts/current', [WhatsAppAccountController::class, 'update']);
+Route::put('whatsapp/accounts/{id}/limit', [WhatsAppAccountController::class, 'updateLimit']);
 
 Route::put('whatsapp/accounts/{id}/users', AssignUsersToWhatsAppAccountController::class);
 Route::get('whatsapp/events', [WhatsAppWebhookEventController::class, 'index']);

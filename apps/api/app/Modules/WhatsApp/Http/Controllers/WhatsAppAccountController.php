@@ -50,6 +50,7 @@ class WhatsAppAccountController
             'business_account_id' => ['nullable', 'string', 'max:255'],
             'access_token' => ['nullable', 'string'],
             'verify_token' => ['nullable', 'string', 'max:255'],
+            'daily_limit' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ]);
 
         $sessionType = $validated['session_type'] ?? 'baileys_qr';
@@ -59,6 +60,7 @@ class WhatsAppAccountController
             'organization_id' => $organization->id,
             'name' => $validated['name'],
             'session_type' => $sessionType,
+            'daily_limit' => $validated['daily_limit'] ?? ($sessionType === 'baileys_qr' ? 100 : 1000),
             'display_phone_number' => $validated['display_phone_number'] ?? null,
             'phone_number_id' => $validated['phone_number_id'] ?? ($validated['business_account_id'] ?? ($validated['display_phone_number'] ?? 'chan_' . time())),
             'business_account_id' => $validated['business_account_id'] ?? null,
@@ -110,6 +112,25 @@ class WhatsAppAccountController
 
         return response()->json([
             'message' => 'Canal de WhatsApp eliminado exitosamente.',
+        ]);
+    }
+
+    public function updateLimit(\Illuminate\Http\Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $account = WhatsAppAccount::where('organization_id', $organization->id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'daily_limit' => ['required', 'integer', 'min:1', 'max:10000'],
+        ]);
+
+        $account->update([
+            'daily_limit' => $validated['daily_limit'],
+        ]);
+
+        return response()->json([
+            'data' => (new WhatsAppAccountResource($account))->resolve(),
+            'message' => 'Límite de seguridad Anti-Ban actualizado correctamente.',
         ]);
     }
 }

@@ -3,6 +3,15 @@ import type { Paginated } from '@/shared/types/pagination.types'
 export type WhatsAppStatus = 'CONNECTED' | 'CONNECTING' | 'DISCONNECTED'
 export type WhatsAppSessionType = 'baileys_qr' | 'qr_baileys' | 'qr' | 'meta_cloud' | 'facebook' | 'instagram' | 'tiktok'
 
+export interface WhatsAppAntiBanStats {
+  daily_limit: number
+  chats_today: number
+  outbound_today: number
+  usage_percent: number
+  risk_level: 'safe' | 'warning' | 'danger'
+  is_qr: boolean
+}
+
 export interface WhatsAppAccount {
   id: string
   organization_id: string
@@ -16,6 +25,8 @@ export interface WhatsAppAccount {
   verify_token?: string
   has_access_token?: boolean
   is_active: boolean
+  daily_limit?: number
+  anti_ban?: WhatsAppAntiBanStats
   webhook_url?: string | null
   social_webhook_url?: string | null
   last_connected_at?: string | null
@@ -26,6 +37,7 @@ export interface WhatsAppAccount {
 export interface CreateWhatsAppAccountPayload {
   name: string
   session_type?: WhatsAppSessionType
+  daily_limit?: number
   display_phone_number?: string
   phone_number_id?: string
   business_account_id?: string

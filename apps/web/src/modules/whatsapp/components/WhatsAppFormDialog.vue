@@ -101,6 +101,32 @@
                 </template>
               </q-input>
             </div>
+
+            <!-- Límite Diario Anti-Ban -->
+            <div class="q-mt-sm">
+              <div class="row items-center justify-between q-mb-xs">
+                <label class="text-caption text-grey-4 block">Límite Diario Anti-Ban (Chats / día)</label>
+                <span class="text-caption text-teal-4" style="font-size: 0.7rem">Recomendado: 80 - 150</span>
+              </div>
+              <q-input
+                v-model.number="form.daily_limit"
+                type="number"
+                outlined
+                dark
+                dense
+                min="10"
+                max="5000"
+                placeholder="100"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_shield" size="16px" color="teal-4" />
+                </template>
+              </q-input>
+              <div class="text-caption text-grey-5 q-mt-xs" style="font-size: 0.7rem">
+                Protección de chip: previene que Meta detecte ráfagas y bloquee tu número telefónico.
+              </div>
+            </div>
+
             <div class="info-box q-pa-sm q-mt-xs">
               <q-icon name="sym_r_info" size="16px" color="teal-4" class="q-mr-xs" />
               <span class="text-caption text-grey-4">
@@ -319,6 +345,7 @@ const emit = defineEmits<{
 const form = reactive<CreateWhatsAppAccountPayload>({
   name: '',
   session_type: 'baileys_qr',
+  daily_limit: 100,
   display_phone_number: '',
   phone_number_id: '',
   business_account_id: '',
@@ -346,6 +373,7 @@ watch(
   (open) => {
     if (open) {
       form.name = ''
+      form.daily_limit = 100
       form.display_phone_number = ''
       form.phone_number_id = ''
       form.business_account_id = ''
