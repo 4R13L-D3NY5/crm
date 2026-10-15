@@ -42,6 +42,7 @@ const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'tokens', name: 'tokens.index', component: TokensPage },
   { path: 'docs', name: 'docs.index', component: ApiDocsPage },
   { path: 'pricing', name: 'pricing.app', component: PricingPage },
+  { path: 'social', redirect: '/app/conversations' },
   { path: 'superadmin', name: 'superadmin.portal', component: SuperAdminPortal, alias: ['saas-billing', 'master-control'] },
 ]
 
