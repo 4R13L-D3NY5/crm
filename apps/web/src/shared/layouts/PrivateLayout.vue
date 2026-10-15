@@ -35,6 +35,7 @@
         <div class="row items-center q-gutter-x-sm">
           <!-- Selector de Organización -->
           <q-select
+            v-if="organizationOptions.length > 1"
             v-model="selectedOrganizationId"
             :options="organizationOptions"
             emit-value
@@ -48,6 +49,14 @@
               <q-icon name="sym_r_corporate_fare" size="15px" color="primary" />
             </template>
           </q-select>
+          <div
+            v-else-if="authStore.user?.current_organization"
+            class="row items-center q-gutter-x-xs q-px-sm q-py-xs bg-dark-soft rounded-borders"
+          >
+            <q-icon name="sym_r_corporate_fare" size="15px" color="primary" />
+            <span class="text-caption text-weight-bold text-ink">{{ authStore.user.current_organization.name }}</span>
+          </div>
+
 
           <!-- Centro de Notificaciones Persistente -->
           <NotificationBell />
@@ -432,6 +441,7 @@
 
             <!-- 14. SuperAdmin SaaS (Master Control) -->
             <q-item
+              v-if="isSuperAdmin"
               clickable
               to="/app/superadmin"
               class="xf-nav-item"
@@ -572,6 +582,10 @@ const organizationOptions = computed(() => {
     label: org.name,
     value: org.id,
   }))
+})
+
+const isSuperAdmin = computed(() => {
+  return authStore.user?.email === 'admin@crm.local'
 })
 
 const initials = computed(() => {

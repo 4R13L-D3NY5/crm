@@ -21,6 +21,12 @@ router.beforeEach(async (to) => {
     return { name: 'login' }
   }
 
+  if (to.name === 'superadmin.portal' || to.path.includes('superadmin') || to.path.includes('saas-billing') || to.path.includes('master-control')) {
+    if (authStore.user?.email !== 'admin@crm.local') {
+      return { path: '/app/conversations' }
+    }
+  }
+
   const requiredPermission = typeof to.meta.permission === 'string'
     ? to.meta.permission
     : null

@@ -871,7 +871,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import {
   fetchSuperAdminData,
   renewTenantSubscription,
@@ -1260,7 +1262,14 @@ function openWhatsappUrl(url: string) {
   window.open(url, '_blank')
 }
 
+const router = useRouter()
+const authStore = useAuthStore()
+
 onMounted(() => {
+  if (authStore.user && authStore.user.email !== 'admin@crm.local') {
+    router.replace('/app/conversations')
+    return
+  }
   loadData()
 })
 </script>
