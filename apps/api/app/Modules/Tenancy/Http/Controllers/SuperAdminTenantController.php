@@ -135,4 +135,54 @@ class SuperAdminTenantController extends Controller
         $audit = $this->billingService->generateAiHealthAudit($org);
         return response()->json($audit);
     }
+
+    /**
+     * Amplía o reconfigura el periodo de prueba de una empresa cliente.
+     */
+    public function extendTrial(Request $request, string $id): JsonResponse
+    {
+        $org = Organization::findOrFail($id);
+        $days = (int) $request->input('days', 7);
+        $plan = $request->input('plan');
+        $extraPhones = $request->input('extra_phones');
+        $extraAgents = $request->input('extra_agents');
+
+        $baseDate = ($org->expires_at && $org->expires_at->isFuture())
+            ? $org->expires_at
+            : now();
+
+        $newExpires = $baseDate->copy()->addDays($days);
+
+        $updateData = [
+            'status' => 'trial',
+            'expires_at' => $newExpires,
+        ];
+
+        if ($plan) {
+            $updateData['plan'] = $plan;
+            $pricing = $this->billingService->getPlanPricing($plan);
+            $updateData['max_whatsapp_lines'] = $pricing['included_phones'];
+            $updateData['max_agents'] = $pricing['included_agents'];
+            $updateData['monthly_price_usd'] = $pricing['base_monthly'];
+        }
+
+        if ($extraPhones !== null) {
+            $updateData['extra_whatsapp_lines'] = (int) $extraPhones;
+        }
+
+        if ($extraAgents !== null) {
+            $updateData['extra_agents'] = (int) $extraAgents;
+        }
+
+        $org->update($updateData);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Periodo de prueba para {$org->name} actualizado a {$days} días adicionales.",
+            'new_expires_at' => $newExpires->format('Y-m-d H:i:s'),
+            'days_remaining' => (int) now()->diffInDays($newExpires, false),
+            'status' => $org->status,
+            'plan' => $org->plan,
+        ]);
+    }
 }

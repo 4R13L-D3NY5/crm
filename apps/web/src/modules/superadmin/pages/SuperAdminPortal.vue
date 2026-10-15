@@ -274,6 +274,19 @@
                   <q-tooltip>Ajustar Cuotas (+/- Canales y Operadores)</q-tooltip>
                 </q-btn>
 
+                <!-- Extender / Configurar Periodo de Prueba -->
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="sm"
+                  color="amber-9"
+                  icon="sym_r_hourglass_top"
+                  @click="openTrialModal(props.row)"
+                >
+                  <q-tooltip>Ampliar o Reconfigurar Período de Prueba</q-tooltip>
+                </q-btn>
+
                 <!-- Token de Licencia -->
                 <q-btn
                   flat
@@ -866,6 +879,102 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- MODAL: AMPLIAR O PARAMETRIZAR PERIODO DE PRUEBA -->
+    <q-dialog v-model="trialModalOpen">
+      <q-card style="width: 480px; max-width: 95vw;" class="saas-modal-card q-pa-md">
+        <q-card-section>
+          <div class="row items-center q-gutter-x-sm">
+            <q-icon name="sym_r_hourglass_top" color="amber-9" size="24px" />
+            <div class="text-h6 text-weight-bold text-ink">Gestionar Período de Prueba</div>
+          </div>
+          <div class="text-caption text-muted q-mt-xs">
+            {{ activeTenant?.name }} • Estado: <strong>{{ activeTenant?.status?.toUpperCase() }}</strong> ({{ activeTenant?.days_remaining }} días restantes)
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-gutter-y-md">
+          <!-- Días a añadir -->
+          <div>
+            <label class="text-caption text-weight-bold text-ink block q-mb-xs">Días a sumar a la vigencia:</label>
+            <div class="row q-gutter-xs q-mb-sm">
+              <q-btn
+                v-for="opt in [3, 7, 14, 30]"
+                :key="opt"
+                dense
+                no-caps
+                :color="trialDaysToAdd === opt ? 'amber-9' : 'grey-8'"
+                :label="`+${opt} días`"
+                class="q-px-sm"
+                @click="trialDaysToAdd = opt"
+              />
+            </div>
+            <q-input
+              v-model.number="trialDaysToAdd"
+              type="number"
+              min="1"
+              label="O escribe el número exacto de días"
+              outlined
+              dense
+            />
+          </div>
+
+          <!-- Plan de prueba asignado -->
+          <div>
+            <label class="text-caption text-weight-bold text-ink block q-mb-xs">Plan de Prueba Asignado:</label>
+            <q-select
+              v-model="trialPlan"
+              :options="[
+                { label: 'Plan Básico (1 WhatsApp, 3 Agentes)', value: 'basic' },
+                { label: 'Plan Pro (2 WhatsApp, 7 Agentes)', value: 'pro' },
+                { label: 'Plan Elite IA (4 WhatsApp, 15 Agentes)', value: 'elite' },
+              ]"
+              outlined
+              dense
+              emit-value
+              map-options
+            />
+          </div>
+
+          <!-- Canales y Agentes de prueba adicionales -->
+          <div class="row q-col-gutter-sm">
+            <div class="col-6">
+              <q-input
+                v-model.number="trialExtraPhones"
+                type="number"
+                min="0"
+                label="Líneas extra en prueba"
+                outlined
+                dense
+              />
+            </div>
+            <div class="col-6">
+              <q-input
+                v-model.number="trialExtraAgents"
+                type="number"
+                min="0"
+                label="Agentes extra en prueba"
+                outlined
+                dense
+              />
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pt-none">
+          <q-btn flat label="Cancelar" color="grey-6" no-caps v-close-popup />
+          <q-btn
+            unelevated
+            label="Guardar y Ampliar Prueba"
+            color="amber-9"
+            icon="sym_r_check_circle"
+            no-caps
+            :loading="actionLoading"
+            @click="submitTrialExtension"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -883,6 +992,7 @@ import {
   toggleTenantSuspension,
   generateTenantToken,
   generateAiReminder,
+  extendTenantTrial,
   type TenantSummary,
   type TenantItem,
   type ProrationData,
@@ -955,6 +1065,12 @@ const editExtraAgents = ref(0)
 const modalProration = ref<ProrationData | null>(null)
 
 const tokenModalOpen = ref(false)
+
+const trialModalOpen = ref(false)
+const trialDaysToAdd = ref(7)
+const trialPlan = ref<'basic' | 'pro' | 'elite'>('pro')
+const trialExtraPhones = ref(0)
+const trialExtraAgents = ref(0)
 
 const quotaModalOpen = ref(false)
 const quotaExtraPhones = ref(0)
@@ -1038,6 +1154,44 @@ async function submitRenew() {
     await loadData()
   } catch (e: any) {
     $q.notify({ type: 'negative', message: 'Error renovando suscripción: ' + e.message })
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// GESTIÓN DE PERIODO DE PRUEBA
+function openTrialModal(tenant: TenantItem) {
+  activeTenant.value = tenant
+  trialDaysToAdd.value = 7
+  trialPlan.value = tenant.plan
+  trialExtraPhones.value = tenant.extra_phones || 0
+  trialExtraAgents.value = tenant.extra_agents || 0
+  trialModalOpen.value = true
+}
+
+async function submitTrialExtension() {
+  if (!activeTenant.value) return
+  actionLoading.value = true
+  try {
+    const res = await extendTenantTrial(activeTenant.value.id, {
+      days: trialDaysToAdd.value,
+      plan: trialPlan.value,
+      extra_phones: trialExtraPhones.value,
+      extra_agents: trialExtraAgents.value,
+    })
+    $q.notify({
+      type: 'positive',
+      message: res.message || 'Período de prueba ampliado con éxito.',
+      position: 'bottom-right',
+    })
+    trialModalOpen.value = false
+    await loadData()
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || err?.message || 'Error al ampliar período de prueba',
+      position: 'bottom-right',
+    })
   } finally {
     actionLoading.value = false
   }

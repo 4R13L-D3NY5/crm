@@ -207,4 +207,41 @@ class SuperAdminTenantTest extends TestCase
         $res->assertJsonPath('code', 'QUOTA_CHANNELS_EXCEEDED');
         $this->assertDatabaseMissing('whatsapp_accounts', ['name' => 'Canal 2 Supera Cuota']);
     }
+
+    public function test_superadmin_can_extend_trial_period(): void
+    {
+        $org = Organization::create([
+            'name' => 'Empresa Trial Test',
+            'slug' => 'empresa-trial-' . uniqid(),
+            'plan' => 'basic',
+            'status' => 'trial',
+            'expires_at' => now()->addDays(2),
+        ]);
+
+        $admin = User::factory()->create([
+            'current_organization_id' => $org->id,
+        ]);
+        $org->users()->attach($admin->id, [
+            'id' => (string) Str::ulid(),
+            'role' => 'owner',
+        ]);
+
+        $res = $this->actingAs($admin)->postJson("/api/superadmin/tenants/{$org->id}/extend-trial", [
+            'days' => 14,
+            'plan' => 'pro',
+            'extra_phones' => 1,
+            'extra_agents' => 2,
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('success', true);
+        $res->assertJsonPath('plan', 'pro');
+
+        $org->refresh();
+        $this->assertEquals('trial', $org->status);
+        $this->assertEquals('pro', $org->plan);
+        $this->assertEquals(1, $org->extra_whatsapp_lines);
+        $this->assertEquals(2, $org->extra_agents);
+        $this->assertTrue($org->expires_at->gt(now()->addDays(10)));
+    }
 }

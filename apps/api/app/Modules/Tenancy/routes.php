@@ -17,4 +17,5 @@ Route::prefix('superadmin')
         Route::post('/tenants/{id}/generate-token', [SuperAdminTenantController::class, 'generateToken'])->name('tenants.generate_token');
         Route::post('/tenants/{id}/ai-reminder', [SuperAdminTenantController::class, 'aiReminder'])->name('tenants.ai_reminder');
         Route::post('/tenants/{id}/ai-audit', [SuperAdminTenantController::class, 'aiAudit'])->name('tenants.ai_audit');
+        Route::post('/tenants/{id}/extend-trial', [SuperAdminTenantController::class, 'extendTrial'])->name('tenants.extend_trial');
     });

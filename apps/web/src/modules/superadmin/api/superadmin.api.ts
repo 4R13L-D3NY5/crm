@@ -116,3 +116,19 @@ export async function generateAiAudit(tenantId: string) {
   )
   return data
 }
+
+export async function extendTenantTrial(
+  tenantId: string,
+  payload: { days: number; plan?: string; extra_phones?: number; extra_agents?: number }
+) {
+  const { data } = await http.post<{
+    success: boolean
+    message: string
+    new_expires_at: string
+    days_remaining: number
+    status: string
+    plan: string
+  }>(`/superadmin/tenants/${tenantId}/extend-trial`, payload)
+  return data
+}
+
