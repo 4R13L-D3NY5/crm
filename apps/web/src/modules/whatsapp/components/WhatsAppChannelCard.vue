@@ -1,11 +1,11 @@
 <template>
   <q-card flat bordered class="whatsapp-channel-card">
     <q-card-section class="q-pb-sm">
-      <div class="row items-start justify-between">
+      <div class="row items-start justify-between no-wrap q-gutter-x-sm">
         <!-- Icono y Datos de Línea / Canal -->
-        <div class="row items-center q-gutter-x-md">
+        <div class="row items-center q-gutter-x-md col no-wrap overflow-hidden" style="min-width: 0">
           <div
-            class="channel-icon"
+            class="channel-icon shrink-0"
             :class="[
               `channel-icon--${platformMeta.themeClass}`,
               `channel-icon--${account.status.toLowerCase()}`,
@@ -14,23 +14,24 @@
             <q-icon :name="platformMeta.icon" size="22px" :style="{ color: platformMeta.color }" />
           </div>
 
-          <div>
-            <div class="row items-center q-gutter-x-xs">
-              <span class="channel-name ellipsis text-weight-bold text-white">
+          <div class="col overflow-hidden" style="min-width: 0">
+            <div class="row items-center q-gutter-x-xs no-wrap">
+              <span class="channel-name ellipsis text-weight-bold text-white" :title="account.name" style="max-width: calc(100% - 90px)">
                 {{ account.name }}
               </span>
-              <span class="platform-badge" :style="{ borderColor: platformMeta.color + '44', color: platformMeta.color }">
+              <span class="platform-badge shrink-0" :style="{ borderColor: platformMeta.color + '44', color: platformMeta.color }">
                 {{ platformMeta.label }}
               </span>
             </div>
-            <div class="channel-number text-caption text-grey-4">
+            <div class="channel-number text-caption text-grey-4 ellipsis">
               {{ channelDisplayIdentifier }}
             </div>
           </div>
         </div>
 
         <!-- Menú de Opciones -->
-        <q-btn flat round dense icon="sym_r_more_vert" color="grey-5" size="sm">
+        <q-btn flat round dense icon="sym_r_more_vert" color="grey-4" size="sm" class="shrink-0">
+          <q-tooltip class="text-caption">Opciones del Canal</q-tooltip>
           <q-menu dark dense class="channel-menu">
             <q-list>
               <q-item
@@ -86,17 +87,27 @@
               <q-separator dark class="q-my-xs" />
 
               <q-item
-                v-if="account.status === 'CONNECTED'"
+                v-if="isQrSession && account.status === 'CONNECTED'"
                 clickable
                 v-close-popup
                 class="text-amber-4"
                 @click="emit('disconnect', account.id)"
               >
                 <q-item-section avatar><q-icon name="sym_r_link_off" size="16px" /></q-item-section>
-                <q-item-section>Desconectar</q-item-section>
+                <q-item-section>Desconectar Sesión</q-item-section>
               </q-item>
               <q-item
-                v-else-if="account.session_type === 'baileys_qr' || account.session_type === 'qr_baileys' || account.session_type === 'qr'"
+                v-else-if="!isQrSession && account.status === 'CONNECTED'"
+                clickable
+                v-close-popup
+                class="text-amber-4"
+                @click="emit('disconnect', account.id)"
+              >
+                <q-item-section avatar><q-icon name="sym_r_link_off" size="16px" /></q-item-section>
+                <q-item-section>Desactivar Canal</q-item-section>
+              </q-item>
+              <q-item
+                v-else-if="isQrSession"
                 clickable
                 v-close-popup
                 class="text-teal-4"
@@ -111,7 +122,7 @@
                 clickable
                 v-close-popup
                 class="text-negative"
-                @click="emit('delete', account.id)"
+                @click="confirmDelete"
               >
                 <q-item-section avatar><q-icon name="sym_r_delete" size="16px" color="negative" /></q-item-section>
                 <q-item-section>Eliminar Canal</q-item-section>
@@ -257,9 +268,9 @@
         />
       </div>
 
-      <div>
+      <div class="row items-center q-gutter-x-xs">
         <q-btn
-          v-if="account.status === 'CONNECTED'"
+          v-if="isQrSession && account.status === 'CONNECTED'"
           flat
           dense
           size="sm"
@@ -270,7 +281,7 @@
           @click="emit('disconnect', account.id)"
         />
         <q-btn
-          v-else-if="account.session_type === 'baileys_qr' || account.session_type === 'qr_baileys' || account.session_type === 'qr'"
+          v-else-if="isQrSession"
           unelevated
           dense
           size="sm"
@@ -286,11 +297,13 @@
           dense
           size="sm"
           no-caps
-          icon="sym_r_check_circle"
-          label="Configurado"
-          color="teal-4"
-          @click="showCredentialsDialog = true"
-        />
+          icon="sym_r_delete"
+          label="Eliminar Canal"
+          color="negative"
+          @click="confirmDelete"
+        >
+          <q-tooltip>Eliminar o desvincular este canal del CRM</q-tooltip>
+        </q-btn>
       </div>
     </q-card-actions>
 
@@ -425,7 +438,16 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right" class="q-px-md q-py-sm">
+        <q-card-actions align="between" class="q-px-md q-py-sm">
+          <q-btn
+            flat
+            label="Eliminar Canal"
+            color="negative"
+            icon="sym_r_delete"
+            no-caps
+            v-close-popup
+            @click="confirmDelete"
+          />
           <q-btn flat label="Entendido" color="teal-4" no-caps v-close-popup />
         </q-card-actions>
       </q-card>
@@ -615,6 +637,31 @@ const platformMeta = computed(() => {
       }
   }
 })
+
+const isQrSession = computed(() => {
+  return props.account.session_type === 'baileys_qr' || props.account.session_type === 'qr_baileys' || props.account.session_type === 'qr'
+})
+
+function confirmDelete() {
+  $q.dialog({
+    title: '¿Eliminar canal?',
+    message: `¿Estás seguro de que deseas eliminar "${props.account.name}"? El canal se desvinculará del CRM y quedará disponible para volver a vincularse si lo requieres.`,
+    persistent: true,
+    dark: true,
+    ok: {
+      label: 'Eliminar',
+      color: 'negative',
+      flat: false,
+    },
+    cancel: {
+      label: 'Cancelar',
+      color: 'grey-4',
+      flat: true,
+    },
+  }).onOk(() => {
+    emit('delete', props.account.id)
+  })
+}
 
 const channelDisplayIdentifier = computed(() => {
   if (props.account.display_phone_number) {

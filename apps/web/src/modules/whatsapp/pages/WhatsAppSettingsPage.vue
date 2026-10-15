@@ -238,9 +238,9 @@ async function handleDisconnect(id: string) {
 async function handleDelete(id: string) {
   try {
     await mutations.deleteAccountMutation.mutateAsync(id)
-    notify.success({ message: 'Línea de WhatsApp eliminada.' })
+    notify.success({ message: 'Canal eliminado exitosamente.' })
   } catch {
-    notify.error({ message: 'Error al eliminar la línea.' })
+    notify.error({ message: 'Error al eliminar el canal.' })
   }
 }
 
