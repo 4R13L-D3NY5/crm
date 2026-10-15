@@ -193,6 +193,7 @@ const props = defineProps<{
   loading?: boolean
   attendingCount?: number
   pendingCount?: number
+  isMobile?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -285,6 +286,13 @@ function getChannelIcon(channel?: string) {
   flex-direction: column;
   background: var(--crm-bg-sidebar);
   border-right: 1px solid var(--crm-color-border);
+
+  @media (max-width: 899px) {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    border-right: none !important;
+  }
 }
 
 .inbox-ticket-list__header {

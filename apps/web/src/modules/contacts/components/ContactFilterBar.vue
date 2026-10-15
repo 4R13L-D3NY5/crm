@@ -481,4 +481,14 @@ function getStageColor(stage: string): string {
     background: rgba(16, 185, 129, 0.15);
   }
 }
+
+@media (max-width: 599px) {
+  .contact-filter-bar__input,
+  .contact-filter-bar__select,
+  .contact-filter-bar__channel-select {
+    min-width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
 </style>

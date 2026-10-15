@@ -1,8 +1,8 @@
 <template>
-  <div class="scheduled-messages-page q-pa-lg">
+  <div class="scheduled-messages-page q-pa-sm q-pa-md-lg">
     <!-- Header Principal -->
-    <div class="row items-center justify-between q-mb-lg">
-      <div>
+    <div class="row items-center justify-between q-col-gutter-sm q-mb-lg">
+      <div class="col-12 col-md-auto">
         <div class="row items-center q-gutter-x-sm">
           <q-icon name="sym_r_schedule_send" size="28px" color="primary" />
           <h1 class="text-h5 text-weight-bold text-ink q-my-none">Envíos Programados</h1>
@@ -12,7 +12,7 @@
         </p>
       </div>
 
-      <div class="row items-center q-gutter-sm">
+      <div class="col-12 col-md-auto row items-center q-gutter-sm">
         <q-btn
           flat
           dense

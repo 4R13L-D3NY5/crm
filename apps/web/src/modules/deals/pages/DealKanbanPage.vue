@@ -435,6 +435,18 @@ function formatCurrency(value: number) {
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 599px) {
+  .deal-board {
+    grid-auto-columns: minmax(260px, 84vw);
+    gap: 12px;
+    scroll-snap-type: x mandatory;
+  }
+  .deal-column {
+    scroll-snap-align: start;
+  }
 }
 
 .deal-column {

@@ -384,7 +384,8 @@ function formatDate(dateStr: string | null): string {
 .contact-table-card {
   background: var(--crm-bg-card, #111827);
   border-radius: var(--crm-radius-card, 14px);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .contact-table {

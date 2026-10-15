@@ -1,17 +1,32 @@
 <template>
   <main class="inbox-chat-thread" @paste="handlePaste">
     <!-- Top Action Bar del Chat -->
-    <header class="inbox-chat-header q-px-md q-py-sm">
-      <div class="row items-center justify-between no-wrap">
+    <header class="inbox-chat-header q-px-sm q-py-xs">
+      <div class="row items-center justify-between no-wrap full-width">
         <!-- Info del Cliente -->
-        <div class="row items-center q-gutter-x-sm ellipsis">
-          <q-avatar size="36px" class="chat-header-avatar">
+        <div class="row items-center q-gutter-x-xs no-wrap ellipsis col">
+          <!-- Botón Volver a la Lista en Móvil -->
+          <q-btn
+            v-if="isMobile"
+            flat
+            dense
+            round
+            icon="sym_r_arrow_back"
+            color="grey-3"
+            size="sm"
+            class="q-mr-xs flex-shrink-0"
+            @click="emit('back')"
+          >
+            <q-tooltip>Volver a la bandeja</q-tooltip>
+          </q-btn>
+
+          <q-avatar size="34px" class="chat-header-avatar flex-shrink-0">
             {{ getInitials(conversation.contact?.name || conversation.subject || 'W') }}
           </q-avatar>
 
-          <div class="ellipsis">
+          <div class="ellipsis col" style="min-width: 0;">
             <div class="row items-center q-gutter-x-xs no-wrap">
-              <span class="text-subtitle2 text-weight-bold text-white ellipsis">
+              <span class="text-subtitle2 text-weight-bold text-white ellipsis chat-contact-name">
                 {{ conversation.contact?.name || conversation.subject || 'Contacto' }}
               </span>
               <SocialChannelBadge
@@ -23,45 +38,44 @@
               <q-badge
                 :color="statusBadgeColor"
                 rounded
-                class="q-px-xs text-caption"
+                class="q-px-xs text-caption gt-xs"
               >
                 {{ statusBadgeLabel }}
               </q-badge>
             </div>
-            <div class="row items-center q-gutter-x-sm text-caption text-grey-4 font-mono" style="font-size: 0.72rem">
+            <div class="row items-center q-gutter-x-xs text-caption text-grey-4 font-mono no-wrap ellipsis" style="font-size: 0.72rem">
               <!-- Teléfono del Contacto/Cliente -->
-              <span class="row items-center q-gutter-x-xs" :title="`Teléfono del contacto: ${conversation.contact?.phone || 'Sin número'}`">
-                <q-icon name="sym_r_call" size="13px" class="text-grey-4" />
-                <span class="text-grey-3">{{ conversation.contact?.phone || 'Sin número' }}</span>
+              <span class="row items-center q-gutter-x-xs" :title="`Teléfono: ${conversation.contact?.phone || 'Sin número'}`">
+                <q-icon name="sym_r_call" size="12px" class="text-grey-4" />
+                <span class="text-grey-3 ellipsis" style="max-width: 110px;">{{ conversation.contact?.phone || 'Sin número' }}</span>
               </span>
 
-              <span>•</span>
+              <span class="gt-xs">•</span>
 
               <!-- Línea / Cuenta Receptora del CRM -->
-              <span class="row items-center q-gutter-x-xs font-sans text-teal-3 text-weight-medium">
-                <q-icon name="sym_r_sim_card" size="13px" color="teal-3" />
-                <span>
+              <span class="row items-center q-gutter-x-xs font-sans text-teal-3 text-weight-medium gt-xs">
+                <q-icon name="sym_r_sim_card" size="12px" color="teal-3" />
+                <span class="ellipsis" style="max-width: 120px;">
                   {{
                     conversation.channel_account?.display_phone_number
                       ? `Línea: ${conversation.channel_account.display_phone_number}`
                       : conversation.channel_account?.name
                         ? `Línea: ${conversation.channel_account.name}`
                         : conversation.channel === 'whatsapp'
-                          ? 'Línea WhatsApp'
-                          : `Canal ${getChannelLabel(conversation.channel)}`
+                          ? 'WhatsApp'
+                          : `${getChannelLabel(conversation.channel)}`
                   }}
                 </span>
                 <q-tooltip anchor="top middle" self="bottom middle">
-                  Línea receptora del CRM donde ingresó el cliente
-                  {{ conversation.channel_account?.name ? `(${conversation.channel_account.name})` : '' }}
+                  Línea receptora: {{ conversation.channel_account?.display_phone_number || conversation.channel_account?.name }}
                 </q-tooltip>
               </span>
 
-              <span>•</span>
+              <span class="gt-sm">•</span>
 
               <!-- Asesor Asignado -->
-              <span class="row items-center q-gutter-x-xs font-sans">
-                <q-icon name="sym_r_person" size="13px" :color="conversation.assignee ? 'teal-3' : 'grey-5'" />
+              <span class="row items-center q-gutter-x-xs font-sans gt-sm">
+                <q-icon name="sym_r_person" size="12px" :color="conversation.assignee ? 'teal-3' : 'grey-5'" />
                 <span :class="conversation.assignee ? 'text-teal-3 text-weight-medium' : 'text-grey-5'">
                   {{ conversation.assignee ? `Atendido por: ${conversation.assignee.name}` : 'Sin asignar' }}
                 </span>
@@ -71,7 +85,7 @@
         </div>
 
         <!-- Acciones del Ticket -->
-        <div class="row items-center q-gutter-x-xs no-wrap">
+        <div class="row items-center q-gutter-x-xs no-wrap flex-shrink-0">
           <q-btn
             v-if="conversation.status === 'pending'"
             unelevated
@@ -79,11 +93,14 @@
             size="sm"
             color="positive"
             icon="sym_r_check_circle"
-            label="Aceptar"
-            class="q-px-sm"
+            :label="isMobile ? '' : 'Aceptar'"
+            :round="isMobile"
+            class="q-px-xs"
             :loading="isActionLoading"
             @click="emit('accept')"
-          />
+          >
+            <q-tooltip>Aceptar ticket</q-tooltip>
+          </q-btn>
 
           <q-btn
             v-if="conversation.status !== 'closed'"
@@ -92,10 +109,13 @@
             size="sm"
             color="grey-4"
             icon="sym_r_swap_horiz"
-            label="Transferir"
-            class="q-px-sm"
+            :label="isMobile ? '' : 'Transferir'"
+            :round="isMobile"
+            class="q-px-xs"
             @click="emit('transfer')"
-          />
+          >
+            <q-tooltip>Transferir ticket</q-tooltip>
+          </q-btn>
 
           <q-btn
             v-if="conversation.status !== 'closed'"
@@ -104,11 +124,14 @@
             size="sm"
             color="negative"
             icon="sym_r_done_all"
-            label="Resolver"
-            class="q-px-sm"
+            :label="isMobile ? '' : 'Resolver'"
+            :round="isMobile"
+            class="q-px-xs"
             :loading="isActionLoading"
             @click="emit('close')"
-          />
+          >
+            <q-tooltip>Resolver ticket</q-tooltip>
+          </q-btn>
 
           <q-btn
             flat
@@ -275,8 +298,8 @@
 
     <!-- Redactor de Respuestas (Composer) -->
     <footer class="inbox-composer q-pa-sm" @paste="handlePaste">
-      <div class="composer-mode-bar row items-center justify-between q-mb-xs">
-        <div class="row items-center q-gutter-x-xs">
+      <div class="composer-mode-bar row items-center justify-between q-mb-xs no-wrap">
+        <div class="row items-center q-gutter-x-xs no-wrap composer-tools-scroll">
           <button
             type="button"
             class="composer-mode-btn"
@@ -284,7 +307,7 @@
             @click="composerMode = 'whatsapp'"
           >
             <q-icon name="sym_r_chat" size="14px" />
-            <span>WhatsApp</span>
+            <span class="gt-xs">WhatsApp</span>
           </button>
 
           <button
@@ -294,7 +317,7 @@
             @click="composerMode = 'internal'"
           >
             <q-icon name="sym_r_lock" size="14px" />
-            <span>Nota Interna</span>
+            <span class="gt-xs">Nota Interna</span>
           </button>
 
           <q-btn
@@ -303,11 +326,11 @@
             size="sm"
             color="teal-4"
             icon="sym_r_bolt"
-            label="Respuestas Rápidas (/)"
+            :label="isMobile ? '' : 'Respuestas (/)'"
             class="q-px-xs"
             @click="showQuickMessagesModal = true"
           >
-            <q-tooltip>Atajos de respuesta rápida</q-tooltip>
+            <q-tooltip>Atajos de respuesta rápida (/)</q-tooltip>
           </q-btn>
 
           <!-- Notas & Micro-Conocimiento (#) -->
@@ -317,21 +340,21 @@
             size="sm"
             color="deep-purple-3"
             icon="sym_r_sticky_note_2"
-            label="Notas (#)"
+            :label="isMobile ? '' : 'Notas (#)'"
             class="q-px-xs"
             @click="openKeepNotesPicker"
           >
             <q-tooltip>Base de conocimiento y notas rápidas (#)</q-tooltip>
           </q-btn>
 
-          <!-- Programar Envío Diferido (Fase 6) -->
+          <!-- Programar Envío Diferido -->
           <q-btn
             flat
             dense
             size="sm"
             color="light-blue-3"
             icon="sym_r_schedule_send"
-            label="Programar"
+            :label="isMobile ? '' : 'Programar'"
             class="q-px-xs"
             @click="openScheduleFromChat"
           >
@@ -345,7 +368,7 @@
             size="sm"
             color="amber-4"
             icon="sym_r_sentiment_satisfied"
-            label="Emojis"
+            :label="isMobile ? '' : 'Emojis'"
             class="q-px-xs"
           >
             <q-tooltip>Insertar Emoji</q-tooltip>
@@ -374,7 +397,7 @@
             size="sm"
             color="light-blue-4"
             icon="sym_r_attach_file"
-            label="Adjuntar"
+            :label="isMobile ? '' : 'Adjuntar'"
             class="q-px-xs"
             @click="triggerFileInput"
           >
@@ -395,7 +418,7 @@
             size="sm"
             :color="isRecordingVoice ? 'negative' : 'teal-3'"
             :icon="isRecordingVoice ? 'sym_r_stop_circle' : 'sym_r_mic'"
-            :label="isRecordingVoice ? formatRecordTimer(recordingSeconds) : 'Audio'"
+            :label="isRecordingVoice ? formatRecordTimer(recordingSeconds) : (isMobile ? '' : 'Audio')"
             class="q-px-xs"
             :class="{ 'pulse-recording': isRecordingVoice }"
             @click="toggleVoiceRecording"
@@ -410,7 +433,7 @@
             size="sm"
             color="amber-4"
             icon="sym_r_auto_awesome"
-            label="Sugerir con IA"
+            :label="isMobile ? '' : 'IA Copilot'"
             class="q-px-xs"
             :loading="isGeneratingAiSuggestion"
             @click="generateAiSuggestion"
@@ -419,7 +442,7 @@
           </q-btn>
         </div>
 
-        <span class="text-caption text-grey-5" style="font-size: 0.7rem">
+        <span class="text-caption text-grey-5 gt-xs" style="font-size: 0.7rem">
           Presiona <strong>Enter</strong> para enviar
         </span>
       </div>
@@ -924,9 +947,11 @@ const props = defineProps<{
   conversation: Conversation
   isActionLoading?: boolean
   isSending?: boolean
+  isMobile?: boolean
 }>()
 
 const emit = defineEmits<{
+  (e: 'back'): void
   (e: 'accept'): void
   (e: 'transfer'): void
   (e: 'close'): void
@@ -1719,6 +1744,35 @@ onUnmounted(() => {
 
 .composer-mode-bar {
   padding: 0 4px;
+}
+
+.composer-tools-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .inbox-chat-header {
+    height: 52px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .chat-contact-name {
+    max-width: 120px;
+    font-size: 0.85rem;
+  }
+
+  .message-bubble {
+    max-width: 88% !important;
+  }
+
+  .message-row--internal .message-bubble {
+    max-width: 94% !important;
+  }
 }
 
 .composer-mode-btn {

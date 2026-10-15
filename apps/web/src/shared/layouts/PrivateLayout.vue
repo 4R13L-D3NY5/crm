@@ -51,10 +51,10 @@
           </q-select>
           <div
             v-else-if="authStore.user?.current_organization"
-            class="row items-center q-gutter-x-xs q-px-sm q-py-xs bg-dark-soft rounded-borders"
+            class="row items-center q-gutter-x-xs q-px-sm q-py-xs bg-dark-soft rounded-borders gt-xs"
           >
             <q-icon name="sym_r_corporate_fare" size="15px" color="primary" />
-            <span class="text-caption text-weight-bold text-ink">{{ authStore.user.current_organization.name }}</span>
+            <span class="text-caption text-weight-bold text-ink ellipsis" style="max-width: 130px;">{{ authStore.user.current_organization.name }}</span>
           </div>
 
 
@@ -513,8 +513,15 @@ const themeStore = useAppTheme()
 const isDark = themeStore.isDark
 const { applyThemeMode, initTheme } = themeStore
 
-const leftDrawerOpen = ref(true)
+const leftDrawerOpen = ref(!$q.screen.lt.md)
 const isSettingsModalOpen = ref(false)
+
+// Cerrar drawer lateral automáticamente en pantallas móviles al navegar
+router.afterEach(() => {
+  if ($q.screen.lt.md) {
+    leftDrawerOpen.value = false
+  }
+})
 
 const currentPresence = computed<PresenceStatus>(() => {
   return authStore.user?.presence_status ?? 'online'

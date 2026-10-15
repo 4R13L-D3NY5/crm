@@ -1,7 +1,8 @@
 <template>
   <div class="inbox-page-layout">
-    <!-- Columna 1: Lista de Tickets y Filtros -->
+    <!-- Columna 1: Lista de Tickets y Filtros (En móvil se oculta cuando hay un chat seleccionado) -->
     <InboxTicketList
+      v-if="!isMobile || !selectedConversationId"
       :conversations="filteredConversations"
       :selected-id="selectedConversationId"
       :active-tab="activeTab"
@@ -9,6 +10,7 @@
       :loading="conversationsQuery.isLoading.value"
       :attending-count="attendingCount"
       :pending-count="pendingCount"
+      :is-mobile="isMobile"
       @update:active-tab="onTabChange"
       @update:search="searchQuery = $event"
       @select="selectConversation"
@@ -16,11 +18,13 @@
     />
 
     <!-- Columna 2: Chat en Vivo o Pantalla Vacía de Selección -->
-    <div v-if="selectedConversation" class="inbox-center-area">
+    <div v-if="selectedConversation && (!isMobile || selectedConversationId)" class="inbox-center-area">
       <InboxChatThread
         :conversation="selectedConversation"
         :is-action-loading="isActionPending"
         :is-sending="mutations.whatsappMessageMutation.isPending.value || mutations.facebookMessageMutation.isPending.value || mutations.instagramMessageMutation.isPending.value || mutations.messageMutation.isPending.value"
+        :is-mobile="isMobile"
+        @back="handleBackToList"
         @accept="handleAcceptTicket"
         @transfer="isTransferModalOpen = true"
         @close="handleCloseTicket"
@@ -29,8 +33,8 @@
       />
     </div>
 
-    <!-- Empty Selection State (si no hay conversación activa seleccionada) -->
-    <div v-else class="inbox-center-area inbox-center-empty">
+    <!-- Empty Selection State (solo desktop si no hay conversación activa seleccionada) -->
+    <div v-else-if="!isMobile" class="inbox-center-area inbox-center-empty">
       <div class="column items-center text-center q-pa-xl text-grey-5">
         <div class="empty-chat-icon q-mb-md">
           <q-icon name="sym_r_forum" size="44px" color="teal-4" />
@@ -42,14 +46,35 @@
       </div>
     </div>
 
-    <!-- Columna 3: Perfil 360° del Contacto (Colapsable) -->
+    <!-- Columna 3: Perfil 360° del Contacto (Desktop) -->
     <InboxContactSidebar
-      v-if="isProfileOpen && selectedConversation"
+      v-if="!isMobile && isProfileOpen && selectedConversation"
       :conversation="selectedConversation"
       @close="isProfileOpen = false"
       @transfer="isTransferModalOpen = true"
       @resolve="handleCloseTicket"
     />
+
+    <!-- Drawer/Modal Móvil: Perfil 360° del Contacto en Móvil -->
+    <q-dialog
+      v-if="isMobile"
+      v-model="isProfileOpen"
+      position="right"
+      maximized
+      transition-show="slide-left"
+      transition-hide="slide-right"
+    >
+      <div class="mobile-profile-sheet bg-dark column no-wrap" style="width: 100vw; max-width: 340px; height: 100%;">
+        <InboxContactSidebar
+          v-if="selectedConversation"
+          :conversation="selectedConversation"
+          :is-mobile="true"
+          @close="isProfileOpen = false"
+          @transfer="isTransferModalOpen = true"
+          @resolve="handleCloseTicket"
+        />
+      </div>
+    </q-dialog>
 
     <!-- Diálogos Desacoplados -->
     <TicketTransferDialog
@@ -73,6 +98,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import {
   useConversation,
@@ -88,14 +114,18 @@ import InboxContactSidebar from '../components/InboxContactSidebar.vue'
 import TicketTransferDialog from '../components/TicketTransferDialog.vue'
 import ConversationFormDialog from './ConversationFormDialog.vue'
 
+const $q = useQuasar()
 const notify = useAppNotify()
 const formOptions = useConversationFormOptions()
+
+// Detección de pantalla móvil (< 900px)
+const isMobile = computed(() => $q.screen.width < 900)
 
 // Estados y Filtros
 const activeTab = ref<'attending' | 'pending' | 'closed'>('attending')
 const searchQuery = ref('')
 const selectedConversationId = ref<string | null>(null)
-const isProfileOpen = ref(true)
+const isProfileOpen = ref(!$q.screen.lt.md)
 const isTransferModalOpen = ref(false)
 const isNewTicketModalOpen = ref(false)
 
@@ -157,8 +187,18 @@ function onTabChange(tab: 'attending' | 'pending' | 'closed') {
   }
 }
 
+function handleBackToList() {
+  selectedConversationId.value = null
+  if (isMobile.value) {
+    isProfileOpen.value = false
+  }
+}
+
 function selectConversation(conv: Conversation) {
   selectedConversationId.value = conv.id
+  if (isMobile.value) {
+    isProfileOpen.value = false
+  }
 }
 
 async function handleAcceptTicket() {
@@ -268,12 +308,11 @@ async function handleSendMessage({
   }
 }
 
-// Auto-seleccionar el primer ticket si no hay ninguno seleccionado
-
+// Auto-seleccionar el primer ticket solo en desktop si no hay ninguno seleccionado
 watch(
   filteredConversations,
   (list) => {
-    if (!selectedConversationId.value && list.length > 0) {
+    if (!isMobile.value && !selectedConversationId.value && list.length > 0) {
       selectedConversationId.value = list[0].id
     }
   },

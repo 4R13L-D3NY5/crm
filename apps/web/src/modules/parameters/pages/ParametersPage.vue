@@ -1286,12 +1286,20 @@ onMounted(() => {
   gap: 8px;
   border-bottom: 1px solid var(--crm-color-border);
   padding-bottom: 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
 }
 
 .xf-subnav-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
   background: transparent;
   border: 1px solid transparent;
   color: var(--crm-color-muted);

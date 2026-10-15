@@ -345,6 +345,17 @@ async function handleConfirmDelete() {
   gap: 16px;
 }
 
+@media (max-width: 599px) {
+  .quick-messages__search {
+    width: 100%;
+    min-width: 0;
+  }
+  .quick-messages__grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
 .quick-messages__card {
   border-radius: var(--crm-radius-card, 16px);
   background: var(--crm-bg-card, #0f1c2b);

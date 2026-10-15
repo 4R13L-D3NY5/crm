@@ -1,8 +1,8 @@
 <template>
   <q-page class="xf-keep-page q-pa-md q-pa-md-lg">
     <!-- Header Principal -->
-    <header class="xf-keep-header row items-center justify-between q-mb-md">
-      <div>
+    <header class="xf-keep-header row items-center justify-between q-col-gutter-sm q-mb-md">
+      <div class="col-12 col-sm-auto">
         <div class="row items-center q-gutter-x-sm">
           <q-avatar size="36px" color="primary" text-color="white">
             <q-icon name="sym_r_sticky_note_2" size="20px" />
@@ -18,7 +18,7 @@
         </div>
       </div>
 
-      <div class="row items-center q-gutter-x-sm">
+      <div class="col-12 col-sm-auto row items-center q-gutter-x-sm">
         <q-btn
           v-if="isAdmin"
           unelevated
@@ -383,6 +383,13 @@ function confirmDelete(id: string) {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
   align-items: start;
+}
+
+@media (max-width: 599px) {
+  .keep-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 @media (min-width: 1200px) {

@@ -1,8 +1,8 @@
 <template>
   <div class="whaticket-wabot-page">
     <!-- Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div>
+    <div class="row items-center justify-between q-col-gutter-sm q-mb-md">
+      <div class="col-12 col-md-auto">
         <div class="row items-center q-gutter-x-sm">
           <h1 class="text-h5 text-bold text-white q-my-none">Base de Conocimiento & Hentle-AI</h1>
           <q-badge
@@ -22,7 +22,7 @@
         </p>
       </div>
 
-      <div class="row items-center q-gutter-sm">
+      <div class="col-12 col-md-auto row items-center q-gutter-sm">
         <q-btn
           outline
           icon="sym_r_tune"
@@ -712,12 +712,20 @@ function deleteArticle(id: string) {
   gap: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
 }
 
 .whaticket-subnav-btn {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
   background: transparent;
   border: none;
   color: #8696a0;

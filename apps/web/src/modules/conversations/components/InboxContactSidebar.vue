@@ -380,6 +380,7 @@ import type { Conversation } from '../types/conversation.types'
 
 const props = defineProps<{
   conversation: Conversation
+  isMobile?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -598,6 +599,13 @@ function cleanPhone(phone: string): string {
   flex-direction: column;
   background: var(--crm-bg-sidebar);
   border-left: 1px solid var(--crm-color-border);
+
+  @media (max-width: 899px) {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    border-left: none !important;
+  }
 }
 
 .inbox-contact-sidebar__header {

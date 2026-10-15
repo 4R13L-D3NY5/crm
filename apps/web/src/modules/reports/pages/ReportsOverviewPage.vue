@@ -1,8 +1,8 @@
 <template>
   <div class="xf-reports-page">
     <!-- Header Principal -->
-    <div class="row items-center justify-between q-mb-lg">
-      <div>
+    <div class="row items-center justify-between q-col-gutter-md q-mb-lg">
+      <div class="col-12 col-md-auto">
         <div class="row items-center q-gutter-x-sm">
           <h1 class="text-h5 text-bold text-white q-my-none">Reportes & Analítica Ejecutiva</h1>
           <q-badge color="teal-9" text-color="teal-2" rounded class="q-px-sm text-bold">
@@ -15,7 +15,7 @@
       </div>
 
       <!-- Barra de Filtros de Período y Exportación -->
-      <div class="row items-center q-gutter-sm">
+      <div class="col-12 col-md-auto row items-center q-gutter-sm">
         <!-- Selector de Presets de Fecha -->
         <q-btn-toggle
           v-model="selectedPreset"
