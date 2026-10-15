@@ -16,7 +16,7 @@ class AssignUsersToWhatsAppAccountController extends Controller
         $account = WhatsAppAccount::where('organization_id', $organization->id)->findOrFail($id);
 
         $validated = $request->validate([
-            'users' => ['required', 'array'],
+            'users' => ['present', 'array'],
             'users.*.user_id' => ['required', 'string', 'exists:users,id'],
             'users.*.can_view' => ['boolean'],
             'users.*.can_reply' => ['boolean'],

@@ -120,3 +120,14 @@ export async function updateWhatsAppDailyLimit(
   return response.data.data
 }
 
+export async function assignUsersToWhatsAppAccount(
+  id: string,
+  users: Array<{ user_id: string; can_view?: boolean; can_reply?: boolean }>,
+): Promise<WhatsAppAccount> {
+  const response = await http.put<{ data: WhatsAppAccount; message: string }>(
+    `/whatsapp/accounts/${id}/users`,
+    { users },
+  )
+  return response.data.data
+}
+

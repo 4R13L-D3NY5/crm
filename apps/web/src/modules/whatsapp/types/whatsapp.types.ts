@@ -12,6 +12,14 @@ export interface WhatsAppAntiBanStats {
   is_qr: boolean
 }
 
+export interface WhatsAppAuthorizedUser {
+  id: string
+  name: string
+  email: string
+  can_view: boolean
+  can_reply: boolean
+}
+
 export interface WhatsAppAccount {
   id: string
   organization_id: string
@@ -27,6 +35,7 @@ export interface WhatsAppAccount {
   is_active: boolean
   daily_limit?: number
   anti_ban?: WhatsAppAntiBanStats
+  authorized_users?: WhatsAppAuthorizedUser[]
   webhook_url?: string | null
   social_webhook_url?: string | null
   last_connected_at?: string | null

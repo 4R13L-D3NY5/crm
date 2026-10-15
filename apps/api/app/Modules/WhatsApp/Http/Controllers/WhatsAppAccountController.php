@@ -15,6 +15,7 @@ class WhatsAppAccountController
     {
         $organization = request()->user()->currentOrganization;
         $accounts = WhatsAppAccount::query()
+            ->with('authorizedUsers')
             ->where('organization_id', $organization->id)
             ->latest()
             ->get();

@@ -43,6 +43,15 @@
               </q-item>
 
               <q-item
+                clickable
+                v-close-popup
+                @click="openAssignUsersDialog"
+              >
+                <q-item-section avatar><q-icon name="sym_r_group_add" size="16px" color="indigo-3" /></q-item-section>
+                <q-item-section>Asignar Operadores</q-item-section>
+              </q-item>
+
+              <q-item
                 v-if="account.session_type === 'facebook'"
                 clickable
                 v-close-popup
@@ -171,6 +180,30 @@
           <span>{{ account.anti_ban.usage_percent }}% del límite diario</span>
           <span>{{ account.anti_ban.outbound_today }} msgs salientes</span>
         </div>
+      </div>
+
+      <!-- Operadores Asignados al Canal -->
+      <div class="row items-center justify-between q-mt-sm q-pt-xs" style="border-top: 1px solid rgba(255,255,255,0.05)">
+        <div class="row items-center q-gutter-x-xs ellipsis" style="max-width: 78%">
+          <q-icon name="sym_r_badge" size="14px" color="indigo-3" />
+          <span v-if="account.authorized_users && account.authorized_users.length" class="text-caption text-grey-3 ellipsis" style="font-size: 0.72rem">
+            Asignado a: <strong class="text-white">{{ account.authorized_users.map(u => u.name).join(', ') }}</strong>
+          </span>
+          <span v-else class="text-caption text-grey-5 italic" style="font-size: 0.72rem">
+            Sin asignar (Visible a todos)
+          </span>
+        </div>
+
+        <q-btn
+          flat
+          dense
+          no-caps
+          size="xs"
+          color="indigo-3"
+          icon="sym_r_person_add"
+          label="Asignar"
+          @click.stop="openAssignUsersDialog"
+        />
       </div>
     </q-card-section>
 
@@ -447,6 +480,66 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Modal para Asignar Operadores al Canal -->
+    <q-dialog v-model="showAssignUsersDialog">
+      <q-card style="width: 480px; max-width: 95vw; max-height: 85vh;" class="credentials-card column no-wrap">
+        <q-card-section class="row items-center justify-between q-pb-none col-auto">
+          <div class="row items-center q-gutter-x-sm">
+            <q-avatar size="28px" color="indigo-9" text-color="indigo-2" icon="sym_r_group_add" />
+            <div>
+              <div class="text-subtitle2 text-weight-bold text-white">Asignar Operadores al Canal</div>
+              <div class="text-caption text-grey-4">{{ account.name }}</div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pt-md col scroll">
+          <p class="text-caption text-grey-4 q-mb-sm">
+            Selecciona qué agentes u operadores se encargarán de atender los chats, mensajes y comentarios de este canal (Facebook, Instagram o WhatsApp).
+          </p>
+
+          <div v-if="isLoadingUsers" class="row justify-center q-py-md">
+            <q-spinner-dots size="30px" color="primary" />
+          </div>
+
+          <div v-else-if="availableUsers.length === 0" class="text-caption text-grey-5 text-center q-py-md">
+            No hay operadores registrados en la organización.
+          </div>
+
+          <q-list v-else dense class="q-gutter-y-xs">
+            <q-item
+              v-for="user in availableUsers"
+              :key="user.id"
+              tag="label"
+              class="rounded-borders bg-dark-soft q-pa-sm"
+            >
+              <q-item-section side top>
+                <q-checkbox v-model="selectedUserIds" :val="user.id" dark dense color="primary" />
+              </q-item-section>
+
+              <q-item-section>
+                <q-item-label class="text-weight-bold text-white text-caption">{{ user.name }}</q-item-label>
+                <q-item-label caption class="text-grey-5" style="font-size: 0.7rem">{{ user.email }} • Rol: {{ user.role }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-px-md q-py-sm col-auto">
+          <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+          <q-btn
+            unelevated
+            label="Guardar Asignación"
+            color="primary"
+            no-caps
+            :loading="isSavingUsers"
+            @click="handleSaveAssignedUsers"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-card>
 </template>
 
@@ -454,7 +547,9 @@
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useQueryClient } from '@tanstack/vue-query'
+import { http } from '@/shared/api/http'
 import {
+  assignUsersToWhatsAppAccount,
   syncFacebookMessages,
   syncInstagramMessages,
   updateWhatsAppDailyLimit,
@@ -667,6 +762,58 @@ async function handleSaveLimit() {
     })
   } finally {
     isUpdatingLimit.value = false
+  }
+}
+
+// Asignación de Operadores al Canal
+const showAssignUsersDialog = ref(false)
+const availableUsers = ref<Array<{ id: string; name: string; email: string; role: string }>>([])
+const selectedUserIds = ref<string[]>([])
+const isLoadingUsers = ref(false)
+const isSavingUsers = ref(false)
+
+async function openAssignUsersDialog() {
+  selectedUserIds.value = props.account.authorized_users?.map(u => u.id) || []
+  showAssignUsersDialog.value = true
+  if (availableUsers.value.length === 0) {
+    isLoadingUsers.value = true
+    try {
+      const res = await http.get('/users')
+      availableUsers.value = res.data?.data || []
+    } catch {
+      $q.notify({ type: 'negative', message: 'No se pudieron cargar los operadores.' })
+    } finally {
+      isLoadingUsers.value = false
+    }
+  }
+}
+
+async function handleSaveAssignedUsers() {
+  isSavingUsers.value = true
+  try {
+    const payload = selectedUserIds.value.map(uid => ({
+      user_id: uid,
+      can_view: true,
+      can_reply: true,
+    }))
+    await assignUsersToWhatsAppAccount(props.account.id, payload)
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] })
+    $q.notify({
+      type: 'positive',
+      message: 'Operadores asignados al canal exitosamente.',
+      position: 'bottom-right',
+      timeout: 2200,
+    })
+    showAssignUsersDialog.value = false
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al asignar operadores al canal',
+      position: 'bottom-right',
+      timeout: 3000,
+    })
+  } finally {
+    isSavingUsers.value = false
   }
 }
 </script>

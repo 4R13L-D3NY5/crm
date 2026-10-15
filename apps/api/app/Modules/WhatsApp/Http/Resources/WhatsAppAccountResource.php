@@ -64,6 +64,15 @@ class WhatsAppAccountResource extends JsonResource
                 'risk_level' => $riskLevel,
                 'is_qr' => $isQr,
             ],
+            'authorized_users' => $this->relationLoaded('authorizedUsers')
+                ? $this->authorizedUsers->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'can_view' => (bool) ($u->pivot->can_view ?? true),
+                    'can_reply' => (bool) ($u->pivot->can_reply ?? true),
+                ])->values()
+                : [],
             'webhook_url' => url('/api/whatsapp/webhook'),
             'social_webhook_url' => url('/api/social/comments/webhook'),
             'last_connected_at' => $this->last_connected_at?->toIso8601String(),
