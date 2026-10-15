@@ -25,36 +25,34 @@ class CleanProductionSeeder extends Seeder
             ['name' => 'UNITEPC'],
         );
 
-        // 2. Usuarios Administrativos Oficiales
-        $users = [
-            'unitepc_admin' => User::query()->updateOrCreate(
-                ['email' => 'admin@unitepc.pro'],
-                [
-                    'name' => 'Administrador UNITEPC',
-                    'password' => 'password',
-                ]
-            ),
-            'superadmin' => User::query()->updateOrCreate(
-                ['email' => 'admin@crm.local'],
-                [
-                    'name' => 'SuperAdmin XpertiFlow',
-                    'password' => 'password',
-                ]
-            ),
-        ];
+        // 2. Usuario Administrador Oficial de UNITEPC
+        $unitepcAdmin = User::query()->updateOrCreate(
+            ['email' => 'admin@unitepc.pro'],
+            [
+                'name' => 'Administrador UNITEPC',
+                'password' => 'password',
+            ]
+        );
 
-        foreach ($users as $user) {
-            $organization->users()->syncWithoutDetaching([
-                $user->getKey() => [
-                    'id' => (string) Str::ulid(),
-                    'role' => 'owner',
-                ],
-            ]);
+        $organization->users()->syncWithoutDetaching([
+            $unitepcAdmin->getKey() => [
+                'id' => (string) Str::ulid(),
+                'role' => 'owner',
+            ],
+        ]);
 
-            $user->forceFill([
-                'current_organization_id' => $organization->getKey(),
-            ])->save();
-        }
+        $unitepcAdmin->forceFill([
+            'current_organization_id' => $organization->getKey(),
+        ])->save();
+
+        // 3. SuperAdmin Global XpertiFlow (Plataforma Master)
+        User::query()->updateOrCreate(
+            ['email' => 'admin@crm.local'],
+            [
+                'name' => 'SuperAdmin XpertiFlow',
+                'password' => 'password',
+            ]
+        );
 
         // 3. Pipeline Oficial de Admisiones y Ventas
         $pipeline = Pipeline::query()->updateOrCreate(

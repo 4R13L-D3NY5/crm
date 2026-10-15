@@ -16,8 +16,13 @@ class UserManagementController extends Controller
     {
         $organization = $request->user()->currentOrganization;
 
-        $users = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))
-            ->with(['queues', 'categories'])
+        $query = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id));
+
+        if ($request->user()?->email !== 'admin@crm.local') {
+            $query->where('users.email', '!=', 'admin@crm.local');
+        }
+
+        $users = $query->with(['queues', 'categories'])
             ->get()
             ->map(function ($u) use ($organization) {
                 $role = $u->organizations()->where('organizations.id', $organization->id)->first()?->pivot?->role ?? 'agent';
@@ -40,7 +45,7 @@ class UserManagementController extends Controller
     {
         $organization = $request->user()->currentOrganization;
 
-        $currentUsersCount = $organization->users()->count();
+        $currentUsersCount = $organization->users()->where('users.email', '!=', 'admin@crm.local')->count();
         $maxAgents = $organization->max_agents ?? 3;
 
         if ($currentUsersCount >= $maxAgents) {
@@ -106,6 +111,12 @@ class UserManagementController extends Controller
     {
         $organization = $request->user()->currentOrganization;
         $user = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))->findOrFail($id);
+
+        if ($user->email === 'admin@crm.local' && $request->user()?->email !== 'admin@crm.local') {
+            return response()->json([
+                'message' => 'No tienes permisos para modificar a la cuenta maestra de la plataforma.',
+            ], 403);
+        }
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
@@ -177,6 +188,12 @@ class UserManagementController extends Controller
     {
         $organization = $request->user()->currentOrganization;
         $user = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))->findOrFail($id);
+
+        if ($user->email === 'admin@crm.local' && $request->user()?->email !== 'admin@crm.local') {
+            return response()->json([
+                'message' => 'No tienes permisos para desvincular a la cuenta maestra de la plataforma.',
+            ], 403);
+        }
 
         $user->organizations()->detach($organization->id);
 

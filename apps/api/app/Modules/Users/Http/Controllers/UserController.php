@@ -13,10 +13,15 @@ class UserController
     {
         $organizationId = $request->user()->current_organization_id;
 
-        $users = User::query()
+        $query = User::query()
             ->whereHas('organizations', fn ($query) => $query->where('organizations.id', $organizationId))
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        if ($request->user()?->email !== 'admin@crm.local') {
+            $query->where('users.email', '!=', 'admin@crm.local');
+        }
+
+        $users = $query->get();
 
         return response()->json([
             'data' => UserOptionResource::collection($users)->resolve(),
