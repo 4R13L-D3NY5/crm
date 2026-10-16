@@ -231,18 +231,24 @@ async function initSession(sessionId) {
 
     for (const msg of messages) {
       if (!msg.key) continue;
-      if (msg.key.remoteJid === 'status@broadcast') continue;
-      // No reinyectar mensajes enviados por el CRM
-      if (msg.key.fromMe) continue;
-
       const remoteJid = msg.key.remoteJid || '';
-      if (remoteJid.includes('broadcast') || remoteJid.includes('newsletter')) {
+
+      // Ignorar estados, canales, difusiones masivas y grupos (@g.us)
+      if (
+        !remoteJid ||
+        remoteJid === 'status@broadcast' ||
+        remoteJid.includes('broadcast') ||
+        remoteJid.includes('newsletter') ||
+        remoteJid.endsWith('@g.us')
+      ) {
         continue;
       }
 
-      console.log(`[Processing Message] id=${msg.key.id} remoteJid=${remoteJid} participant=${msg.key.participant || 'none'}`);
+      const isFromMe = Boolean(msg.key.fromMe);
 
-      // Normalizar número de teléfono emisor
+      console.log(`[Processing Message] id=${msg.key.id} fromMe=${isFromMe} remoteJid=${remoteJid} participant=${msg.key.participant || 'none'}`);
+
+      // Normalizar número de teléfono emisor / interlocutor
       let cleanPhone = '';
       if (remoteJid.endsWith('@s.whatsapp.net')) {
         cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(remoteJid) : remoteJid).split('@')[0].split(':')[0];
@@ -253,6 +259,12 @@ async function initSession(sessionId) {
         cleanPhone = `+${rawId}`;
       } else {
         cleanPhone = `+${remoteJid.split('@')[0].split(':')[0]}`;
+      }
+
+      // Evitar procesar mensajes enviados a uno mismo ("Mensajes guardados / Notas propias")
+      const myUserPhone = sock.user?.id ? sock.user.id.split(':')[0].split('@')[0] : '';
+      if (myUserPhone && cleanPhone.replace(/[^0-9]/g, '') === myUserPhone.replace(/[^0-9]/g, '')) {
+        continue;
       }
 
       // Desempaquetar contenido de mensaje (efímero, viewOnce, documento, captions, texto)
@@ -337,7 +349,7 @@ async function initSession(sessionId) {
         : (mediaType === 'image' ? '[Imagen]' : (mediaType === 'audio' ? '[Nota de voz / Audio]' : (mediaType === 'sticker' ? '[Sticker]' : '')));
 
       if (effectiveBody && effectiveBody.length > 0) {
-        console.log(`[Inbound Message Received] account=${sessionId} from=${cleanPhone} type=${mediaType || 'text'} body=${effectiveBody}`);
+        console.log(`[${isFromMe ? 'Outbound Mirror' : 'Inbound'} Message Received] account=${sessionId} phone=${cleanPhone} type=${mediaType || 'text'} body=${effectiveBody}`);
 
         await notifyLaravel({
           event: 'message',
@@ -345,6 +357,7 @@ async function initSession(sessionId) {
           provider_message_id: msg.key.id,
           from_phone: cleanPhone,
           from_name: msg.pushName || cleanPhone,
+          from_me: isFromMe,
           body: effectiveBody,
           timestamp: msg.messageTimestamp,
           media_type: mediaType,

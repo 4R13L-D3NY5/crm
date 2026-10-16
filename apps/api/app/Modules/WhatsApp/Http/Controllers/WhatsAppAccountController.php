@@ -28,19 +28,42 @@ class WhatsAppAccountController
     public function store(\Illuminate\Http\Request $request): JsonResponse
     {
         $organization = $request->user()->currentOrganization;
+        $sessionType = $request->input('session_type', 'baileys_qr');
+        $isSocial = in_array($sessionType, ['facebook', 'instagram', 'tiktok']);
 
-        $currentAccountsCount = WhatsAppAccount::query()
-            ->where('organization_id', $organization->id)
-            ->count();
-        $maxLines = $organization->max_whatsapp_lines ?? 1;
+        if ($isSocial) {
+            $currentSocialCount = WhatsAppAccount::query()
+                ->where('organization_id', $organization->id)
+                ->whereIn('session_type', ['facebook', 'instagram', 'tiktok'])
+                ->count();
+            $maxSocial = $organization->max_social_accounts ?? 8;
 
-        if ($currentAccountsCount >= $maxLines) {
-            return response()->json([
-                'message' => "Has alcanzado el límite máximo de {$maxLines} canal(es) de tu suscripción (Plan " . ucfirst($organization->plan ?? 'básico') . "). Contacta a soporte para habilitar canales adicionales.",
-                'code' => 'QUOTA_CHANNELS_EXCEEDED',
-                'current_count' => $currentAccountsCount,
-                'max_allowed' => $maxLines,
-            ], 422);
+            if ($currentSocialCount >= $maxSocial) {
+                return response()->json([
+                    'message' => "Has alcanzado el límite máximo de {$maxSocial} cuenta(s) de redes sociales de tu Plan " . ucfirst($organization->plan ?? 'básico') . ". Puedes añadir redes adicionales por +$10 USD/mes.",
+                    'code' => 'QUOTA_SOCIAL_EXCEEDED',
+                    'current_count' => $currentSocialCount,
+                    'max_allowed' => $maxSocial,
+                ], 422);
+            }
+        } else {
+            $currentWhatsAppCount = WhatsAppAccount::query()
+                ->where('organization_id', $organization->id)
+                ->where(function ($q) {
+                    $q->whereIn('session_type', ['baileys_qr', 'meta_cloud', 'qr_baileys', 'qr'])
+                        ->orWhereNull('session_type');
+                })
+                ->count();
+            $maxLines = $organization->max_whatsapp_lines ?? 1;
+
+            if ($currentWhatsAppCount >= $maxLines) {
+                return response()->json([
+                    'message' => "Has alcanzado el límite máximo de {$maxLines} número(s) de WhatsApp de tu suscripción (Plan " . ucfirst($organization->plan ?? 'básico') . "). Contacta a soporte para habilitar números adicionales.",
+                    'code' => 'QUOTA_CHANNELS_EXCEEDED',
+                    'current_count' => $currentWhatsAppCount,
+                    'max_allowed' => $maxLines,
+                ], 422);
+            }
         }
 
         $validated = $request->validate([
@@ -55,6 +78,13 @@ class WhatsAppAccountController
         ]);
 
         $sessionType = $validated['session_type'] ?? 'baileys_qr';
+
+        if (!empty($validated['access_token']) && (str_contains($validated['access_token'], 'SQLSTATE') || str_contains($validated['access_token'], 'ERROR:'))) {
+            return response()->json([
+                'message' => 'El Access Token ingresado no es válido. Debes pegar el Page Access Token generado en Meta (inicia con EAA...).',
+            ], 422);
+        }
+
         $hasCredentials = filled($validated['access_token'] ?? null) || filled($validated['phone_number_id'] ?? null);
 
         $account = WhatsAppAccount::create([

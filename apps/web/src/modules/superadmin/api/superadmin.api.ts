@@ -26,6 +26,8 @@ export interface TenantItem {
   monthly_mrr_usd: number
   phones_total: number
   extra_phones: number
+  social_total: number
+  extra_social: number
   agents_total: number
   extra_agents: number
   users_count: number
@@ -62,7 +64,7 @@ export async function renewTenantSubscription(
 
 export async function previewProration(
   tenantId: string,
-  payload: { new_plan: string; extra_phones: number; extra_agents: number }
+  payload: { new_plan: string; extra_phones: number; extra_agents: number; extra_social?: number }
 ) {
   const { data } = await http.post<ProrationData>(`/superadmin/tenants/${tenantId}/proration-preview`, payload)
   return data
@@ -70,7 +72,7 @@ export async function previewProration(
 
 export async function applyPlanChange(
   tenantId: string,
-  payload: { new_plan: string; extra_phones: number; extra_agents: number; payment_method: string; reference_code?: string }
+  payload: { new_plan: string; extra_phones: number; extra_agents: number; extra_social?: number; payment_method: string; reference_code?: string }
 ) {
   const { data } = await http.post(`/superadmin/tenants/${tenantId}/change-plan`, payload)
   return data
@@ -78,13 +80,14 @@ export async function applyPlanChange(
 
 export async function adjustTenantQuotas(
   tenantId: string,
-  payload: { extra_phones: number; extra_agents: number; payment_method: string; reference_code?: string; notes?: string }
+  payload: { extra_phones: number; extra_agents: number; extra_social?: number; payment_method: string; reference_code?: string; notes?: string }
 ) {
   const { data } = await http.post<{
     success: boolean
     message: string
     proration: ProrationData
     new_max_whatsapp_lines: number
+    new_max_social_accounts?: number
     new_max_agents: number
     new_monthly_price_usd: number
     license_token: string
@@ -119,7 +122,7 @@ export async function generateAiAudit(tenantId: string) {
 
 export async function extendTenantTrial(
   tenantId: string,
-  payload: { days: number; plan?: string; extra_phones?: number; extra_agents?: number }
+  payload: { days: number; plan?: string; extra_phones?: number; extra_agents?: number; extra_social?: number }
 ) {
   const { data } = await http.post<{
     success: boolean

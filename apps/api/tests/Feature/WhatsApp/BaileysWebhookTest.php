@@ -7,6 +7,7 @@ use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\Tenancy\Models\Organization;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
+use App\Modules\WhatsApp\Models\WhatsAppMessageMapping;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -268,5 +269,123 @@ class BaileysWebhookTest extends TestCase
 
         $storedPath = str_replace('/storage/', '', $message->media_url);
         Storage::disk('public')->assertExists($storedPath);
+    }
+
+    public function test_baileys_outbound_mirror_message_creates_outbound_message_and_mapping(): void
+    {
+        Event::fake([TicketMessageCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_007',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_out_phone_112233',
+            'from_phone' => '+59178899001',
+            'from_name' => 'Comprador Móvil',
+            'from_me' => true,
+            'body' => 'Hola, te escribo desde mi celular Android fuera del CRM.',
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        $conversation = Conversation::where('organization_id', $organization->id)
+            ->where('channel', 'whatsapp')
+            ->first();
+
+        $this->assertNotNull($conversation);
+        $this->assertSame('open', $conversation->status);
+        $this->assertSame(0, $conversation->unread_count, 'Outbound messages should not increment unread counter');
+
+        $message = Message::where('conversation_id', $conversation->id)->first();
+        $this->assertNotNull($message);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertSame('delivered', $message->message_status);
+        $this->assertSame('delivered', $message->delivery_status);
+        $this->assertSame('Hola, te escribo desde mi celular Android fuera del CRM.', $message->body);
+
+        $this->assertDatabaseHas('whatsapp_message_mappings', [
+            'provider_message_id' => 'baileys_out_phone_112233',
+            'conversation_id' => $conversation->id,
+            'message_id' => $message->id,
+            'direction' => 'outbound',
+            'status' => 'delivered',
+        ]);
+
+        Event::assertDispatched(TicketMessageCreatedEvent::class);
+    }
+
+    public function test_baileys_outbound_crm_message_with_existing_mapping_is_ignored_without_duplicate(): void
+    {
+        Event::fake([TicketMessageCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_008',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $conversation = Conversation::create([
+            'organization_id' => $organization->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+            'unread_count' => 0,
+            'last_message_at' => now(),
+        ]);
+
+        $originalMessage = Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'message_type' => 'text',
+            'message_status' => 'sent',
+            'delivery_status' => 'sent',
+            'body' => 'Mensaje original enviado desde CRM web',
+            'sent_at' => now(),
+        ]);
+
+        WhatsAppMessageMapping::create([
+            'organization_id' => $organization->id,
+            'whatsapp_account_id' => $account->id,
+            'conversation_id' => $conversation->id,
+            'message_id' => $originalMessage->id,
+            'provider_message_id' => 'baileys_crm_existing_id_999',
+            'direction' => 'outbound',
+            'status' => 'sent',
+        ]);
+
+        // Baileys sends webhook for the message that was already mapped
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_crm_existing_id_999',
+            'from_phone' => '+59178899001',
+            'from_name' => 'Comprador Móvil',
+            'from_me' => true,
+            'body' => 'Mensaje original enviado desde CRM web',
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        // Must still be only 1 message, no duplicates
+        $this->assertSame(1, Message::where('conversation_id', $conversation->id)->count());
+        Event::assertNotDispatched(TicketMessageCreatedEvent::class);
     }
 }

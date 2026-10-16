@@ -28,6 +28,7 @@
         @accept="handleAcceptTicket"
         @transfer="isTransferModalOpen = true"
         @close="handleCloseTicket"
+        @reopen="handleReopenTicket"
         @toggle-profile="isProfileOpen = !isProfileOpen"
         @send-message="handleSendMessage"
       />
@@ -53,6 +54,7 @@
       @close="isProfileOpen = false"
       @transfer="isTransferModalOpen = true"
       @resolve="handleCloseTicket"
+      @reopen="handleReopenTicket"
     />
 
     <!-- Drawer/Modal Móvil: Perfil 360° del Contacto en Móvil -->
@@ -72,6 +74,7 @@
           @close="isProfileOpen = false"
           @transfer="isTransferModalOpen = true"
           @resolve="handleCloseTicket"
+          @reopen="handleReopenTicket"
         />
       </div>
     </q-dialog>
@@ -219,6 +222,17 @@ async function handleCloseTicket() {
     notify.info({ message: 'Ticket resuelto y finalizado.' })
   } catch {
     notify.error({ message: 'Error al finalizar el ticket.' })
+  }
+}
+
+async function handleReopenTicket() {
+  if (!selectedConversationId.value) return
+  try {
+    await mutations.reopenMutation.mutateAsync(selectedConversationId.value)
+    notify.success({ message: 'Ticket reactivado. Ahora se encuentra en tu lista de Atendiendo.' })
+    activeTab.value = 'attending'
+  } catch {
+    notify.error({ message: 'Error al reactivar el ticket.' })
   }
 }
 

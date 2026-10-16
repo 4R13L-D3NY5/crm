@@ -23,6 +23,8 @@ class Organization extends Model
         'monthly_price_usd' => 'float',
         'max_whatsapp_lines' => 'integer',
         'extra_whatsapp_lines' => 'integer',
+        'max_social_accounts' => 'integer',
+        'extra_social_accounts' => 'integer',
         'max_agents' => 'integer',
         'extra_agents' => 'integer',
         'features' => 'array',

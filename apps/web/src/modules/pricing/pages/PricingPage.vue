@@ -80,12 +80,16 @@
               <span><strong>1 Número de WhatsApp</strong> incluido</span>
             </div>
             <div class="spec-item">
+              <q-icon name="sym_r_public" size="18px" color="teal-4" />
+              <span><strong>8 Cuentas de Redes</strong> (FB, IG, TikTok)</span>
+            </div>
+            <div class="spec-item">
               <q-icon name="sym_r_group" size="18px" color="primary" />
               <span><strong>3 Agentes</strong> incluidos</span>
             </div>
             <div class="spec-item spec-item--addon">
               <q-icon name="sym_r_add_circle" size="16px" color="accent" />
-              <span><strong>+$20 USD/mes</strong> por número adicional</span>
+              <span><strong>+$10 USD/mes</strong> por red • <strong>+$20/mes</strong> WhatsApp</span>
             </div>
           </div>
 
@@ -172,12 +176,16 @@
               <span><strong>2 Números de WhatsApp</strong> incluidos</span>
             </div>
             <div class="spec-item">
+              <q-icon name="sym_r_public" size="18px" color="teal-4" />
+              <span><strong>12 Cuentas de Redes</strong> (FB, IG, TikTok)</span>
+            </div>
+            <div class="spec-item">
               <q-icon name="sym_r_group" size="18px" color="primary" />
               <span><strong>7 Agentes</strong> incluidos</span>
             </div>
             <div class="spec-item spec-item--addon">
               <q-icon name="sym_r_add_circle" size="16px" color="accent" />
-              <span><strong>+$20 USD/mes</strong> por número adicional</span>
+              <span><strong>+$10 USD/mes</strong> por red • <strong>+$20/mes</strong> WhatsApp</span>
             </div>
           </div>
 
@@ -259,12 +267,16 @@
               <span><strong>4 Números de WhatsApp</strong> incluidos</span>
             </div>
             <div class="spec-item">
+              <q-icon name="sym_r_public" size="18px" color="teal-4" />
+              <span><strong>16 Cuentas de Redes</strong> (FB, IG, TikTok)</span>
+            </div>
+            <div class="spec-item">
               <q-icon name="sym_r_group" size="18px" color="secondary" />
               <span><strong>15 Agentes</strong> incluidos</span>
             </div>
             <div class="spec-item spec-item--addon">
               <q-icon name="sym_r_add_circle" size="16px" color="accent" />
-              <span><strong>+$20 USD/mes</strong> por número adicional</span>
+              <span><strong>+$10 USD/mes</strong> por red • <strong>+$20/mes</strong> WhatsApp</span>
             </div>
           </div>
 
@@ -345,7 +357,7 @@
               >
                 <div class="calc-plan-name">Básico Starter</div>
                 <div class="calc-plan-price">${{ billingCycle === 'monthly' ? '120' : '102' }}/mes</div>
-                <div class="calc-plan-meta">1 WhatsApp • 3 agentes</div>
+                <div class="calc-plan-meta">1 WhatsApp • 8 redes • 3 agentes</div>
               </button>
 
               <button
@@ -356,7 +368,7 @@
               >
                 <div class="calc-plan-name">Pro Growth</div>
                 <div class="calc-plan-price">${{ billingCycle === 'monthly' ? '230' : '195' }}/mes</div>
-                <div class="calc-plan-meta">2 WhatsApp • 7 agentes</div>
+                <div class="calc-plan-meta">2 WhatsApp • 12 redes • 7 agentes</div>
               </button>
 
               <button
@@ -367,7 +379,7 @@
               >
                 <div class="calc-plan-name">Elite IA Suite</div>
                 <div class="calc-plan-price">${{ billingCycle === 'monthly' ? '390' : '330' }}/mes</div>
-                <div class="calc-plan-meta">4 WhatsApp • 15 agentes • IA RAG</div>
+                <div class="calc-plan-meta">4 WhatsApp • 16 redes • 15 agentes • IA RAG</div>
               </button>
             </div>
           </div>
@@ -405,11 +417,44 @@
             </div>
           </div>
 
+          <!-- Selector de Cuentas de Redes Sociales Adicionales (+ $10 c/u) -->
+          <div class="calc-group">
+            <div class="calc-label-row">
+              <label class="calc-label">
+                3. Cuentas de Redes Sociales adicionales (FB, IG, TikTok) (+<strong>$10 USD/mes</strong> c/u):
+              </label>
+              <span class="calc-counter-val">+{{ extraSocial }} redes extra</span>
+            </div>
+            <div class="calc-stepper-row">
+              <button
+                type="button"
+                class="stepper-btn"
+                :disabled="extraSocial <= 0"
+                @click="extraSocial = Math.max(0, extraSocial - 1)"
+              >
+                <q-icon name="sym_r_remove" size="18px" />
+              </button>
+              <div class="stepper-display">
+                <span class="stepper-number">{{ currentTotalSocial }}</span>
+                <span class="stepper-caption">
+                  Cuentas totales ({{ basePlanSocial }} base + {{ extraSocial }} extra)
+                </span>
+              </div>
+              <button
+                type="button"
+                class="stepper-btn"
+                @click="extraSocial++"
+              >
+                <q-icon name="sym_r_add" size="18px" />
+              </button>
+            </div>
+          </div>
+
           <!-- Selector de Agentes Adicionales -->
           <div class="calc-group">
             <div class="calc-label-row">
               <label class="calc-label">
-                3. Agentes / Operadores adicionales (+<strong>${{ agentAddonPrice }} USD/mes</strong> c/u):
+                4. Agentes / Operadores adicionales (+<strong>${{ agentAddonPrice }} USD/mes</strong> c/u):
               </label>
               <span class="calc-counter-val">+{{ extraAgents }} agentes extra</span>
             </div>
@@ -455,6 +500,11 @@
             <div class="summary-line" v-if="extraPhones > 0">
               <span>{{ extraPhones }} Líneas extra WhatsApp ($20 c/u):</span>
               <span class="summary-amount">+${{ extraPhonesCost }} USD</span>
+            </div>
+
+            <div class="summary-line" v-if="extraSocial > 0">
+              <span>{{ extraSocial }} Redes Sociales extra ($10 c/u):</span>
+              <span class="summary-amount">+${{ extraSocialCost }} USD</span>
             </div>
 
             <div class="summary-line" v-if="extraAgents > 0">
@@ -545,16 +595,22 @@
               <td class="feature-val feature-val--bold">+$20 USD / mes</td>
             </tr>
             <tr>
+              <td class="feature-name">Cuentas de Redes Sociales (FB, IG, TikTok)</td>
+              <td class="feature-val">8 Cuentas</td>
+              <td class="feature-val feature-val--featured">12 Cuentas</td>
+              <td class="feature-val feature-val--bold">16 Cuentas</td>
+            </tr>
+            <tr>
+              <td class="feature-name">Costo por Red Social extra</td>
+              <td class="feature-val">+$10 USD / mes</td>
+              <td class="feature-val feature-val--featured">+$10 USD / mes</td>
+              <td class="feature-val feature-val--bold">+$10 USD / mes</td>
+            </tr>
+            <tr>
               <td class="feature-name">Agentes incluidos</td>
               <td class="feature-val">3 agentes</td>
               <td class="feature-val feature-val--featured">7 agentes</td>
               <td class="feature-val feature-val--bold">15 agentes</td>
-            </tr>
-            <tr>
-              <td class="feature-name">Redes Sociales (Instagram & Messenger)</td>
-              <td class="feature-val text-dim">—</td>
-              <td class="feature-val feature-val--featured"><q-icon name="sym_r_check" color="positive" size="18px" /></td>
-              <td class="feature-val"><q-icon name="sym_r_check" color="positive" size="18px" /></td>
             </tr>
             <tr>
               <td class="feature-name">Contactos en el CRM</td>
@@ -750,8 +806,10 @@
               <div class="text-caption text-weight-bold text-ink">
                 {{ selectedPlanModal }} • {{ billingCycle === 'annual' ? 'Facturación Anual (-15%)' : 'Facturación Mensual' }}
               </div>
-              <div class="text-caption text-primary" v-if="extraPhones > 0 || extraAgents > 0">
-                +{{ extraPhones }} líneas extra WhatsApp • +{{ extraAgents }} agentes extra
+              <div class="text-caption text-primary" v-if="extraPhones > 0 || extraSocial > 0 || extraAgents > 0">
+                <span v-if="extraPhones > 0">+{{ extraPhones }} WhatsApp </span>
+                <span v-if="extraSocial > 0">+{{ extraSocial }} Redes </span>
+                <span v-if="extraAgents > 0">+{{ extraAgents }} Agentes</span>
               </div>
             </div>
 
@@ -781,6 +839,7 @@ const billingCycle = ref<'monthly' | 'annual'>('monthly')
 // Estado de la calculadora
 const calcPlan = ref<'basic' | 'pro' | 'elite'>('pro')
 const extraPhones = ref<number>(0)
+const extraSocial = ref<number>(0)
 const extraAgents = ref<number>(0)
 
 // FAQ interactivo
@@ -790,6 +849,10 @@ const faqs = [
   {
     q: '¿Cómo funciona el cobro de +$20 USD por cada número de WhatsApp adicional?',
     a: 'En cualquiera de nuestros planes puedes añadir tantas líneas de WhatsApp como requiera tu empresa (por ejemplo, para distintas sucursales, países o departamentos). Cada línea extra tiene un costo fijo transparente de solo $20 USD/mes sobre tu plan base.'
+  },
+  {
+    q: '¿Cómo funciona la asignación y cobro de Redes Sociales (Facebook, Instagram, TikTok)?',
+    a: 'Nuestros planes vienen con una capacidad holgada de redes incluidas: 8 cuentas en Plan Básico, 12 en Plan Pro y 16 en Plan Elite. Si requieres vincular cuentas adicionales de Facebook Fanpages, cuentas de Instagram o perfiles de TikTok, puedes agregar cuantas desees por solo +$10 USD/mes por cuenta.'
   },
   {
     q: '¿Puedo conectar WhatsApp Web QR y WhatsApp Cloud API oficial a la vez?',
@@ -825,7 +888,7 @@ function openContactModal(planName: string) {
 }
 
 function openQuoteModal() {
-  selectedPlanModal.value = `Cotización Personalizada (${currentPlanName.value}: ${currentTotalPhones.value} líneas, ${currentTotalAgents.value} agentes)`
+  selectedPlanModal.value = `Cotización Personalizada (${currentPlanName.value}: ${currentTotalPhones.value} líneas WA, ${currentTotalSocial.value} redes, ${currentTotalAgents.value} agentes)`
   showModal.value = true
 }
 
@@ -849,6 +912,12 @@ const basePlanPhones = computed(() => {
   return 4
 })
 
+const basePlanSocial = computed(() => {
+  if (calcPlan.value === 'basic') return 8
+  if (calcPlan.value === 'pro') return 12
+  return 16
+})
+
 const basePlanAgents = computed(() => {
   if (calcPlan.value === 'basic') return 3
   if (calcPlan.value === 'pro') return 7
@@ -856,6 +925,7 @@ const basePlanAgents = computed(() => {
 })
 
 const currentTotalPhones = computed(() => basePlanPhones.value + extraPhones.value)
+const currentTotalSocial = computed(() => basePlanSocial.value + extraSocial.value)
 const currentTotalAgents = computed(() => basePlanAgents.value + extraAgents.value)
 
 const currentPlanName = computed(() => {
@@ -883,10 +953,11 @@ const currentPlanBaseCost = computed(() => {
 })
 
 const extraPhonesCost = computed(() => extraPhones.value * 20)
+const extraSocialCost = computed(() => extraSocial.value * 10)
 const extraAgentsCost = computed(() => extraAgents.value * agentAddonPrice.value)
 
 const calculatedMonthlyTotal = computed(() => {
-  return currentPlanBaseCost.value + extraPhonesCost.value + extraAgentsCost.value
+  return currentPlanBaseCost.value + extraPhonesCost.value + extraSocialCost.value + extraAgentsCost.value
 })
 
 const calculatedAnnualTotal = computed(() => {
@@ -894,7 +965,7 @@ const calculatedAnnualTotal = computed(() => {
 })
 
 const totalAnnualDiscount = computed(() => {
-  const fullMonthly = (calcPlan.value === 'basic' ? 120 : calcPlan.value === 'pro' ? 230 : 390) + extraPhonesCost.value + extraAgentsCost.value
+  const fullMonthly = (calcPlan.value === 'basic' ? 120 : calcPlan.value === 'pro' ? 230 : 390) + extraPhonesCost.value + extraSocialCost.value + extraAgentsCost.value
   return (fullMonthly * 12) - calculatedAnnualTotal.value
 })
 </script>

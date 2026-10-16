@@ -27,8 +27,10 @@ class SuperAdminBillingService
                 'base_monthly' => 230.00,
                 'base_annual_monthly' => 195.00,
                 'included_phones' => 2,
+                'included_social' => 12,
                 'included_agents' => 7,
                 'extra_phone_rate' => 20.00,
+                'extra_social_rate' => 10.00,
                 'extra_agent_rate' => 15.00,
             ],
             'elite' => [
@@ -36,8 +38,10 @@ class SuperAdminBillingService
                 'base_monthly' => 390.00,
                 'base_annual_monthly' => 330.00,
                 'included_phones' => 4,
+                'included_social' => 16,
                 'included_agents' => 15,
                 'extra_phone_rate' => 20.00,
+                'extra_social_rate' => 10.00,
                 'extra_agent_rate' => 12.00,
             ],
             default => [
@@ -45,8 +49,10 @@ class SuperAdminBillingService
                 'base_monthly' => 120.00,
                 'base_annual_monthly' => 102.00,
                 'included_phones' => 1,
+                'included_social' => 8,
                 'included_agents' => 3,
                 'extra_phone_rate' => 20.00,
+                'extra_social_rate' => 10.00,
                 'extra_agent_rate' => 18.00,
             ],
         };
@@ -60,9 +66,10 @@ class SuperAdminBillingService
         $planMeta = $this->getPlanPricing($org->plan ?? 'basic');
         $base = $org->billing_cycle === 'annual' ? $planMeta['base_annual_monthly'] : $planMeta['base_monthly'];
         $phonesExtra = ($org->extra_whatsapp_lines ?? 0) * $planMeta['extra_phone_rate'];
+        $socialExtra = ($org->extra_social_accounts ?? 0) * ($planMeta['extra_social_rate'] ?? 10.00);
         $agentsExtra = ($org->extra_agents ?? 0) * $planMeta['extra_agent_rate'];
 
-        return round($base + $phonesExtra + $agentsExtra, 2);
+        return round($base + $phonesExtra + $socialExtra + $agentsExtra, 2);
     }
 
     /**
@@ -128,6 +135,8 @@ class SuperAdminBillingService
                 'monthly_mrr_usd' => $mrr,
                 'phones_total' => $totalPhones,
                 'extra_phones' => $org->extra_whatsapp_lines ?? 0,
+                'social_total' => ($planMeta['included_social'] ?? 8) + ($org->extra_social_accounts ?? 0),
+                'extra_social' => $org->extra_social_accounts ?? 0,
                 'agents_total' => $planMeta['included_agents'] + ($org->extra_agents ?? 0),
                 'extra_agents' => $org->extra_agents ?? 0,
                 'users_count' => $org->users_count,
@@ -229,7 +238,8 @@ class SuperAdminBillingService
         Organization $org,
         string $newPlan,
         int $newExtraPhones = 0,
-        int $newExtraAgents = 0
+        int $newExtraAgents = 0,
+        int $newExtraSocial = 0
     ): array {
         $now = Carbon::now();
         $expiresAt = $org->expires_at ? Carbon::parse($org->expires_at) : $now->copy()->addDays(30);
@@ -245,8 +255,9 @@ class SuperAdminBillingService
         $newPlanMeta = $this->getPlanPricing($newPlan);
         $newBase = $newPlanMeta['base_monthly'];
         $newPhonesCost = $newExtraPhones * $newPlanMeta['extra_phone_rate'];
+        $newSocialCost = $newExtraSocial * ($newPlanMeta['extra_social_rate'] ?? 10.00);
         $newAgentsCost = $newExtraAgents * $newPlanMeta['extra_agent_rate'];
-        $newMonthly = round($newBase + $newPhonesCost + $newAgentsCost, 2);
+        $newMonthly = round($newBase + $newPhonesCost + $newSocialCost + $newAgentsCost, 2);
 
         // Saldo no consumido a favor del cliente
         $unusedCredit = round(($currentMonthly / 30) * $daysRemaining, 2);
@@ -278,10 +289,11 @@ class SuperAdminBillingService
         string $newPlan,
         int $newExtraPhones = 0,
         int $newExtraAgents = 0,
+        int $newExtraSocial = 0,
         string $paymentMethod = 'transfer',
         ?string $referenceCode = null
     ): array {
-        $proration = $this->calculateProration($org, $newPlan, $newExtraPhones, $newExtraAgents);
+        $proration = $this->calculateProration($org, $newPlan, $newExtraPhones, $newExtraAgents, $newExtraSocial);
         $dueToday = $proration['prorated_charge_due_today_usd'];
 
         DB::transaction(function () use (
@@ -289,6 +301,7 @@ class SuperAdminBillingService
             $newPlan,
             $newExtraPhones,
             $newExtraAgents,
+            $newExtraSocial,
             $dueToday,
             $paymentMethod,
             $referenceCode,
@@ -301,7 +314,9 @@ class SuperAdminBillingService
                 'plan' => $newPlan,
                 'extra_whatsapp_lines' => $newExtraPhones,
                 'extra_agents' => $newExtraAgents,
+                'extra_social_accounts' => $newExtraSocial,
                 'max_whatsapp_lines' => $newPlanMeta['included_phones'] + $newExtraPhones,
+                'max_social_accounts' => ($newPlanMeta['included_social'] ?? 8) + $newExtraSocial,
                 'max_agents' => $newPlanMeta['included_agents'] + $newExtraAgents,
                 'monthly_price_usd' => $newMonthly,
             ]);
@@ -326,17 +341,18 @@ class SuperAdminBillingService
     }
 
     /**
-     * Ajusta las cuotas adicionales de canales WhatsApp y agentes con prorrateo exacto.
+     * Ajusta las cuotas adicionales de canales WhatsApp, redes y agentes con prorrateo exacto.
      */
     public function adjustQuotas(
         Organization $org,
         int $newExtraPhones,
         int $newExtraAgents,
+        int $newExtraSocial = 0,
         string $paymentMethod = 'transfer',
         ?string $referenceCode = null,
         ?string $notes = null
     ): array {
-        $proration = $this->calculateProration($org, $org->plan ?? 'basic', $newExtraPhones, $newExtraAgents);
+        $proration = $this->calculateProration($org, $org->plan ?? 'basic', $newExtraPhones, $newExtraAgents, $newExtraSocial);
         $dueToday = $proration['prorated_charge_due_today_usd'];
         $planMeta = $this->getPlanPricing($org->plan ?? 'basic');
 
@@ -344,6 +360,7 @@ class SuperAdminBillingService
             $org,
             $newExtraPhones,
             $newExtraAgents,
+            $newExtraSocial,
             $dueToday,
             $paymentMethod,
             $referenceCode,
@@ -356,7 +373,9 @@ class SuperAdminBillingService
             $org->update([
                 'extra_whatsapp_lines' => $newExtraPhones,
                 'extra_agents' => $newExtraAgents,
+                'extra_social_accounts' => $newExtraSocial,
                 'max_whatsapp_lines' => $planMeta['included_phones'] + $newExtraPhones,
+                'max_social_accounts' => ($planMeta['included_social'] ?? 8) + $newExtraSocial,
                 'max_agents' => $planMeta['included_agents'] + $newExtraAgents,
                 'monthly_price_usd' => $newMonthly,
             ]);
@@ -365,11 +384,11 @@ class SuperAdminBillingService
                 TenantInvoice::create([
                     'organization_id' => $org->id,
                     'amount_usd' => $dueToday,
-                    'concept' => "Ajuste de cuotas (+/- canales/agentes) — Plan " . strtoupper($org->plan ?? 'BÁSICO') . " ({$proration['days_remaining']} días restantes)",
+                    'concept' => "Ajuste de cuotas (+/- canales/redes/agentes) — Plan " . strtoupper($org->plan ?? 'BÁSICO') . " ({$proration['days_remaining']} días restantes)",
                     'payment_method' => $paymentMethod,
                     'reference_code' => $referenceCode,
                     'paid_at' => now(),
-                    'notes' => $notes ?? "Ajuste de recursos: {$newExtraPhones} líneas extra, {$newExtraAgents} agentes extra. Prorrateado.",
+                    'notes' => $notes ?? "Ajuste de recursos: {$newExtraPhones} líneas WhatsApp extra, {$newExtraSocial} redes extra, {$newExtraAgents} agentes extra. Prorrateado.",
                 ]);
             }
         });
@@ -381,9 +400,10 @@ class SuperAdminBillingService
 
         return [
             'success' => true,
-            'message' => 'Cuotas de canales y agentes actualizadas exitosamente.',
+            'message' => 'Cuotas de canales, redes sociales y agentes actualizadas exitosamente.',
             'proration' => $proration,
             'new_max_whatsapp_lines' => $planMeta['included_phones'] + $newExtraPhones,
+            'new_max_social_accounts' => ($planMeta['included_social'] ?? 8) + $newExtraSocial,
             'new_max_agents' => $planMeta['included_agents'] + $newExtraAgents,
             'new_monthly_price_usd' => $proration['new_monthly_price'],
             'license_token' => $licenseToken,

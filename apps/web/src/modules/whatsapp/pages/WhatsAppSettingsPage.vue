@@ -6,7 +6,10 @@
         <div class="row items-center q-gutter-x-sm">
           <h1 class="text-h5 text-bold text-white q-my-none">Conexiones & Canales Multicanal</h1>
           <q-badge color="teal-9" text-color="teal-2" rounded class="q-px-sm">
-            {{ accounts.length }} canales
+            {{ whatsappCount }} WhatsApp
+          </q-badge>
+          <q-badge color="indigo-9" text-color="indigo-2" rounded class="q-px-sm">
+            {{ socialCount }} Redes
           </q-badge>
         </div>
         <p class="text-caption text-grey-4 q-mt-xs q-mb-none">
@@ -121,6 +124,14 @@ const accountsQuery = useWhatsAppAccounts()
 const mutations = useWhatsAppMutations()
 
 const accounts = computed(() => accountsQuery.data.value ?? [])
+
+const whatsappCount = computed(() => {
+  return accounts.value.filter(a => !['facebook', 'instagram', 'tiktok'].includes(a.session_type)).length
+})
+
+const socialCount = computed(() => {
+  return accounts.value.filter(a => ['facebook', 'instagram', 'tiktok'].includes(a.session_type)).length
+})
 
 // Modales
 const isCreateModalOpen = ref(false)

@@ -6,6 +6,7 @@ import {
   acceptTicket,
   assignConversation,
   closeTicket,
+  reopenTicket,
   createConversation,
   createInternalMessage,
   createWhatsAppMessage,
@@ -127,6 +128,11 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     onSuccess: invalidate,
   })
 
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => reopenTicket(id),
+    onSuccess: invalidate,
+  })
+
   const messageMutation = useMutation({
     mutationFn: ({
       id,
@@ -213,6 +219,7 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     acceptMutation,
     transferMutation,
     closeMutation,
+    reopenMutation,
     messageMutation,
     whatsappMessageMutation,
     instagramMessageMutation,

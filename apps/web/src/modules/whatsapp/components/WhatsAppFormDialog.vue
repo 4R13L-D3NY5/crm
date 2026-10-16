@@ -170,7 +170,11 @@
                 dense
                 type="password"
                 placeholder="EAAGm0PX..."
-                :rules="[val => !!val || 'El Access Token es requerido']"
+                :rules="[
+                  val => !!val || 'El Access Token es requerido',
+                  val => !val.includes('SQLSTATE') && !val.includes('ERROR') || 'Parece que pegaste un mensaje de error en lugar del token de Meta',
+                  val => val.trim().startsWith('EAA') || 'El Access Token debe comenzar con EAA...'
+                ]"
               />
             </div>
           </template>
@@ -210,7 +214,11 @@
                 dense
                 type="password"
                 placeholder="EAA..."
-                :rules="[val => !!val || 'El Page Token es requerido']"
+                :rules="[
+                  val => !!val || 'El Page Token es requerido',
+                  val => !val.includes('SQLSTATE') && !val.includes('ERROR') || 'Parece que pegaste un mensaje de error en lugar del token de Meta',
+                  val => val.trim().startsWith('EAA') || 'El Page Token debe comenzar con EAA...'
+                ]"
               />
             </div>
           </template>
@@ -265,7 +273,11 @@
                 dense
                 type="password"
                 placeholder="EAA..."
-                :rules="[val => !!val || 'El Token es requerido']"
+                :rules="[
+                  val => !!val || 'El Token es requerido',
+                  val => !val.includes('SQLSTATE') && !val.includes('ERROR') || 'Parece que pegaste un mensaje de error en lugar del token de Meta',
+                  val => val.trim().startsWith('EAA') || 'El Token debe comenzar con EAA...'
+                ]"
               />
             </div>
           </template>

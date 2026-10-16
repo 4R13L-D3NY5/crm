@@ -113,10 +113,11 @@ class TicketLifecycleController extends Controller
         $ticket->update([
             'status' => 'open',
             'closed_at' => null,
+            'assigned_to_user_id' => $ticket->assigned_to_user_id ?? $request->user()->id,
         ]);
 
         return response()->json([
-            'data' => $ticket,
+            'data' => $ticket->load(['assignedToUser', 'contact', 'queue']),
             'message' => 'Ticket reabierto exitosamente.',
         ]);
     }

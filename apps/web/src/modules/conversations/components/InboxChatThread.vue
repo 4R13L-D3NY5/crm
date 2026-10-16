@@ -134,6 +134,22 @@
           </q-btn>
 
           <q-btn
+            v-if="conversation.status === 'closed'"
+            unelevated
+            dense
+            size="sm"
+            color="positive"
+            icon="sym_r_history"
+            :label="isMobile ? '' : 'Reactivar Ticket'"
+            :round="isMobile"
+            class="q-px-xs"
+            :loading="isActionLoading"
+            @click="emit('reopen')"
+          >
+            <q-tooltip>Reactivar ticket y volver a Atendiendo</q-tooltip>
+          </q-btn>
+
+          <q-btn
             flat
             round
             dense
@@ -955,6 +971,7 @@ const emit = defineEmits<{
   (e: 'accept'): void
   (e: 'transfer'): void
   (e: 'close'): void
+  (e: 'reopen'): void
   (e: 'toggle-profile'): void
   (e: 'send-message', payload: {
     body: string

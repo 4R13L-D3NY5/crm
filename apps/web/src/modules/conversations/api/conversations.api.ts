@@ -64,6 +64,11 @@ export async function closeTicket(
   return response.data.data
 }
 
+export async function reopenTicket(conversationId: string): Promise<Conversation> {
+  const response = await http.post<{ data: Conversation }>(`/conversations/${conversationId}/reopen`)
+  return response.data.data
+}
+
 // Mensajes
 export async function createInternalMessage(
   conversationId: string,

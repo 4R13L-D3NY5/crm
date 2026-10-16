@@ -299,9 +299,98 @@ class SocialCommentController extends Controller
             }
         }
 
+        // 2. Sincronizar Comentarios de Publicaciones Recientes (Feed / Posts)
+        $postsCount = 0;
+        try {
+            $postsResponse = $client->get("https://graph.facebook.com/v21.0/{$pageId}/feed?fields=id,message,comments{id,message,from,created_time}&access_token={$token}");
+            $postsData = json_decode($postsResponse->getBody()->getContents(), true);
+
+            foreach (data_get($postsData, 'data', []) as $post) {
+                $postId = (string) data_get($post, 'id');
+
+                foreach (data_get($post, 'comments.data', []) as $comment) {
+                    $commentId = (string) data_get($comment, 'id');
+                    $commentText = (string) data_get($comment, 'message');
+                    $authorId = (string) data_get($comment, 'from.id');
+                    $authorName = (string) data_get($comment, 'from.name', 'Usuario Facebook');
+                    $commentTime = Carbon::parse(data_get($comment, 'created_time', now()));
+
+                    if ($authorId === (string) $pageId || $authorId === (string) $account->business_account_id) {
+                        continue;
+                    }
+
+                    $alreadyImported = SocialComment::where('organization_id', $organization->id)
+                        ->where('comment_id', $commentId)
+                        ->exists();
+
+                    if ($alreadyImported) {
+                        continue;
+                    }
+
+                    $contact = Contact::firstOrCreate(
+                        ['organization_id' => $organization->id, 'first_name' => $authorName],
+                        [
+                            'status' => 'active',
+                            'notes' => "Lead capturado desde Facebook Post #{$postId}",
+                            'custom_fields' => ['facebook_id' => $authorId],
+                        ]
+                    );
+
+                    $conversation = Conversation::where('organization_id', $organization->id)
+                        ->where('contact_id', $contact->id)
+                        ->where('channel', 'facebook')
+                        ->latest('last_message_at')
+                        ->first();
+
+                    if (!$conversation) {
+                        $conversation = Conversation::create([
+                            'organization_id' => $organization->id,
+                            'contact_id' => $contact->id,
+                            'channel' => 'facebook',
+                            'status' => 'pending',
+                            'whatsapp_account_id' => $account->id,
+                            'unread_count' => 0,
+                            'last_message_at' => $commentTime,
+                        ]);
+                    }
+
+                    $msg = Message::create([
+                        'organization_id' => $organization->id,
+                        'conversation_id' => $conversation->id,
+                        'direction' => 'inbound',
+                        'body' => "💬 Comentario en publicación: \"{$commentText}\"",
+                        'sent_at' => $commentTime,
+                    ]);
+
+                    SocialComment::create([
+                        'organization_id' => $organization->id,
+                        'contact_id' => $contact->id,
+                        'conversation_id' => $conversation->id,
+                        'platform' => 'facebook',
+                        'post_id' => $postId,
+                        'comment_id' => $commentId,
+                        'author_name' => $authorName,
+                        'author_id' => $authorId,
+                        'comment_text' => $commentText,
+                        'reply_text' => null,
+                        'is_replied' => false,
+                        'ticket_created' => true,
+                    ]);
+
+                    $conversation->increment('unread_count');
+                    $conversation->update(['last_message_at' => $commentTime]);
+                    event(new TicketMessageCreatedEvent($msg));
+                    $postsCount++;
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::info("Facebook Feed Sync: " . $e->getMessage());
+        }
+
+        $total = $createdCount + $postsCount;
         return response()->json([
-            'message' => "Sincronización completada. Se importaron {$createdCount} mensajes de Facebook.",
-            'imported' => $createdCount,
+            'message' => "Sincronización completada. Se importaron {$createdCount} mensajes de Messenger y {$postsCount} comentarios de publicaciones.",
+            'imported' => $total,
         ]);
     }
 

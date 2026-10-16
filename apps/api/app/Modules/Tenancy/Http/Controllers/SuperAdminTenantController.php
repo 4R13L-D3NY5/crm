@@ -47,8 +47,9 @@ class SuperAdminTenantController extends Controller
         $newPlan = $request->input('new_plan', 'pro');
         $extraPhones = (int) $request->input('extra_phones', 0);
         $extraAgents = (int) $request->input('extra_agents', 0);
+        $extraSocial = (int) $request->input('extra_social', 0);
 
-        $proration = $this->billingService->calculateProration($org, $newPlan, $extraPhones, $extraAgents);
+        $proration = $this->billingService->calculateProration($org, $newPlan, $extraPhones, $extraAgents, $extraSocial);
         return response()->json($proration);
     }
 
@@ -61,10 +62,11 @@ class SuperAdminTenantController extends Controller
         $newPlan = $request->input('new_plan', 'pro');
         $extraPhones = (int) $request->input('extra_phones', 0);
         $extraAgents = (int) $request->input('extra_agents', 0);
+        $extraSocial = (int) $request->input('extra_social', 0);
         $method = $request->input('payment_method', 'transfer');
         $ref = $request->input('reference_code');
 
-        $result = $this->billingService->applyPlanChange($org, $newPlan, $extraPhones, $extraAgents, $method, $ref);
+        $result = $this->billingService->applyPlanChange($org, $newPlan, $extraPhones, $extraAgents, $extraSocial, $method, $ref);
         return response()->json($result);
     }
 
@@ -76,11 +78,12 @@ class SuperAdminTenantController extends Controller
         $org = Organization::findOrFail($id);
         $extraPhones = (int) $request->input('extra_phones', $org->extra_whatsapp_lines ?? 0);
         $extraAgents = (int) $request->input('extra_agents', $org->extra_agents ?? 0);
+        $extraSocial = (int) $request->input('extra_social', $org->extra_social_accounts ?? 0);
         $method = $request->input('payment_method', 'transfer');
         $ref = $request->input('reference_code');
         $notes = $request->input('notes');
 
-        $result = $this->billingService->adjustQuotas($org, $extraPhones, $extraAgents, $method, $ref, $notes);
+        $result = $this->billingService->adjustQuotas($org, $extraPhones, $extraAgents, $extraSocial, $method, $ref, $notes);
         return response()->json($result);
     }
 
@@ -162,12 +165,17 @@ class SuperAdminTenantController extends Controller
             $updateData['plan'] = $plan;
             $pricing = $this->billingService->getPlanPricing($plan);
             $updateData['max_whatsapp_lines'] = $pricing['included_phones'];
+            $updateData['max_social_accounts'] = $pricing['included_social'] ?? 8;
             $updateData['max_agents'] = $pricing['included_agents'];
             $updateData['monthly_price_usd'] = $pricing['base_monthly'];
         }
 
         if ($extraPhones !== null) {
             $updateData['extra_whatsapp_lines'] = (int) $extraPhones;
+        }
+
+        if ($request->has('extra_social')) {
+            $updateData['extra_social_accounts'] = (int) $request->input('extra_social');
         }
 
         if ($extraAgents !== null) {

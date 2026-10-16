@@ -205,8 +205,12 @@
           <template #body-cell-resources="props">
             <q-td :props="props">
               <div class="text-caption text-ink">
-                📱 <strong>{{ props.row.phones_total }}</strong> líneas
+                📱 <strong>{{ props.row.phones_total }}</strong> WhatsApp
                 <span class="text-dim" v-if="props.row.extra_phones > 0">(+{{ props.row.extra_phones }} extra)</span>
+              </div>
+              <div class="text-caption text-ink">
+                🌐 <strong>{{ props.row.social_total || 8 }}</strong> Redes
+                <span class="text-dim" v-if="props.row.extra_social > 0">(+{{ props.row.extra_social }} extra)</span>
               </div>
               <div class="text-caption text-dim">
                 👥 <strong>{{ props.row.users_count }}</strong> / {{ props.row.agents_total }} agentes
@@ -618,17 +622,27 @@
           />
 
           <div class="row q-col-gutter-sm">
-            <div class="col-6">
+            <div class="col-4">
               <q-input
                 v-model.number="editExtraPhones"
                 type="number"
-                label="Líneas extra (+$20 c/u)"
+                label="Líneas WA (+20$)"
                 outlined
                 dense
                 @update:model-value="fetchModalProration"
               />
             </div>
-            <div class="col-6">
+            <div class="col-4">
+              <q-input
+                v-model.number="editExtraSocial"
+                type="number"
+                label="Redes (+10$)"
+                outlined
+                dense
+                @update:model-value="fetchModalProration"
+              />
+            </div>
+            <div class="col-4">
               <q-input
                 v-model.number="editExtraAgents"
                 type="number"
@@ -761,7 +775,49 @@
               </div>
             </div>
             <div class="text-right text-caption text-teal text-weight-bold q-mt-xs">
-              Total resultante: {{ getIncludedPhones(activeTenant?.plan) + quotaExtraPhones }} canales habilitados
+              Total resultante: {{ getIncludedPhones(activeTenant?.plan) + quotaExtraPhones }} números WhatsApp habilitados
+            </div>
+          </div>
+
+          <!-- Control de Cuentas de Redes Sociales (Facebook, Instagram, TikTok) -->
+          <div class="quota-control-box q-pa-sm rounded-borders bg-surface-subtle">
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="text-weight-bold text-ink text-body2">
+                🌐 Cuentas de Redes Sociales (FB, IG, TikTok)
+              </div>
+              <span class="text-caption text-blue-4">+$10.00 USD/mes cada una</span>
+            </div>
+            <div class="text-caption text-dim q-mb-sm">
+              Incluidas en Plan: <strong>{{ getIncludedSocial(activeTenant?.plan) }}</strong> • Redes Extra actuales: <strong>{{ activeTenant?.extra_social || 0 }}</strong>
+            </div>
+
+            <div class="row items-center justify-between">
+              <span class="text-caption text-ink">Redes Adicionales Deseadas:</span>
+              <div class="row items-center q-gutter-x-sm">
+                <q-btn
+                  round
+                  dense
+                  flat
+                  color="negative"
+                  icon="sym_r_remove"
+                  :disable="quotaExtraSocial <= 0"
+                  @click="decrementSocial"
+                />
+                <span class="text-subtitle1 text-weight-bolder text-ink" style="min-width: 28px; text-align: center;">
+                  {{ quotaExtraSocial }}
+                </span>
+                <q-btn
+                  round
+                  dense
+                  flat
+                  color="positive"
+                  icon="sym_r_add"
+                  @click="incrementSocial"
+                />
+              </div>
+            </div>
+            <div class="text-right text-caption text-blue-4 text-weight-bold q-mt-xs">
+              Total resultante: {{ getIncludedSocial(activeTenant?.plan) + quotaExtraSocial }} cuentas de redes habilitadas
             </div>
           </div>
 
@@ -925,9 +981,9 @@
             <q-select
               v-model="trialPlan"
               :options="[
-                { label: 'Plan Básico (1 WhatsApp, 3 Agentes)', value: 'basic' },
-                { label: 'Plan Pro (2 WhatsApp, 7 Agentes)', value: 'pro' },
-                { label: 'Plan Elite IA (4 WhatsApp, 15 Agentes)', value: 'elite' },
+                { label: 'Plan Básico (1 WA, 8 Redes, 3 Agentes)', value: 'basic' },
+                { label: 'Plan Pro (2 WA, 12 Redes, 7 Agentes)', value: 'pro' },
+                { label: 'Plan Elite IA (4 WA, 16 Redes, 15 Agentes)', value: 'elite' },
               ]"
               outlined
               dense
@@ -938,22 +994,32 @@
 
           <!-- Canales y Agentes de prueba adicionales -->
           <div class="row q-col-gutter-sm">
-            <div class="col-6">
+            <div class="col-4">
               <q-input
                 v-model.number="trialExtraPhones"
                 type="number"
                 min="0"
-                label="Líneas extra en prueba"
+                label="Líneas WA extra"
                 outlined
                 dense
               />
             </div>
-            <div class="col-6">
+            <div class="col-4">
+              <q-input
+                v-model.number="trialExtraSocial"
+                type="number"
+                min="0"
+                label="Redes extra"
+                outlined
+                dense
+              />
+            </div>
+            <div class="col-4">
               <q-input
                 v-model.number="trialExtraAgents"
                 type="number"
                 min="0"
-                label="Agentes extra en prueba"
+                label="Agentes extra"
                 outlined
                 dense
               />
@@ -1061,6 +1127,7 @@ const renewRef = ref('')
 const planModalOpen = ref(false)
 const editPlan = ref<'basic' | 'pro' | 'elite'>('pro')
 const editExtraPhones = ref(0)
+const editExtraSocial = ref(0)
 const editExtraAgents = ref(0)
 const modalProration = ref<ProrationData | null>(null)
 
@@ -1070,10 +1137,12 @@ const trialModalOpen = ref(false)
 const trialDaysToAdd = ref(7)
 const trialPlan = ref<'basic' | 'pro' | 'elite'>('pro')
 const trialExtraPhones = ref(0)
+const trialExtraSocial = ref(0)
 const trialExtraAgents = ref(0)
 
 const quotaModalOpen = ref(false)
 const quotaExtraPhones = ref(0)
+const quotaExtraSocial = ref(0)
 const quotaExtraAgents = ref(0)
 const quotaPaymentMethod = ref('transfer')
 const quotaReference = ref('')
@@ -1165,6 +1234,7 @@ function openTrialModal(tenant: TenantItem) {
   trialDaysToAdd.value = 7
   trialPlan.value = tenant.plan
   trialExtraPhones.value = tenant.extra_phones || 0
+  trialExtraSocial.value = tenant.extra_social || 0
   trialExtraAgents.value = tenant.extra_agents || 0
   trialModalOpen.value = true
 }
@@ -1177,6 +1247,7 @@ async function submitTrialExtension() {
       days: trialDaysToAdd.value,
       plan: trialPlan.value,
       extra_phones: trialExtraPhones.value,
+      extra_social: trialExtraSocial.value,
       extra_agents: trialExtraAgents.value,
     })
     $q.notify({
@@ -1202,6 +1273,7 @@ function openPlanModal(tenant: TenantItem) {
   activeTenant.value = tenant
   editPlan.value = tenant.plan
   editExtraPhones.value = tenant.extra_phones
+  editExtraSocial.value = tenant.extra_social || 0
   editExtraAgents.value = tenant.extra_agents
   planModalOpen.value = true
   fetchModalProration()
@@ -1213,6 +1285,7 @@ async function fetchModalProration() {
     modalProration.value = await previewProration(activeTenant.value.id, {
       new_plan: editPlan.value,
       extra_phones: editExtraPhones.value,
+      extra_social: editExtraSocial.value,
       extra_agents: editExtraAgents.value,
     })
   } catch (e) {
@@ -1227,6 +1300,7 @@ async function submitPlanChange() {
     await applyPlanChange(activeTenant.value.id, {
       new_plan: editPlan.value,
       extra_phones: editExtraPhones.value,
+      extra_social: editExtraSocial.value,
       extra_agents: editExtraAgents.value,
       payment_method: 'transfer',
     })
@@ -1240,11 +1314,17 @@ async function submitPlanChange() {
   }
 }
 
-// GESTIÓN DE CUOTAS (+/- CANALES Y OPERADORES)
+// GESTIÓN DE CUOTAS (+/- CANALES, REDES Y OPERADORES)
 function getIncludedPhones(plan?: string): number {
   if (plan === 'pro') return 2
   if (plan === 'elite') return 4
   return 1
+}
+
+function getIncludedSocial(plan?: string): number {
+  if (plan === 'pro') return 12
+  if (plan === 'elite') return 16
+  return 8
 }
 
 function getIncludedAgents(plan?: string): number {
@@ -1271,6 +1351,18 @@ function decrementPhones() {
   }
 }
 
+function incrementSocial() {
+  quotaExtraSocial.value++
+  fetchQuotaProration()
+}
+
+function decrementSocial() {
+  if (quotaExtraSocial.value > 0) {
+    quotaExtraSocial.value--
+    fetchQuotaProration()
+  }
+}
+
 function incrementAgents() {
   quotaExtraAgents.value++
   fetchQuotaProration()
@@ -1286,6 +1378,7 @@ function decrementAgents() {
 function openQuotaModal(tenant: TenantItem) {
   activeTenant.value = tenant
   quotaExtraPhones.value = tenant.extra_phones
+  quotaExtraSocial.value = tenant.extra_social || 0
   quotaExtraAgents.value = tenant.extra_agents
   quotaPaymentMethod.value = 'transfer'
   quotaReference.value = ''
@@ -1299,6 +1392,7 @@ async function fetchQuotaProration() {
     quotaProration.value = await previewProration(activeTenant.value.id, {
       new_plan: activeTenant.value.plan,
       extra_phones: quotaExtraPhones.value,
+      extra_social: quotaExtraSocial.value,
       extra_agents: quotaExtraAgents.value,
     })
   } catch (e) {
@@ -1312,13 +1406,14 @@ async function submitQuotaAdjustment() {
   try {
     await adjustTenantQuotas(activeTenant.value.id, {
       extra_phones: quotaExtraPhones.value,
+      extra_social: quotaExtraSocial.value,
       extra_agents: quotaExtraAgents.value,
       payment_method: quotaPaymentMethod.value,
       reference_code: quotaReference.value,
     })
     $q.notify({
       type: 'positive',
-      message: '¡Cuotas de canales y operadores actualizadas con prorrateo aplicado!',
+      message: '¡Cuotas de canales, redes y operadores actualizadas con prorrateo aplicado!',
       actions: [
         {
           label: 'Avisar por WhatsApp',

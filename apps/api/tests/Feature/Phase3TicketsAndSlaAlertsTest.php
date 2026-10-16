@@ -77,6 +77,12 @@ class Phase3TicketsAndSlaAlertsTest extends TestCase
         $closeResponse->assertStatus(200)
             ->assertJsonPath('data.status', 'closed')
             ->assertJsonPath('data.rating', 5);
+
+        // 4. Reabrir Ticket
+        $reopenResponse = $this->actingAs($user)->postJson("/api/conversations/{$ticket->id}/reopen");
+        $reopenResponse->assertStatus(200)
+            ->assertJsonPath('data.status', 'open')
+            ->assertJsonPath('data.assigned_to_user_id', $agent->id);
     }
 
     public function test_supervisor_ghost_mode_messaging(): void

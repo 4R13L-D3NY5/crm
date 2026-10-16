@@ -86,10 +86,18 @@ class BaileysWebhookController extends Controller
         $fromName = $request->input('from_name');
         $body = $request->input('body');
         $providerMessageId = $request->input('provider_message_id');
+        $isFromMe = $request->boolean('from_me');
         $mediaBase64 = $request->input('media_base64');
         $mediaType = $request->input('media_type');
         $mimeType = $request->input('mime_type');
         $durationSeconds = $request->input('media_duration_seconds');
+
+        // Deduplicación preventiva: si el mensaje ya fue registrado previamente en el CRM
+        // (por ejemplo, enviado desde la interfaz web vía CRM o procesado previamente), no duplicar.
+        if ($providerMessageId && WhatsAppMessageMapping::where('provider_message_id', $providerMessageId)->exists()) {
+            Log::info("Baileys message {$providerMessageId} already mapped (deduplicated). Skipping.");
+            return;
+        }
 
         if (blank($body) && filled($mediaType)) {
             $body = match ($mediaType) {
@@ -147,13 +155,14 @@ class BaileysWebhookController extends Controller
         }
 
         // 1. Contacto
+        $defaultName = $isFromMe ? $cleanPhone : (filled($fromName) ? $fromName : $cleanPhone);
         $contact = Contact::firstOrCreate(
             [
                 'organization_id' => $account->organization_id,
                 'phone' => filled($cleanPhone) ? $cleanPhone : null,
             ],
             [
-                'first_name' => filled($fromName) ? $fromName : $cleanPhone,
+                'first_name' => $defaultName,
                 'status' => 'active',
             ]
         );
@@ -172,7 +181,7 @@ class BaileysWebhookController extends Controller
                 'contact_id' => $contact->id,
                 'channel' => 'whatsapp',
                 'whatsapp_account_id' => $account->id,
-                'status' => 'pending',
+                'status' => $isFromMe ? 'open' : 'pending',
                 'unread_count' => 0,
                 'last_message_at' => Carbon::now(),
             ]);
@@ -180,16 +189,27 @@ class BaileysWebhookController extends Controller
             $conversation->update(['whatsapp_account_id' => $account->id]);
         }
 
-        $conversation->increment('unread_count');
-        $conversation->update(['last_message_at' => Carbon::now()]);
+        if ($isFromMe) {
+            // Sincronización espejo de mensaje enviado fuera del CRM (WhatsApp Web o Móvil Android/iOS)
+            $conversation->update([
+                'status' => 'open',
+                'last_message_at' => Carbon::now(),
+            ]);
+        } else {
+            $conversation->increment('unread_count');
+            $conversation->update(['last_message_at' => Carbon::now()]);
+        }
 
-        // 3. Crear mensaje entrante
+        // 3. Crear mensaje (inbound u outbound espejo)
+        $direction = $isFromMe ? 'outbound' : 'inbound';
         $msg = Message::create([
             'organization_id' => $account->organization_id,
             'conversation_id' => $conversation->id,
-            'direction' => 'inbound',
+            'user_id' => $isFromMe ? $conversation->assigned_user_id : null,
+            'direction' => $direction,
             'message_type' => $mediaType ?: 'text',
             'message_status' => 'delivered',
+            'delivery_status' => 'delivered',
             'body' => $body,
             'media_url' => $mediaUrl,
             'media_type' => $mediaType,
@@ -209,7 +229,7 @@ class BaileysWebhookController extends Controller
                     'contact_id' => $contact->id,
                     'conversation_id' => $conversation->id,
                     'message_id' => $msg->id,
-                    'direction' => 'inbound',
+                    'direction' => $direction,
                     'status' => 'delivered',
                     'from_phone' => $cleanPhone,
                     'payload' => $request->all(),

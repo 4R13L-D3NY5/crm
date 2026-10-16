@@ -365,6 +365,18 @@
           class="full-width q-py-xs"
           @click="emit('resolve')"
         />
+
+        <q-btn
+          v-if="conversation.status === 'closed'"
+          unelevated
+          dense
+          no-caps
+          color="positive"
+          icon="sym_r_history"
+          label="Reactivar conversación"
+          class="full-width q-py-xs"
+          @click="emit('reopen')"
+        />
       </div>
     </div>
   </aside>
@@ -387,6 +399,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'transfer'): void
   (e: 'resolve'): void
+  (e: 'reopen'): void
 }>()
 
 const notify = useAppNotify()

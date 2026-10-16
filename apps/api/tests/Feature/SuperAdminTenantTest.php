@@ -208,6 +208,60 @@ class SuperAdminTenantTest extends TestCase
         $this->assertDatabaseMissing('whatsapp_accounts', ['name' => 'Canal 2 Supera Cuota']);
     }
 
+    public function test_enforces_social_media_accounts_quota_limit(): void
+    {
+        $org = Organization::create([
+            'name' => 'Empresa Redes Quota Test',
+            'slug' => 'empresa-redes-' . uniqid(),
+            'plan' => 'basic',
+            'max_whatsapp_lines' => 1,
+            'max_social_accounts' => 2,
+            'expires_at' => now()->addDays(30),
+        ]);
+
+        $admin = User::factory()->create([
+            'current_organization_id' => $org->id,
+        ]);
+        $org->users()->attach($admin->id, [
+            'id' => (string) Str::ulid(),
+            'role' => 'admin',
+        ]);
+
+        // Registrar 2 redes sociales permitidas
+        $res1 = $this->actingAs($admin)->postJson('/api/whatsapp/accounts', [
+            'name' => 'Fanpage 1',
+            'session_type' => 'facebook',
+            'phone_number_id' => 'fb_page_1_' . uniqid(),
+            'access_token' => 'EAA_valid_token_1',
+        ]);
+        $res1->assertStatus(201);
+
+        $res2 = $this->actingAs($admin)->postJson('/api/whatsapp/accounts', [
+            'name' => 'Instagram 1',
+            'session_type' => 'instagram',
+            'phone_number_id' => 'ig_act_1_' . uniqid(),
+            'access_token' => 'EAA_valid_token_2',
+        ]);
+        $res2->assertStatus(201);
+
+        // La tercera red debe ser bloqueada por superar max_social_accounts (2)
+        $res3 = $this->actingAs($admin)->postJson('/api/whatsapp/accounts', [
+            'name' => 'TikTok 1',
+            'session_type' => 'tiktok',
+            'phone_number_id' => 'tt_act_1_' . uniqid(),
+            'access_token' => 'EAA_valid_token_3',
+        ]);
+        $res3->assertStatus(422);
+        $res3->assertJsonPath('code', 'QUOTA_SOCIAL_EXCEEDED');
+
+        // Sin embargo, aún debe permitir registrar el número de WhatsApp permitido
+        $resWa = $this->actingAs($admin)->postJson('/api/whatsapp/accounts', [
+            'name' => 'WhatsApp Línea 1',
+            'session_type' => 'baileys_qr',
+        ]);
+        $resWa->assertStatus(201);
+    }
+
     public function test_superadmin_can_extend_trial_period(): void
     {
         $org = Organization::create([
