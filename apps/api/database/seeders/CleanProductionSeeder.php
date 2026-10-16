@@ -22,7 +22,19 @@ class CleanProductionSeeder extends Seeder
         // 1. Organización Principal Oficial
         $organization = Organization::query()->updateOrCreate(
             ['slug' => 'unitepc'],
-            ['name' => 'UNITEPC'],
+            [
+                'name' => 'UNITEPC',
+                'plan' => 'elite',
+                'max_users' => 15,
+                'max_whatsapp_lines' => 4,
+                'max_social_accounts' => 16,
+                'extra_phones' => 0,
+                'extra_social_accounts' => 0,
+                'extra_agents' => 0,
+                'monthly_price_usd' => 390.00,
+                'subscription_status' => 'active',
+                'billing_period' => 'monthly',
+            ],
         );
 
         // 2. Usuario Administrador Oficial de UNITEPC
