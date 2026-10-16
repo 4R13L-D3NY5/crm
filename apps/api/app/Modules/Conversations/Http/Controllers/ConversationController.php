@@ -63,7 +63,7 @@ class ConversationController
 
         return response()->json([
             'data' => (new ConversationResource($conversation->load([
-                'contact',
+                'contact.tags',
                 'company',
                 'assignment.assignee',
                 'messages.user',

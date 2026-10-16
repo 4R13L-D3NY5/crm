@@ -153,6 +153,85 @@
         </div>
       </div>
 
+      <!-- Etiquetas (Tags) del Contacto -->
+      <div class="q-mb-md">
+        <div class="row items-center justify-between q-mb-xs">
+          <span class="text-caption text-weight-bold text-white">Etiquetas (Tags)</span>
+          <q-btn
+            flat
+            dense
+            round
+            size="xs"
+            color="teal-4"
+            icon="sym_r_add"
+            @click="isTagDialogOpen = true"
+          >
+            <q-tooltip>Asignar etiqueta al contacto</q-tooltip>
+          </q-btn>
+        </div>
+
+        <div v-if="assignedTags.length === 0" class="text-caption text-grey-5 italic q-py-xs">
+          Sin etiquetas asignadas.
+        </div>
+
+        <div v-else class="row q-gutter-xs q-mt-xs">
+          <q-chip
+            v-for="t in assignedTags"
+            :key="t.id || t.name"
+            dense
+            removable
+            dark
+            :style="{ backgroundColor: (t.color || t.color_hex || '#0d9488') + '22', borderColor: t.color || t.color_hex || '#0d9488' }"
+            style="border: 1px solid;"
+            @remove="removeTagFromContact(t.id || t.name)"
+          >
+            <span class="text-caption text-white text-weight-medium">
+              #{{ t.name }}
+            </span>
+          </q-chip>
+        </div>
+      </div>
+
+      <!-- Diálogo Asignar Etiqueta al Contacto -->
+      <q-dialog v-model="isTagDialogOpen">
+        <q-card style="width: 380px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
+          <q-card-section>
+            <div class="text-subtitle1 text-bold text-white">Asignar Etiqueta al Contacto</div>
+            <div class="text-caption text-grey-4">Selecciona una etiqueta existente o escribe una nueva.</div>
+          </q-card-section>
+
+          <q-card-section class="q-gutter-y-sm">
+            <q-select
+              v-model="selectedTagToAssign"
+              :options="availableTagOptions"
+              use-input
+              new-value-mode="add-unique"
+              outlined
+              dark
+              dense
+              label="Escribe o selecciona etiqueta"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_label" size="18px" class="text-teal-4" />
+              </template>
+            </q-select>
+          </q-card-section>
+
+          <q-card-actions align="right">
+            <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+            <q-btn
+              unelevated
+              label="Asignar"
+              color="primary"
+              no-caps
+              :loading="assigningTag"
+              :disable="!selectedTagToAssign"
+              @click="addTagToContact"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
       <!-- Diálogo Asignar Categoría al Chat -->
       <q-dialog v-model="isAssignDialogOpen">
         <q-card style="width: 420px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
@@ -384,6 +463,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { http } from '@/shared/api/http'
 import { getHentleAiSummary } from '../api/conversations.api'
@@ -403,6 +483,7 @@ const emit = defineEmits<{
 }>()
 
 const notify = useAppNotify()
+const queryClient = useQueryClient()
 const aiSummaryData = ref<{ summary: string; key_points: string[] } | null>(null)
 const isLoadingAiSummary = ref(false)
 
@@ -429,6 +510,135 @@ const loadingCategories = ref(false)
 const assigning = ref(false)
 const isAssignDialogOpen = ref(false)
 const selectedCategoryIdToAssign = ref<string | null>(null)
+
+// Etiquetas (Tags) del Contacto
+const assignedTags = ref<any[]>([])
+const allAvailableTags = ref<any[]>([])
+const isTagDialogOpen = ref(false)
+const selectedTagToAssign = ref<string | null>(null)
+const assigningTag = ref(false)
+
+const availableTagOptions = computed(() => {
+  return allAvailableTags.value.map((t) => t.name)
+})
+
+async function fetchContactTags() {
+  const contactId = props.conversation?.contact?.id
+  if (!contactId) return
+  try {
+    const res = await http.get(`/contacts/${contactId}`)
+    if (res.data?.data?.tags && Array.isArray(res.data.data.tags)) {
+      assignedTags.value = [...res.data.data.tags]
+      if (props.conversation?.contact) {
+        (props.conversation.contact as any).tags = [...res.data.data.tags]
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching contact tags', error)
+  }
+}
+
+watch(
+  () => [props.conversation?.id, props.conversation?.contact?.id],
+  ([, contactId]) => {
+    if (contactId) {
+      const contact = props.conversation?.contact as any
+      if (contact && Array.isArray(contact.tags) && contact.tags.length > 0) {
+        assignedTags.value = [...contact.tags]
+      } else {
+        fetchContactTags()
+      }
+    } else {
+      assignedTags.value = []
+    }
+  },
+  { immediate: true, deep: true },
+)
+
+async function fetchAllTags() {
+  try {
+    const res = await http.get('/tags')
+    allAvailableTags.value = res.data.data || []
+  } catch (error) {
+    console.error('Error fetching tags', error)
+  }
+}
+
+async function addTagToContact() {
+  const contact = props.conversation?.contact as any
+  if (!contact?.id || !selectedTagToAssign.value) return
+  const rawVal = selectedTagToAssign.value as any
+  const tagName = (typeof rawVal === 'string' ? rawVal : rawVal?.value || '').trim()
+  if (!tagName) return
+
+  assigningTag.value = true
+  try {
+    const currentTagNames = assignedTags.value.map((t) => t.name)
+    if (!currentTagNames.includes(tagName)) {
+      currentTagNames.push(tagName)
+    }
+
+    const payload = {
+      first_name: contact.name || contact.first_name || 'Sin nombre',
+      last_name: contact.last_name || null,
+      email: contact.email || null,
+      phone: contact.phone || null,
+      tags: currentTagNames,
+    }
+
+    const res = await http.put(`/contacts/${contact.id}`, payload)
+    if (res.data?.data?.tags) {
+      assignedTags.value = res.data.data.tags
+      contact.tags = res.data.data.tags
+    } else {
+      assignedTags.value = currentTagNames.map((n) => ({ name: n }))
+    }
+    selectedTagToAssign.value = null
+    isTagDialogOpen.value = false
+    notify.success({ message: `Etiqueta #${tagName} asignada.` })
+    fetchAllTags()
+    queryClient.invalidateQueries({ queryKey: ['conversation', props.conversation.id] })
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    queryClient.invalidateQueries({ queryKey: ['contacts'] })
+  } catch (error: any) {
+    notify.error({ message: 'Error al asignar etiqueta: ' + (error?.response?.data?.message || error?.message) })
+  } finally {
+    assigningTag.value = false
+  }
+}
+
+async function removeTagFromContact(tagIdentifier: string) {
+  const contact = props.conversation?.contact as any
+  if (!contact?.id) return
+
+  try {
+    const newTags = assignedTags.value
+      .filter((t) => t.id !== tagIdentifier && t.name !== tagIdentifier)
+      .map((t) => t.name)
+
+    const payload = {
+      first_name: contact.name || contact.first_name || 'Sin nombre',
+      last_name: contact.last_name || null,
+      email: contact.email || null,
+      phone: contact.phone || null,
+      tags: newTags,
+    }
+
+    const res = await http.put(`/contacts/${contact.id}`, payload)
+    if (res.data?.data?.tags) {
+      assignedTags.value = res.data.data.tags
+      contact.tags = res.data.data.tags
+    } else {
+      assignedTags.value = assignedTags.value.filter((t) => t.id !== tagIdentifier && t.name !== tagIdentifier)
+    }
+    notify.info({ message: 'Etiqueta eliminada.' })
+    queryClient.invalidateQueries({ queryKey: ['conversation', props.conversation.id] })
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    queryClient.invalidateQueries({ queryKey: ['contacts'] })
+  } catch (error: any) {
+    notify.error({ message: 'Error al remover etiqueta: ' + (error?.response?.data?.message || error?.message) })
+  }
+}
 
 const availableCategoryOptions = computed(() => {
   const assignedIds = new Set(assignedCategories.value.map((c) => c.id))
@@ -565,6 +775,7 @@ watch(
 onMounted(() => {
   fetchAllCategories()
   fetchCustomStatuses()
+  fetchAllTags()
 })
 
 const statusBadgeColor = computed(() => {

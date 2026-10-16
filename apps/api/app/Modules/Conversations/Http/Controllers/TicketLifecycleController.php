@@ -27,7 +27,7 @@ class TicketLifecycleController extends Controller
         ]);
 
         return response()->json([
-            'data' => $ticket->load(['assignedToUser', 'contact', 'queue']),
+            'data' => $ticket->load(['assignedToUser', 'contact.tags', 'queue']),
             'message' => 'Ticket aceptado y asignado exitosamente.',
         ]);
     }
@@ -71,7 +71,7 @@ class TicketLifecycleController extends Controller
         }
 
         return response()->json([
-            'data' => $ticket->load(['assignedToUser', 'contact', 'queue']),
+            'data' => $ticket->load(['assignedToUser', 'contact.tags', 'queue']),
             'message' => 'Ticket transferido exitosamente.',
         ]);
     }
@@ -97,7 +97,7 @@ class TicketLifecycleController extends Controller
         ]);
 
         return response()->json([
-            'data' => $ticket,
+            'data' => $ticket->load(['assignedToUser', 'contact.tags', 'queue']),
             'message' => 'Ticket finalizado exitosamente.',
         ]);
     }
@@ -117,7 +117,7 @@ class TicketLifecycleController extends Controller
         ]);
 
         return response()->json([
-            'data' => $ticket->load(['assignedToUser', 'contact', 'queue']),
+            'data' => $ticket->load(['assignedToUser', 'contact.tags', 'queue']),
             'message' => 'Ticket reabierto exitosamente.',
         ]);
     }

@@ -13,7 +13,7 @@ class UpdateConversationStatusAction
         ]);
 
         return $conversation->load([
-            'contact',
+            'contact.tags',
             'company',
             'assignment.assignee',
             'latestMessage.user',

@@ -51,7 +51,7 @@ class CreateConversationAction
         ));
 
         return $conversation->fresh()->load([
-            'contact',
+            'contact.tags',
             'company',
             'assignment.assignee',
             'latestMessage.user',

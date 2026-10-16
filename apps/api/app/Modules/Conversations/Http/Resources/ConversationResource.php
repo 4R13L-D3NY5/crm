@@ -53,12 +53,12 @@ class ConversationResource extends JsonResource
                 'name' => $this->contact->name,
                 'phone' => $this->contact->phone,
                 'email' => $this->contact->email,
-                'tags' => $this->contact->relationLoaded('tags') ? $this->contact->tags->map(fn ($t) => [
+                'tags' => ($this->contact->relationLoaded('tags') ? $this->contact->tags : $this->contact->tags)->map(fn ($t) => [
                     'id' => $t->id,
                     'name' => $t->name,
                     'slug' => $t->slug,
                     'color' => $t->color ?? null,
-                ])->values() : [],
+                ])->values(),
             ] : null,
             'company' => $this->company ? [
                 'id' => $this->company->id,

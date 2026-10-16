@@ -18,44 +18,6 @@
       </p>
     </div>
 
-    <!-- Selector de Rol Demo Rápido -->
-    <div class="role-selector q-mb-md">
-      <div class="role-selector__label text-caption q-mb-xs">
-        Acceso rápido de prueba:
-      </div>
-      <div class="role-pills">
-        <button
-          type="button"
-          class="role-pill"
-          :class="{ 'role-pill--active': email === 'admin@crm.local' }"
-          @click="selectRole('admin@crm.local', 'Admin')"
-        >
-          <span class="role-pill__emoji">👑</span>
-          <span>Admin</span>
-        </button>
-
-        <button
-          type="button"
-          class="role-pill"
-          :class="{ 'role-pill--active': email === 'supervisora@crm.local' }"
-          @click="selectRole('supervisora@crm.local', 'Supervisor')"
-        >
-          <span class="role-pill__emoji">🛡️</span>
-          <span>Supervisor</span>
-        </button>
-
-        <button
-          type="button"
-          class="role-pill"
-          :class="{ 'role-pill--active': email === 'agente@crm.local' }"
-          @click="selectRole('agente@crm.local', 'Agente')"
-        >
-          <span class="role-pill__emoji">🎧</span>
-          <span>Agente</span>
-        </button>
-      </div>
-    </div>
-
     <!-- Formulario de Acceso -->
     <q-form class="login-form" @submit.prevent="submit">
       <q-banner
@@ -160,14 +122,9 @@ import { useAuthStore } from '@/modules/auth/stores/auth.store'
 const authStore = useAuthStore()
 const router = useRouter()
 
-const email = ref('admin@crm.local')
-const password = ref('password')
+const email = ref('')
+const password = ref('')
 const showPassword = ref(false)
-
-function selectRole(demoEmail: string, _roleLabel: string) {
-  email.value = demoEmail
-  password.value = 'password'
-}
 
 async function submit() {
   try {
@@ -219,59 +176,6 @@ async function submit() {
   margin: 4px 0 0;
   font-size: 0.82rem;
   color: var(--crm-color-muted);
-}
-
-.role-selector {
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--crm-color-border);
-  border-radius: 10px;
-}
-
-.role-selector__label {
-  color: var(--crm-color-dim);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.role-pills {
-  display: flex;
-  gap: 6px;
-}
-
-.role-pill {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--crm-color-border);
-  border-radius: 6px;
-  color: var(--crm-color-muted);
-  font-size: 0.78rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--crm-transition-fast);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--crm-color-ink);
-    border-color: var(--crm-color-border-hover);
-  }
-
-  &--active {
-    background: var(--crm-color-primary-soft);
-    border-color: rgba(16, 185, 129, 0.35);
-    color: var(--crm-color-primary);
-    font-weight: 600;
-  }
-}
-
-.role-pill__emoji {
-  font-size: 0.85rem;
 }
 
 .login-form {

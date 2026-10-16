@@ -33,7 +33,7 @@ class TicketUpdatedEvent implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'ticket' => (new ConversationResource($this->conversation->load(['queue', 'assignee', 'contact'])))->resolve(),
+            'ticket' => (new ConversationResource($this->conversation->load(['queue', 'assignee', 'contact.tags'])))->resolve(),
         ];
     }
 }
