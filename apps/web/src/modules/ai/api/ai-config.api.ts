@@ -15,6 +15,12 @@ export interface AiConfigData {
   total_tokens_used?: number
   total_requests_count?: number
   is_budget_exceeded?: boolean
+  smart_reply_enabled?: boolean
+  smart_reply_delay_seconds?: number
+  smart_reply_confidence_threshold?: number
+  auto_tag_recommendation_enabled?: boolean
+  entity_extraction_enabled?: boolean
+  sentiment_radar_enabled?: boolean
 }
 
 export interface AiTestPayload {

@@ -343,6 +343,94 @@
             </div>
           </div>
 
+          <!-- 8. Módulos de Automatización Omnicanal & Copiloto (Fases 2, 3, 4, 5) -->
+          <div class="q-pa-sm rounded-borders q-mt-sm" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--crm-color-border)">
+            <div class="row items-center q-gutter-x-xs q-mb-sm">
+              <q-icon name="sym_r_smart_toy" color="amber-4" size="18px" />
+              <span class="text-caption text-weight-bold text-white">Módulos de Automatización & Copiloto</span>
+            </div>
+
+            <!-- Auto-Respuestas Semi-Inmediatas -->
+            <div class="q-py-xs">
+              <div class="row items-center justify-between">
+                <div>
+                  <div class="text-caption text-weight-medium text-white">Respuestas Semi-Inmediatas con Buffer Humano</div>
+                  <div class="text-caption text-grey-4" style="font-size: 0.72rem">
+                    Responde automáticamente con datos de Notas & Base de Conocimiento tras un retardo natural, cancelándose si un asesor responde primero.
+                  </div>
+                </div>
+                <q-toggle v-model="configForm.smart_reply_enabled" color="teal-4" dense />
+              </div>
+
+              <div v-if="configForm.smart_reply_enabled" class="q-mt-sm q-pl-md q-gutter-y-xs" style="border-left: 2px solid #0d9488">
+                <div class="row justify-between text-caption text-grey-4">
+                  <span>Buffer de retardo natural:</span>
+                  <span class="text-weight-bold text-teal-3">{{ configForm.smart_reply_delay_seconds }} segundos</span>
+                </div>
+                <q-slider
+                  v-model="configForm.smart_reply_delay_seconds"
+                  :min="8"
+                  :max="45"
+                  :step="1"
+                  color="teal-4"
+                  dark
+                />
+
+                <div class="row justify-between text-caption text-grey-4 q-mt-xs">
+                  <span>Umbral de certeza mínima para auto-enviar:</span>
+                  <span class="text-weight-bold text-amber-4">{{ Math.round(configForm.smart_reply_confidence_threshold * 100) }}%</span>
+                </div>
+                <q-slider
+                  v-model="configForm.smart_reply_confidence_threshold"
+                  :min="0.70"
+                  :max="0.95"
+                  :step="0.05"
+                  color="amber-4"
+                  dark
+                />
+              </div>
+            </div>
+
+            <q-separator dark class="q-my-sm" style="border-color: rgba(255,255,255,0.06)" />
+
+            <!-- Recomendador de Estados y Etiquetas -->
+            <div class="row items-center justify-between q-py-xs">
+              <div>
+                <div class="text-caption text-weight-medium text-white">Recomendador de Estados y Etiquetas</div>
+                <div class="text-caption text-grey-4" style="font-size: 0.72rem">
+                  Sugiere etiquetas temáticas (#Medicina, #Cotización) y cambios de estado (ej: 'No interesado') con 1 clic.
+                </div>
+              </div>
+              <q-toggle v-model="configForm.auto_tag_recommendation_enabled" color="teal-4" dense />
+            </div>
+
+            <q-separator dark class="q-my-sm" style="border-color: rgba(255,255,255,0.06)" />
+
+            <!-- Extracción de Datos a la Ficha de Contacto -->
+            <div class="row items-center justify-between q-py-xs">
+              <div>
+                <div class="text-caption text-weight-medium text-white">Extracción de Datos a la Ficha de Contacto</div>
+                <div class="text-caption text-grey-4" style="font-size: 0.72rem">
+                  Detecta CI, email, nombre y ciudad en la conversación y permite actualizar la ficha en 1 clic.
+                </div>
+              </div>
+              <q-toggle v-model="configForm.entity_extraction_enabled" color="teal-4" dense />
+            </div>
+
+            <q-separator dark class="q-my-sm" style="border-color: rgba(255,255,255,0.06)" />
+
+            <!-- Radar de Sentimiento y Alertas de Frustración -->
+            <div class="row items-center justify-between q-py-xs">
+              <div>
+                <div class="text-caption text-weight-medium text-white">Radar de Sentimiento y Alertas de Frustración</div>
+                <div class="text-caption text-grey-4" style="font-size: 0.72rem">
+                  Monitorea en vivo el estado emocional y alerta de inmediato si un cliente expresa queja o molestia.
+                </div>
+              </div>
+              <q-toggle v-model="configForm.sentiment_radar_enabled" color="teal-4" dense />
+            </div>
+          </div>
+
           <!-- Banner de Resultado de Prueba en Vivo -->
           <transition name="q-transition--fade">
             <div v-if="testResult" class="q-mt-sm">
@@ -495,6 +583,12 @@ const configForm = reactive({
   similarity_threshold: 0.75,
   budget_enabled: false,
   spending_limit_usd: 0.20,
+  smart_reply_enabled: false,
+  smart_reply_delay_seconds: 15,
+  smart_reply_confidence_threshold: 0.85,
+  auto_tag_recommendation_enabled: true,
+  entity_extraction_enabled: true,
+  sentiment_radar_enabled: true,
 })
 
 const currentModelOptions = computed(() => {
@@ -558,6 +652,12 @@ function openConfigModal() {
   configForm.similarity_threshold = aiConfig.value.similarity_threshold || 0.75
   configForm.budget_enabled = aiConfig.value.budget_enabled ?? false
   configForm.spending_limit_usd = aiConfig.value.spending_limit_usd ?? 0.20
+  configForm.smart_reply_enabled = aiConfig.value.smart_reply_enabled ?? false
+  configForm.smart_reply_delay_seconds = aiConfig.value.smart_reply_delay_seconds ?? 15
+  configForm.smart_reply_confidence_threshold = aiConfig.value.smart_reply_confidence_threshold ?? 0.85
+  configForm.auto_tag_recommendation_enabled = aiConfig.value.auto_tag_recommendation_enabled ?? true
+  configForm.entity_extraction_enabled = aiConfig.value.entity_extraction_enabled ?? true
+  configForm.sentiment_radar_enabled = aiConfig.value.sentiment_radar_enabled ?? true
   testResult.value = null
   isConfigModalOpen.value = true
 }
@@ -629,6 +729,12 @@ async function submitAiConfig() {
       similarity_threshold: configForm.similarity_threshold,
       budget_enabled: configForm.budget_enabled,
       spending_limit_usd: configForm.spending_limit_usd,
+      smart_reply_enabled: configForm.smart_reply_enabled,
+      smart_reply_delay_seconds: configForm.smart_reply_delay_seconds,
+      smart_reply_confidence_threshold: configForm.smart_reply_confidence_threshold,
+      auto_tag_recommendation_enabled: configForm.auto_tag_recommendation_enabled,
+      entity_extraction_enabled: configForm.entity_extraction_enabled,
+      sentiment_radar_enabled: configForm.sentiment_radar_enabled,
     })
 
     aiConfig.value = updated

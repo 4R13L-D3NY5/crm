@@ -183,3 +183,57 @@ export async function getConversationUsers(): Promise<UserOption[]> {
 
   return response.data.data
 }
+
+export interface AiStatusRecommendation {
+  suggested_status: string | null
+  suggested_custom_status_id: string | null
+  suggested_custom_status_name: string | null
+  reason: string | null
+  confidence: number
+}
+
+export interface AiTagRecommendation {
+  name: string
+  color: string
+  reason: string
+}
+
+export interface AiExtractedContactData {
+  first_name: string | null
+  email: string | null
+  ci: string | null
+  city: string | null
+  alternative_phone: string | null
+  has_new_data: boolean
+}
+
+export interface AiSentimentAnalysis {
+  sentiment: 'positive' | 'neutral' | 'hesitant' | 'frustrated' | 'angry'
+  frustration_score: number
+  is_frustrated: boolean
+  reason: string
+}
+
+export interface AiConversationAnalysis {
+  status_recommendation: AiStatusRecommendation | null
+  tag_recommendations: AiTagRecommendation[]
+  extracted_contact_data: AiExtractedContactData
+  sentiment: AiSentimentAnalysis
+}
+
+export async function getConversationAiAnalysis(conversationId: string): Promise<AiConversationAnalysis> {
+  const res = await http.get<{ data: AiConversationAnalysis }>(`/conversations/${conversationId}/ai/copilot/analysis`)
+  return res.data.data
+}
+
+export async function applyAiStatus(conversationId: string, payload: { status?: string; custom_status_id?: string }): Promise<void> {
+  await http.post(`/conversations/${conversationId}/ai/copilot/apply-status`, payload)
+}
+
+export async function applyAiTags(conversationId: string, tags: string[]): Promise<void> {
+  await http.post(`/conversations/${conversationId}/ai/copilot/apply-tags`, { tags })
+}
+
+export async function applyAiContactData(conversationId: string, data: Partial<AiExtractedContactData>): Promise<void> {
+  await http.post(`/conversations/${conversationId}/ai/copilot/apply-contact-data`, data)
+}

@@ -240,13 +240,36 @@ class BaileysWebhookController extends Controller
         // 5. Emitir evento de Socket en tiempo real
         event(new TicketMessageCreatedEvent($msg));
 
+        // 5.1 Evaluar radar de sentimiento y alerta de frustración en tiempo real
+        if (! $isFromMe) {
+            try {
+                $analyzer = app(\App\Modules\HentleAi\Services\AiConversationAnalyzerService::class);
+                $analysis = $analyzer->analyze($conversation);
+                $analyzer->checkAndAlertFrustration($conversation, $analysis);
+            } catch (\Throwable $e) {
+                Log::warning('Sentiment radar evaluation failed: ' . $e->getMessage());
+            }
+        }
+
         // 6. Verificar y enviar auto-respuesta si el mensaje ingresa fuera de horario laboral
         if (! $isFromMe) {
             $outOfHoursMsg = app(\App\Modules\Parameters\Actions\DispatchOutOfHoursAutoReplyAction::class)->execute($conversation);
 
             // 7. Si no se activó mensaje de fuera de horario, evaluar flujo de Bot de Bienvenida / Enrutamiento de Filas
             if (! $outOfHoursMsg) {
-                app(\App\Modules\Queues\Actions\DispatchBotFlowAction::class)->execute($conversation, $body);
+                $botHandled = app(\App\Modules\Queues\Actions\DispatchBotFlowAction::class)->execute($conversation, $body);
+
+                // 8. Si no fue atendido por BotFlow y la conversación sigue sin asignar, evaluar Smart AI Semi-Immediate Reply
+                if (! $botHandled) {
+                    $setting = \App\Modules\Settings\Models\WorkspaceSetting::where('organization_id', $account->organization_id)->first();
+                    $aiConfig = $setting?->custom_options['ai_config'] ?? [];
+                    $smartReplyEnabled = (bool) ($aiConfig['smart_reply_enabled'] ?? false);
+                    if ($smartReplyEnabled) {
+                        $delaySec = max(5, (int) ($aiConfig['smart_reply_delay_seconds'] ?? 15));
+                        \App\Modules\HentleAi\Jobs\ProcessSmartAiReplyJob::dispatch($conversation->id, $msg->id)
+                            ->delay(now()->addSeconds($delaySec));
+                    }
+                }
             }
         }
     }

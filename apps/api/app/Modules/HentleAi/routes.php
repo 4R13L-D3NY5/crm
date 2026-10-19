@@ -8,6 +8,10 @@ Route::post('conversations/{conversation}/ai/suggest', [\App\Modules\HentleAi\Ht
 Route::post('conversations/{conversation}/ai/summary', [\App\Modules\HentleAi\Http\Controllers\AiCopilotController::class, 'summary']);
 Route::post('conversations/{conversation}/ai/copilot/suggest', [HentleAiCopilotController::class, 'suggestReply']);
 Route::get('conversations/{conversation}/ai/copilot/summary', [HentleAiCopilotController::class, 'summarize']);
+Route::get('conversations/{conversation}/ai/copilot/analysis', [HentleAiCopilotController::class, 'analysis']);
+Route::post('conversations/{conversation}/ai/copilot/apply-status', [HentleAiCopilotController::class, 'applyStatus']);
+Route::post('conversations/{conversation}/ai/copilot/apply-tags', [HentleAiCopilotController::class, 'applyTags']);
+Route::post('conversations/{conversation}/ai/copilot/apply-contact-data', [HentleAiCopilotController::class, 'applyContactData']);
 
 Route::get('ai/knowledge-bases', [KnowledgeBaseController::class, 'index']);
 Route::post('ai/knowledge-bases', [KnowledgeBaseController::class, 'store']);

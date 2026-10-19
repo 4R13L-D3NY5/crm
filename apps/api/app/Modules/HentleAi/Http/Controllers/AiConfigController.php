@@ -50,6 +50,12 @@ class AiConfigController extends Controller
                 'total_tokens_used' => (int) ($aiConfig['total_tokens_used'] ?? 0),
                 'total_requests_count' => (int) ($aiConfig['total_requests_count'] ?? 0),
                 'is_budget_exceeded' => $budgetEnabled && ($currentSpending >= $spendingLimit),
+                'smart_reply_enabled' => (bool) ($aiConfig['smart_reply_enabled'] ?? false),
+                'smart_reply_delay_seconds' => (int) ($aiConfig['smart_reply_delay_seconds'] ?? 15),
+                'smart_reply_confidence_threshold' => (float) ($aiConfig['smart_reply_confidence_threshold'] ?? 0.85),
+                'auto_tag_recommendation_enabled' => (bool) ($aiConfig['auto_tag_recommendation_enabled'] ?? true),
+                'entity_extraction_enabled' => (bool) ($aiConfig['entity_extraction_enabled'] ?? true),
+                'sentiment_radar_enabled' => (bool) ($aiConfig['sentiment_radar_enabled'] ?? true),
             ],
         ]);
     }
@@ -65,6 +71,12 @@ class AiConfigController extends Controller
             'similarity_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'budget_enabled' => ['nullable', 'boolean'],
             'spending_limit_usd' => ['nullable', 'numeric', 'min:0.01', 'max:10000'],
+            'smart_reply_enabled' => ['nullable', 'boolean'],
+            'smart_reply_delay_seconds' => ['nullable', 'integer', 'min:5', 'max:120'],
+            'smart_reply_confidence_threshold' => ['nullable', 'numeric', 'min:0.5', 'max:1'],
+            'auto_tag_recommendation_enabled' => ['nullable', 'boolean'],
+            'entity_extraction_enabled' => ['nullable', 'boolean'],
+            'sentiment_radar_enabled' => ['nullable', 'boolean'],
         ]);
 
         $organization = $request->user()->currentOrganization;
@@ -107,6 +119,12 @@ class AiConfigController extends Controller
             'current_spending_usd' => (float) ($currentAiConfig['current_spending_usd'] ?? 0.0),
             'total_tokens_used' => (int) ($currentAiConfig['total_tokens_used'] ?? 0),
             'total_requests_count' => (int) ($currentAiConfig['total_requests_count'] ?? 0),
+            'smart_reply_enabled' => isset($validated['smart_reply_enabled']) ? (bool) $validated['smart_reply_enabled'] : (bool) ($currentAiConfig['smart_reply_enabled'] ?? false),
+            'smart_reply_delay_seconds' => isset($validated['smart_reply_delay_seconds']) ? (int) $validated['smart_reply_delay_seconds'] : (int) ($currentAiConfig['smart_reply_delay_seconds'] ?? 15),
+            'smart_reply_confidence_threshold' => isset($validated['smart_reply_confidence_threshold']) ? (float) $validated['smart_reply_confidence_threshold'] : (float) ($currentAiConfig['smart_reply_confidence_threshold'] ?? 0.85),
+            'auto_tag_recommendation_enabled' => isset($validated['auto_tag_recommendation_enabled']) ? (bool) $validated['auto_tag_recommendation_enabled'] : (bool) ($currentAiConfig['auto_tag_recommendation_enabled'] ?? true),
+            'entity_extraction_enabled' => isset($validated['entity_extraction_enabled']) ? (bool) $validated['entity_extraction_enabled'] : (bool) ($currentAiConfig['entity_extraction_enabled'] ?? true),
+            'sentiment_radar_enabled' => isset($validated['sentiment_radar_enabled']) ? (bool) $validated['sentiment_radar_enabled'] : (bool) ($currentAiConfig['sentiment_radar_enabled'] ?? true),
         ];
 
         $custom['ai_config'] = $newAiConfig;
@@ -132,6 +150,12 @@ class AiConfigController extends Controller
                 'total_tokens_used' => $newAiConfig['total_tokens_used'],
                 'total_requests_count' => $newAiConfig['total_requests_count'],
                 'is_budget_exceeded' => $newAiConfig['budget_enabled'] && ($newAiConfig['current_spending_usd'] >= $newAiConfig['spending_limit_usd']),
+                'smart_reply_enabled' => $newAiConfig['smart_reply_enabled'],
+                'smart_reply_delay_seconds' => $newAiConfig['smart_reply_delay_seconds'],
+                'smart_reply_confidence_threshold' => $newAiConfig['smart_reply_confidence_threshold'],
+                'auto_tag_recommendation_enabled' => $newAiConfig['auto_tag_recommendation_enabled'],
+                'entity_extraction_enabled' => $newAiConfig['entity_extraction_enabled'],
+                'sentiment_radar_enabled' => $newAiConfig['sentiment_radar_enabled'],
             ],
         ]);
     }

@@ -195,13 +195,34 @@ class ProcessWhatsAppWebhook implements ShouldQueue
             $message->getKey(),
         ));
 
+        // Evaluar radar de sentimiento y alerta de frustración en tiempo real
+        try {
+            $analyzer = app(\App\Modules\HentleAi\Services\AiConversationAnalyzerService::class);
+            $analysis = $analyzer->analyze($conversation);
+            $analyzer->checkAndAlertFrustration($conversation, $analysis);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Sentiment radar evaluation failed in Cloud API: ' . $e->getMessage());
+        }
+
         // Auto-respuesta si entra fuera de horario laboral
         $outOfHoursMsg = app(\App\Modules\Parameters\Actions\DispatchOutOfHoursAutoReplyAction::class)->execute($conversation);
 
         // Flujo de Bot de Bienvenida / Enrutamiento de Filas si no fue fuera de horario
         if (! $outOfHoursMsg) {
             $textBody = $messagePayload['text']['body'] ?? null;
-            app(\App\Modules\Queues\Actions\DispatchBotFlowAction::class)->execute($conversation, $textBody);
+            $botHandled = app(\App\Modules\Queues\Actions\DispatchBotFlowAction::class)->execute($conversation, $textBody);
+
+            // Si no fue atendido por BotFlow y la conversación sigue sin asignar, evaluar Smart AI Semi-Immediate Reply
+            if (! $botHandled) {
+                $setting = \App\Modules\Settings\Models\WorkspaceSetting::where('organization_id', $account->organization_id)->first();
+                $aiConfig = $setting?->custom_options['ai_config'] ?? [];
+                $smartReplyEnabled = (bool) ($aiConfig['smart_reply_enabled'] ?? false);
+                if ($smartReplyEnabled) {
+                    $delaySec = max(5, (int) ($aiConfig['smart_reply_delay_seconds'] ?? 15));
+                    \App\Modules\HentleAi\Jobs\ProcessSmartAiReplyJob::dispatch($conversation->getKey(), $message->getKey())
+                        ->delay(now()->addSeconds($delaySec));
+                }
+            }
         }
     }
 

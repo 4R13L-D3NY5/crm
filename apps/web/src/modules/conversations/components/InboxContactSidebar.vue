@@ -102,6 +102,58 @@
         </div>
       </div>
 
+      <!-- Extracción Inteligente de Datos a la Ficha del Contacto (Fase 4) -->
+      <div v-if="aiExtractedData?.has_new_data && !isExtractedDataDismissed" class="q-my-md">
+        <q-card flat bordered class="q-pa-sm rounded-borders" style="background: rgba(13, 148, 136, 0.09); border: 1px solid rgba(13, 148, 136, 0.38);">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption text-weight-bold text-teal-3 row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_auto_awesome" size="16px" color="teal-3" />
+              <span>Datos Detectados en el Chat</span>
+            </span>
+            <q-badge color="teal-9" text-color="teal-1" size="xs">IA Ficha</q-badge>
+          </div>
+
+          <div class="q-gutter-y-xs text-caption text-grey-2 q-my-xs font-sans" style="font-size: 0.78rem">
+            <div v-if="aiExtractedData.first_name" class="row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_person" size="14px" color="teal-4" />
+              <span>Nombre: <strong class="text-white">{{ aiExtractedData.first_name }}</strong></span>
+            </div>
+            <div v-if="aiExtractedData.ci" class="row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_badge" size="14px" color="amber-4" />
+              <span>CI: <strong class="text-amber-3 font-mono">{{ aiExtractedData.ci }}</strong></span>
+            </div>
+            <div v-if="aiExtractedData.email" class="row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_mail" size="14px" color="blue-4" />
+              <span>Email: <strong class="text-blue-3 font-mono">{{ aiExtractedData.email }}</strong></span>
+            </div>
+            <div v-if="aiExtractedData.city" class="row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_location_on" size="14px" color="purple-3" />
+              <span>Ciudad: <strong class="text-white">{{ aiExtractedData.city }}</strong></span>
+            </div>
+            <div v-if="aiExtractedData.alternative_phone" class="row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_call" size="14px" color="green-4" />
+              <span>Tel. Alt: <strong class="text-white font-mono">{{ aiExtractedData.alternative_phone }}</strong></span>
+            </div>
+          </div>
+
+          <div class="row items-center q-gutter-x-xs q-mt-xs">
+            <q-btn
+              unelevated
+              dense
+              no-caps
+              size="xs"
+              color="teal-7"
+              icon="sym_r_save"
+              label="Actualizar Ficha"
+              class="col"
+              :loading="isSavingExtractedData"
+              @click="handleApplyExtractedData"
+            />
+            <q-btn flat round dense size="xs" color="grey-4" icon="sym_r_close" @click="isExtractedDataDismissed = true" />
+          </div>
+        </q-card>
+      </div>
+
       <q-separator dark class="q-my-md" style="border-color: var(--crm-color-border)" />
 
       <!-- Categorías & Subcategorías (Clasificación del Lead) -->
@@ -512,7 +564,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { http } from '@/shared/api/http'
-import { getHentleAiSummary } from '../api/conversations.api'
+import {
+  getHentleAiSummary,
+  getConversationAiAnalysis,
+  applyAiContactData,
+  type AiExtractedContactData,
+} from '../api/conversations.api'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import type { Conversation } from '../types/conversation.types'
@@ -533,6 +590,43 @@ const notify = useAppNotify()
 const queryClient = useQueryClient()
 const aiSummaryData = ref<{ summary: string; key_points: string[] } | null>(null)
 const isLoadingAiSummary = ref(false)
+
+// Estados para Datos Extraídos por IA a la Ficha (Fase 4)
+const aiExtractedData = ref<AiExtractedContactData | null>(null)
+const isExtractedDataDismissed = ref(false)
+const isSavingExtractedData = ref(false)
+
+async function loadAiContactExtraction() {
+  if (!props.conversation?.id) return
+  try {
+    const analysis = await getConversationAiAnalysis(props.conversation.id)
+    aiExtractedData.value = analysis.extracted_contact_data
+    isExtractedDataDismissed.value = false
+  } catch (err) {
+    console.debug('Error fetching contact extraction:', err)
+  }
+}
+
+async function handleApplyExtractedData() {
+  if (!props.conversation?.id || !aiExtractedData.value) return
+  isSavingExtractedData.value = true
+  try {
+    await applyAiContactData(props.conversation.id, {
+      first_name: aiExtractedData.value.first_name || undefined,
+      email: aiExtractedData.value.email || undefined,
+      ci: aiExtractedData.value.ci || undefined,
+      city: aiExtractedData.value.city || undefined,
+      alternative_phone: aiExtractedData.value.alternative_phone || undefined,
+    })
+    isExtractedDataDismissed.value = true
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    notify.success({ message: 'Ficha del contacto actualizada con los datos extraídos por IA.' })
+  } catch (err: any) {
+    notify.error({ message: err?.response?.data?.message || 'Error al actualizar contacto.' })
+  } finally {
+    isSavingExtractedData.value = false
+  }
+}
 
 async function loadAiSummary() {
   if (!props.conversation?.id) return
@@ -589,6 +683,7 @@ watch(
   () => [props.conversation?.id, props.conversation?.contact?.id],
   ([, contactId]) => {
     if (contactId) {
+      loadAiContactExtraction()
       const contact = props.conversation?.contact as any
       if (contact && Array.isArray(contact.tags) && contact.tags.length > 0) {
         assignedTags.value = [...contact.tags]
@@ -597,6 +692,7 @@ watch(
       }
     } else {
       assignedTags.value = []
+      aiExtractedData.value = null
     }
   },
   { immediate: true, deep: true },

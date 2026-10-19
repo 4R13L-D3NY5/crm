@@ -3,7 +3,10 @@
 namespace App\Modules\HentleAi\Services;
 
 use App\Modules\Conversations\Models\Conversation;
+use App\Modules\HentleAi\Models\AiKnowledgeChunk;
+use App\Modules\Notes\Models\Note;
 use App\Modules\Settings\Models\WorkspaceSetting;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -236,12 +239,95 @@ class HentleAiCopilotService
     }
 
     /**
-     * Genera una sugerencia inteligente de respuesta basada en los últimos mensajes y el contexto del CRM.
+     * Búsqueda híbrida unificada en Notas de la empresa y Chunks de Base de Conocimiento (RAG).
+     */
+    public function retrieveKnowledgeContext(string $organizationId, string $query, int $limit = 4): array
+    {
+        $sources = [];
+        $contextSnippets = [];
+        $cleanQuery = trim($query);
+
+        if (empty($cleanQuery)) {
+            return [
+                'context_text' => '',
+                'sources' => [],
+                'has_knowledge' => false,
+            ];
+        }
+
+        $isPgsql = DB::getDriverName() === 'pgsql';
+        $like = $isPgsql ? 'ilike' : 'like';
+
+        // Extraer palabras clave de más de 3 letras
+        $words = preg_split('/[\s,\.\?\!\¿\¡]+/u', mb_strtolower($cleanQuery), -1, PREG_SPLIT_NO_EMPTY);
+        $keywords = array_values(array_filter($words, fn ($w) => mb_strlen($w) >= 3));
+
+        // 1. Consultar Notas Rápidas / Micro-Conocimiento (Google Keep Style)
+        $notes = Note::query()
+            ->where('organization_id', $organizationId)
+            ->where('is_archived', false)
+            ->where(function ($q) use ($cleanQuery, $keywords, $like) {
+                $q->where('title', $like, "%{$cleanQuery}%")
+                    ->orWhere('content', $like, "%{$cleanQuery}%")
+                    ->orWhere('shortcut', $like, "%{$cleanQuery}%");
+
+                foreach ($keywords as $kw) {
+                    $q->orWhere('title', $like, "%{$kw}%")
+                        ->orWhere('content', $like, "%{$kw}%");
+                }
+            })
+            ->take($limit)
+            ->get();
+
+        foreach ($notes as $note) {
+            $contextSnippets[] = "--- [NOTA: {$note->title}] ---\n{$note->content}";
+            $sources[] = [
+                'type' => 'note',
+                'id' => $note->id,
+                'title' => $note->title,
+                'snippet' => mb_substr($note->content, 0, 160),
+            ];
+        }
+
+        // 2. Consultar Chunks de Base de Conocimiento (AiKnowledgeChunk)
+        $chunks = AiKnowledgeChunk::query()
+            ->where('organization_id', $organizationId)
+            ->where(function ($q) use ($cleanQuery, $keywords, $like) {
+                $q->where('title', $like, "%{$cleanQuery}%")
+                    ->orWhere('content', $like, "%{$cleanQuery}%");
+
+                foreach ($keywords as $kw) {
+                    $q->orWhere('title', $like, "%{$kw}%")
+                        ->orWhere('content', $like, "%{$kw}%");
+                }
+            })
+            ->take($limit)
+            ->get();
+
+        foreach ($chunks as $chunk) {
+            $contextSnippets[] = "--- [DOC: {$chunk->title}] ---\n{$chunk->content}";
+            $sources[] = [
+                'type' => 'knowledge_chunk',
+                'id' => $chunk->id,
+                'title' => $chunk->title,
+                'snippet' => mb_substr($chunk->content, 0, 160),
+            ];
+        }
+
+        return [
+            'context_text' => implode("\n\n", $contextSnippets),
+            'sources' => $sources,
+            'has_knowledge' => !empty($sources),
+        ];
+    }
+
+    /**
+     * Genera una sugerencia inteligente de respuesta basada en los últimos mensajes y el contexto del CRM (RAG Unificado).
      */
     public function generateReplySuggestion(Conversation $conversation, ?string $instruction = null): array
     {
         $messages = $conversation->messages()
-            ->latest()
+            ->latest('sent_at')
             ->take(8)
             ->get()
             ->reverse();
@@ -254,10 +340,26 @@ class HentleAiCopilotService
         $contactName = $conversation->contact?->name ?? 'Cliente';
         $companyName = $conversation->company?->name ?? 'N/A';
 
+        // Buscar última consulta entrante del cliente para RAG
+        $lastInbound = $conversation->messages()
+            ->where('direction', 'inbound')
+            ->latest('sent_at')
+            ->first();
+        $queryText = $lastInbound?->body ?? ($instruction ?? '');
+
+        $knowledge = $this->retrieveKnowledgeContext($conversation->organization_id, $queryText);
+
         $config = $this->getEffectiveConfig($conversation->organization_id);
 
         $defaultSystemPrompt = 'Eres el Copiloto de Inteligencia Artificial "Hentle-AI" para atención al cliente y soporte en WhatsApp. Tu objetivo es sugerir una respuesta profesional, empática, clara y orientada a la solución para que el agente humano la envíe al cliente con un solo clic.';
         $systemInstruction = !empty($config['system_prompt']) ? $config['system_prompt'] : $defaultSystemPrompt;
+
+        $knowledgeSection = '';
+        if ($knowledge['has_knowledge']) {
+            $knowledgeSection = "\n\nInformación Oficial Verificada de la Empresa (Notas y Base de Conocimiento):\n" .
+                $knowledge['context_text'] .
+                "\n\nREGLA CLAVE DE PRECISIÓN: Utiliza los datos exactos indicados arriba (aranceles, sedes, costos, horarios, promociones, requisitos) para responder al cliente sin alucinaciones.";
+        }
 
         $prompt = <<<PROMPT
 Contexto del chat:
@@ -266,14 +368,16 @@ Contexto del chat:
 
 Historial reciente de la conversación:
 {$conversationHistory}
+{$knowledgeSection}
 
 Instrucción adicional del agente (opcional): {$instruction}
 
 Instrucciones:
 1. Responde en español con tono cálido, profesional y conciso, adaptado al formato de WhatsApp.
-2. Si falta información, formula la pregunta de forma cordial.
-3. No incluyas saludos redundantes si ya se saludó en el historial.
-4. Devuelve ÚNICAMENTE el texto sugerido para enviar, sin preámbulos ni comillas.
+2. Si la información solicitada está en las notas o documentos oficiales, bríndala de manera clara y directa.
+3. Si la información NO está disponible en los documentos, no inventes datos numéricos ni requisitos y responde cordialmente indicando que verificarás el detalle.
+4. No incluyas saludos redundantes si ya se saludó en el historial.
+5. Devuelve ÚNICAMENTE el texto sugerido para enviar, sin preámbulos ni comillas.
 PROMPT;
 
         if (empty($config['api_key'])) {
@@ -293,8 +397,10 @@ PROMPT;
 
             return [
                 'suggestion' => $reply,
-                'confidence' => 0.95,
+                'confidence' => $knowledge['has_knowledge'] ? 0.95 : 0.75,
                 'source' => "hentle_ai_{$config['provider']}",
+                'sources' => $knowledge['sources'],
+                'used_knowledge' => $knowledge['has_knowledge'],
             ];
         } catch (\Throwable $e) {
             Log::warning("Error consultando Hentle-AI Copilot ({$config['provider']}): " . $e->getMessage());
