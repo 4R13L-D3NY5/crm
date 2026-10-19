@@ -108,6 +108,18 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function whatsappAccounts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Modules\WhatsApp\Models\WhatsAppAccount::class,
+            'whatsapp_account_users',
+            'user_id',
+            'whatsapp_account_id'
+        )
+            ->withPivot(['can_view', 'can_reply'])
+            ->withTimestamps();
+    }
+
     public function currentOrganizationRole(): ?string
     {
         if ($this->current_organization_id === null) {

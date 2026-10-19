@@ -16,6 +16,22 @@ class ListConversationsQuery
         return Conversation::query()
             ->with(['contact.tags', 'company', 'queue', 'assignee', 'assignment.assignee', 'latestMessage.user', 'customStatus', 'categories', 'whatsappAccount'])
             ->where('organization_id', $user->current_organization_id)
+            // Scope por canales asignados (los operadores no-admin solo ven sus canales autorizados o abiertos)
+            ->when(!$user->isAdmin(), function (Builder $query) use ($user) {
+                $query->where(function (Builder $q) use ($user) {
+                    $q->where('assigned_to_user_id', $user->id)
+                      ->orWhereHas('whatsappAccount.authorizedUsers', function (Builder $userQuery) use ($user) {
+                          $userQuery->where('users.id', $user->id)
+                                    ->where('whatsapp_account_users.can_view', true);
+                      })
+                      ->orWhere(function (Builder $unrestricted) {
+                          $unrestricted->whereNotNull('whatsapp_account_id')
+                                       ->whereDoesntHave('whatsappAccount.authorizedUsers');
+                      })
+                      ->orWhereNull('whatsapp_account_id');
+                });
+            })
+            ->when($filters['whatsapp_account_id'] ?? null, fn (Builder $query, string $accountId) => $query->where('whatsapp_account_id', $accountId))
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
                 $query->where(function (Builder $nested) use ($search) {
                     $nested

@@ -19,7 +19,19 @@ class ConversationWhatsAppMessageController
         WriteAuditLogAction $writeAuditLogAction,
     ): JsonResponse {
         abort_unless($request->user()?->can('update', $conversation), 403);
-        abort_unless($request->user()?->hasPermission('whatsapp.manage'), 403);
+
+        // Si el canal de la conversación tiene operadores asignados específicamente, verificar que el usuario tenga can_reply
+        if ($conversation->whatsapp_account_id && !$request->user()->isAdmin()) {
+            $account = $conversation->whatsappAccount;
+            if ($account && $account->authorizedUsers()->exists()) {
+                $canReply = $account->authorizedUsers()
+                    ->where('users.id', $request->user()->id)
+                    ->wherePivot('can_reply', true)
+                    ->exists();
+
+                abort_unless($canReply, 403, 'No tienes permiso para responder mensajes en esta línea o canal.');
+            }
+        }
 
         if ($conversation->channel === 'facebook') {
             return app(\App\Modules\Social\Http\Controllers\SocialCommentController::class)->sendMessage($request, $conversation);
@@ -63,7 +75,19 @@ class ConversationWhatsAppMessageController
     ): JsonResponse {
         abort_unless($conversation->getKey() === $message->conversation_id, 404);
         abort_unless(request()->user()?->can('update', $conversation), 403);
-        abort_unless(request()->user()?->hasPermission('whatsapp.manage'), 403);
+
+        // Si el canal de la conversación tiene operadores asignados específicamente, verificar que el usuario tenga can_reply
+        if ($conversation->whatsapp_account_id && !request()->user()->isAdmin()) {
+            $account = $conversation->whatsappAccount;
+            if ($account && $account->authorizedUsers()->exists()) {
+                $canReply = $account->authorizedUsers()
+                    ->where('users.id', request()->user()->id)
+                    ->wherePivot('can_reply', true)
+                    ->exists();
+
+                abort_unless($canReply, 403, 'No tienes permiso para responder mensajes en esta línea o canal.');
+            }
+        }
 
         $message = $sendWhatsAppMessageAction->retry($message);
         $writeAuditLogAction->execute(
