@@ -95,4 +95,42 @@ class Phase2ChannelsAndContactsTest extends TestCase
             'name' => 'Cochabamba',
         ]);
     }
+
+    public function test_channel_can_be_updated_with_name_and_display_number(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $user->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+        $user->update(['current_organization_id' => $organization->id]);
+
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Whatsapp Ivirgarzama',
+            'display_phone_number' => '+59172227760',
+            'phone_number_id' => 'baileys_test_123',
+            'verify_token' => 'token-test-123',
+            'session_type' => 'baileys_qr',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+            'daily_limit' => 100,
+        ]);
+
+        $response = $this->actingAs($user)->putJson("/api/whatsapp/accounts/{$account->id}", [
+            'name' => 'Whatsapp Sede Ivirgarzama Oficial',
+            'display_phone_number' => '+591 72227760',
+            'daily_limit' => 150,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.name', 'Whatsapp Sede Ivirgarzama Oficial')
+            ->assertJsonPath('data.display_phone_number', '+591 72227760')
+            ->assertJsonPath('data.daily_limit', 150);
+
+        $this->assertDatabaseHas('whatsapp_accounts', [
+            'id' => $account->id,
+            'name' => 'Whatsapp Sede Ivirgarzama Oficial',
+            'display_phone_number' => '+591 72227760',
+            'daily_limit' => 150,
+        ]);
+    }
 }
