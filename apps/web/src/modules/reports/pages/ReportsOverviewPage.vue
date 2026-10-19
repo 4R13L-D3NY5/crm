@@ -70,6 +70,21 @@
           </q-btn>
         </div>
 
+        <!-- Botón Exportar PDF -->
+        <q-btn
+          unelevated
+          no-caps
+          color="teal-8"
+          text-color="white"
+          icon="sym_r_picture_as_pdf"
+          label="Exportar PDF"
+          class="text-bold q-px-md"
+          :loading="isExportingPdf"
+          @click="handleExportPdf"
+        >
+          <q-tooltip>Descargar informe ejecutivo en formato PDF para presentación</q-tooltip>
+        </q-btn>
+
         <!-- Botón Exportar CSV -->
         <q-btn
           unelevated
@@ -122,7 +137,7 @@
         @click="activeTab = 'csat'"
       >
         <q-icon name="sym_r_star" size="18px" />
-        <span>Satisfacción CSAT</span>
+        <span>Satisfacción del Cliente (Estrellas ⭐)</span>
       </button>
     </div>
 
@@ -317,7 +332,10 @@
               <th class="text-left" style="min-width: 140px">% CUMPLIMIENTO</th>
               <th class="text-center">1RA RESPUESTA</th>
               <th class="text-center">RESOLUCIÓN</th>
-              <th class="text-center">CSAT</th>
+              <th class="text-center">
+                <span>CALIFICACIÓN ⭐</span>
+                <q-tooltip class="text-caption">Índice de satisfacción promedio otorgado por los clientes (escala 1 a 5 estrellas)</q-tooltip>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -351,26 +369,27 @@
               </td>
 
               <!-- A Tiempo -->
-              <td class="text-center">
-                <q-badge color="positive" text-color="dark" class="text-bold font-mono">
+              <td class="text-center font-mono">
+                <q-badge v-if="agent.sla_on_time > 0" color="positive" text-color="dark" class="text-bold font-mono">
                   {{ agent.sla_on_time }}
                 </q-badge>
+                <span v-else class="text-grey-5 font-mono">0</span>
               </td>
 
               <!-- Con Retraso -->
-              <td class="text-center">
+              <td class="text-center font-mono">
                 <q-badge v-if="agent.sla_delayed > 0" color="warning" text-color="dark" class="text-bold font-mono">
                   {{ agent.sla_delayed }}
                 </q-badge>
-                <span v-else class="text-grey-6">-</span>
+                <span v-else class="text-grey-5 font-mono">0</span>
               </td>
 
               <!-- Sin Respuesta -->
-              <td class="text-center">
+              <td class="text-center font-mono">
                 <q-badge v-if="agent.unanswered > 0" color="negative" class="text-bold font-mono">
                   {{ agent.unanswered }}
                 </q-badge>
-                <span v-else class="text-grey-6">-</span>
+                <span v-else class="text-grey-5 font-mono">0</span>
               </td>
 
               <!-- % Cumplimiento SLA -->
@@ -565,30 +584,78 @@
     </div>
 
     <!-- ======================================================== -->
-    <!-- PESTAÑA 4: SATISFACCIÓN CSAT                             -->
+    <!-- PESTAÑA 4: SATISFACCIÓN & CALIDAD DEL CLIENTE            -->
     <!-- ======================================================== -->
-    <div v-else-if="activeTab === 'csat'" class="q-gutter-y-md" style="max-width: 750px">
-      <q-card flat bordered class="xf-chart-card q-pa-xl text-center">
-        <div class="text-h2 text-bold text-amber-4">
-          {{ csatData.average_score }} <span class="text-h5 text-grey-4">/ 5.0</span>
+    <div v-else-if="activeTab === 'csat'" class="q-gutter-y-md" style="max-width: 900px">
+      <!-- Explicación de Calidad / CSAT -->
+      <q-card flat bordered class="xf-panel-card q-pa-md">
+        <div class="row items-center q-gutter-x-sm q-mb-xs">
+          <q-icon name="sym_r_info" size="20px" color="teal-4" />
+          <span class="text-subtitle2 text-bold text-white">¿Qué representa la Calificación de Satisfacción (CSAT)?</span>
         </div>
-        <div class="text-h6 text-white q-mt-sm">
-          {{ csatData.satisfaction_percentage }}% Índice de Satisfacción del Cliente
-        </div>
-        <div class="text-caption text-grey-4 q-mt-xs">
-          Basado en {{ csatData.total_responses }} encuestas de satisfacción completadas al cierre de ticket.
+        <p class="text-caption text-grey-4 q-mb-none leading-relaxed">
+          El índice <strong>CSAT</strong> (<em>Customer Satisfaction Score</em>) mide el grado de conformidad del cliente al finalizar la atención, en una escala de <strong>1 a 5 estrellas (⭐)</strong>. El porcentaje de satisfacción favorable refleja las consultas calificadas con 4 y 5 estrellas (Muy Bueno y Excelente).
+        </p>
+      </q-card>
+
+      <div class="row q-col-gutter-md">
+        <div class="col-12 col-md-5">
+          <q-card flat bordered class="xf-chart-card q-pa-xl text-center full-height flex column justify-center items-center">
+            <div class="text-h2 text-bold text-amber-4">
+              {{ csatData.average_score }} <span class="text-h5 text-grey-4">/ 5.0</span>
+            </div>
+            <div class="text-h6 text-white q-mt-sm">
+              {{ csatData.satisfaction_percentage }}% Satisfacción Favorable
+            </div>
+            <div class="text-caption text-grey-4 q-mt-xs">
+              Basado en {{ csatData.total_responses }} encuestas de satisfacción completadas al cierre de ticket.
+            </div>
+
+            <div class="row justify-center q-gutter-x-xs q-mt-md">
+              <q-icon
+                v-for="star in 5"
+                :key="star"
+                name="sym_r_star"
+                size="28px"
+                :color="star <= Math.round(csatData.average_score) ? 'amber-4' : 'grey-7'"
+              />
+            </div>
+          </q-card>
         </div>
 
-        <div class="row justify-center q-gutter-x-xs q-mt-md">
-          <q-icon
-            v-for="star in 5"
-            :key="star"
-            name="sym_r_star"
-            size="28px"
-            :color="star <= Math.round(csatData.average_score) ? 'amber-4' : 'grey-7'"
-          />
+        <div class="col-12 col-md-7">
+          <q-card flat bordered class="xf-chart-card q-pa-md full-height">
+            <div class="text-subtitle2 text-bold text-white q-mb-md">Desglose de Calificaciones de Atención</div>
+            <div class="column q-gutter-y-sm">
+              <div
+                v-for="level in [
+                  { stars: 5, label: '5 Estrellas (Excelente)', color: 'positive', count: csatData.distribution?.[5] ?? csatData.stars_breakdown?.['5_stars'] ?? 0 },
+                  { stars: 4, label: '4 Estrellas (Muy Bueno)', color: 'teal-4', count: csatData.distribution?.[4] ?? csatData.stars_breakdown?.['4_stars'] ?? 0 },
+                  { stars: 3, label: '3 Estrellas (Regular)', color: 'amber-4', count: csatData.distribution?.[3] ?? csatData.stars_breakdown?.['3_stars'] ?? 0 },
+                  { stars: 2, label: '2 Estrellas (Malo)', color: 'warning', count: csatData.distribution?.[2] ?? csatData.stars_breakdown?.['2_stars'] ?? 0 },
+                  { stars: 1, label: '1 Estrella (Deficiente)', color: 'negative', count: csatData.distribution?.[1] ?? csatData.stars_breakdown?.['1_star'] ?? 0 },
+                ]"
+                :key="level.stars"
+                class="row items-center q-col-gutter-sm"
+              >
+                <div class="col-4 text-caption text-grey-3 ellipsis">{{ level.label }}</div>
+                <div class="col-6">
+                  <q-linear-progress
+                    :value="csatData.total_responses > 0 ? (level.count / csatData.total_responses) : 0"
+                    rounded
+                    size="8px"
+                    :color="level.color"
+                    track-color="dark"
+                  />
+                </div>
+                <div class="col-2 text-right font-mono text-caption text-bold text-white">
+                  {{ level.count }}
+                </div>
+              </div>
+            </div>
+          </q-card>
         </div>
-      </q-card>
+      </div>
     </div>
   </div>
 </template>
@@ -603,6 +670,7 @@ import {
   getExportUrl,
 } from '../api/reports.api'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { exportReportToPdf } from '../utils/exportReportPdf'
 import type {
   AgentReportItem,
   AgentReportSummary,
@@ -617,6 +685,7 @@ const notify = useAppNotify()
 const activeTab = ref<'general' | 'agents' | 'categories' | 'csat'>('general')
 const selectedPreset = ref<'today' | '7d' | '30d' | 'all' | 'custom'>('30d')
 const isExporting = ref(false)
+const isExportingPdf = ref(false)
 const agentSearch = ref('')
 
 // Fechas activas y rango personalizado
@@ -823,6 +892,45 @@ function handleExportCsv() {
   notify.success({
     message: `Descargando reporte de ${activeTab.value} en formato CSV...`,
   })
+}
+
+function handleExportPdf() {
+  isExportingPdf.value = true
+  try {
+    const presetLabels: Record<string, string> = {
+      today: 'Hoy',
+      '7d': 'Últimos 7 días',
+      '30d': 'Últimos 30 días',
+      all: 'Histórico Completo',
+      custom: `${dateFilters.start_date || 'Inicio'} al ${dateFilters.end_date || 'Fin'}`,
+    }
+    const dateRangeText = presetLabels[selectedPreset.value] || 'Últimos 30 días'
+
+    exportReportToPdf({
+      activeTab: activeTab.value,
+      organizationName: 'Universidad UNITEPC',
+      dateRangeText,
+      generalKpis,
+      timeMetrics,
+      agentsSummary,
+      agentsList: agentsList.value,
+      categoriesSummary,
+      campusList: campusList.value,
+      topCareers: topCareers.value,
+      csatData,
+    })
+
+    notify.success({
+      message: 'Reporte ejecutivo en PDF generado y descargado exitosamente.',
+    })
+  } catch (err: any) {
+    console.error('Error generando PDF:', err)
+    notify.error({
+      message: 'No se pudo generar el PDF: ' + (err.message || 'Error desconocido'),
+    })
+  } finally {
+    isExportingPdf.value = false
+  }
 }
 
 onMounted(() => {

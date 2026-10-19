@@ -7,6 +7,6 @@ export const whatsappRoutes: RouteRecordRaw[] = [
     path: 'whatsapp',
     name: 'whatsapp.settings',
     component: WhatsAppSettingsPage,
-    meta: { permission: 'whatsapp.view' },
+    meta: { requiresAdmin: true, permission: 'whatsapp.view' },
   },
 ]

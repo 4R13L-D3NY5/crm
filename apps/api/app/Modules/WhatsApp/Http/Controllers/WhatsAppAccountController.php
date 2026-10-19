@@ -87,20 +87,45 @@ class WhatsAppAccountController
 
         $hasCredentials = filled($validated['access_token'] ?? null) || filled($validated['phone_number_id'] ?? null);
 
-        $account = WhatsAppAccount::create([
-            'organization_id' => $organization->id,
-            'name' => $validated['name'],
-            'session_type' => $sessionType,
-            'daily_limit' => $validated['daily_limit'] ?? ($sessionType === 'baileys_qr' ? 100 : 1000),
-            'display_phone_number' => $validated['display_phone_number'] ?? null,
-            'phone_number_id' => $validated['phone_number_id'] ?? ($validated['business_account_id'] ?? ($validated['display_phone_number'] ?? 'chan_' . time())),
-            'business_account_id' => $validated['business_account_id'] ?? null,
-            'access_token' => $validated['access_token'] ?? null,
-            'verify_token' => $validated['verify_token'] ?? \Illuminate\Support\Str::random(32),
-            'status' => ($sessionType !== 'baileys_qr' && $hasCredentials) ? 'CONNECTED' : 'DISCONNECTED',
-            'is_active' => ($sessionType !== 'baileys_qr' && $hasCredentials),
-            'last_connected_at' => ($sessionType !== 'baileys_qr' && $hasCredentials) ? now() : null,
-        ]);
+        // Resolver phone_number_id sin colisiones para sesiones QR
+        if ($sessionType === 'baileys_qr') {
+            // Para Baileys QR, el phone_number_id interno es un identificador único de sesión
+            // para evitar colisiones UNIQUE en la base de datos con el número telefónico visible
+            $phoneNumberId = 'baileys_' . (string) \Illuminate\Support\Str::ulid();
+        } else {
+            $phoneNumberId = $validated['phone_number_id'] ?? ($validated['business_account_id'] ?? ($sessionType . '_' . (string) \Illuminate\Support\Str::ulid()));
+        }
+
+        // Si ya existe otra cuenta con este phone_number_id (ej. Meta Cloud API), responder 422 amigable
+        if (WhatsAppAccount::where('phone_number_id', $phoneNumberId)->exists()) {
+            return response()->json([
+                'message' => 'El identificador de canal ingresado ya se encuentra registrado en el sistema.',
+            ], 422);
+        }
+
+        try {
+            $account = WhatsAppAccount::create([
+                'organization_id' => $organization->id,
+                'name' => $validated['name'],
+                'session_type' => $sessionType,
+                'daily_limit' => $validated['daily_limit'] ?? ($sessionType === 'baileys_qr' ? 100 : 1000),
+                'display_phone_number' => $validated['display_phone_number'] ?? null,
+                'phone_number_id' => $phoneNumberId,
+                'business_account_id' => $validated['business_account_id'] ?? null,
+                'access_token' => $validated['access_token'] ?? null,
+                'verify_token' => $validated['verify_token'] ?? \Illuminate\Support\Str::random(32),
+                'status' => ($sessionType !== 'baileys_qr' && $hasCredentials) ? 'CONNECTED' : 'DISCONNECTED',
+                'is_active' => ($sessionType !== 'baileys_qr' && $hasCredentials),
+                'last_connected_at' => ($sessionType !== 'baileys_qr' && $hasCredentials) ? now() : null,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() === '23505') {
+                return response()->json([
+                    'message' => 'Ya existe un canal registrado con este número o identificador en el sistema.',
+                ], 422);
+            }
+            throw $e;
+        }
 
         return response()->json([
             'data' => (new WhatsAppAccountResource($account))->resolve(),

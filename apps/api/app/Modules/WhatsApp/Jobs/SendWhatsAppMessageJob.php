@@ -38,11 +38,12 @@ class SendWhatsAppMessageJob implements ShouldQueue
             return;
         }
 
-        $accountId = WhatsAppMessageMapping::query()
-            ->where('conversation_id', $message->conversation_id)
-            ->whereNotNull('whatsapp_account_id')
-            ->latest()
-            ->value('whatsapp_account_id');
+        $accountId = $message->conversation?->whatsapp_account_id
+            ?? WhatsAppMessageMapping::query()
+                ->where('conversation_id', $message->conversation_id)
+                ->whereNotNull('whatsapp_account_id')
+                ->latest()
+                ->value('whatsapp_account_id');
 
         $account = null;
         if ($accountId) {

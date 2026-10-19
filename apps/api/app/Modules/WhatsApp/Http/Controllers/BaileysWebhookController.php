@@ -239,5 +239,15 @@ class BaileysWebhookController extends Controller
 
         // 5. Emitir evento de Socket en tiempo real
         event(new TicketMessageCreatedEvent($msg));
+
+        // 6. Verificar y enviar auto-respuesta si el mensaje ingresa fuera de horario laboral
+        if (! $isFromMe) {
+            $outOfHoursMsg = app(\App\Modules\Parameters\Actions\DispatchOutOfHoursAutoReplyAction::class)->execute($conversation);
+
+            // 7. Si no se activó mensaje de fuera de horario, evaluar flujo de Bot de Bienvenida / Enrutamiento de Filas
+            if (! $outOfHoursMsg) {
+                app(\App\Modules\Queues\Actions\DispatchBotFlowAction::class)->execute($conversation, $body);
+            }
+        }
     }
 }

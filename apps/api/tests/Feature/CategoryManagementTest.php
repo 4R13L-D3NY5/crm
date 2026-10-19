@@ -251,4 +251,73 @@ class CategoryManagementTest extends TestCase
         $this->assertEquals($sistemas['id'], $facultadNode['children'][0]['id']);
         $this->assertEquals($sistemas['id'], $sedeNode['children'][0]['id']);
     }
+
+    public function test_category_display_path_formats_ancestor_codes_and_leaf_name(): void
+    {
+        $this->actingAs($this->user);
+
+        // Nivel 0 (Raíz contenedora: Nuestras Sedes)
+        $root = Category::create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Nuestras Sedes (Pregrado)',
+            'code' => 'SEDES',
+            'color' => '#10b981',
+            'is_selectable' => false,
+        ]);
+
+        // Nivel 1 (Sede)
+        $sede = Category::create([
+            'organization_id' => $this->organization->id,
+            'parent_id' => $root->id,
+            'name' => 'Sede Cochabamba (Central)',
+            'code' => 'SEDE-CBB',
+            'color' => '#06b6d4',
+            'is_selectable' => false,
+        ]);
+        $sede->parents()->attach($root->id, [
+            'id' => (string) Str::ulid(),
+            'organization_id' => $this->organization->id,
+        ]);
+
+        // Nivel 2 (Facultad)
+        $facultad = Category::create([
+            'organization_id' => $this->organization->id,
+            'parent_id' => $sede->id,
+            'name' => 'Facultad de Ciencias de la Salud',
+            'code' => 'CBB-SALUD',
+            'color' => '#3b82f6',
+            'is_selectable' => false,
+        ]);
+        $facultad->parents()->attach($sede->id, [
+            'id' => (string) Str::ulid(),
+            'organization_id' => $this->organization->id,
+        ]);
+
+        // Nivel 3 (Carrera / Hoja)
+        $carrera = Category::create([
+            'organization_id' => $this->organization->id,
+            'parent_id' => $facultad->id,
+            'name' => 'Medicina Veterinaria y Zootecnia',
+            'code' => 'MEDICI',
+            'color' => '#ec4899',
+            'is_selectable' => true,
+        ]);
+        $carrera->parents()->attach($facultad->id, [
+            'id' => (string) Str::ulid(),
+            'organization_id' => $this->organization->id,
+        ]);
+
+        $this->assertEquals(
+            'SEDE-CBB -> CBB-SALUD -> Medicina Veterinaria y Zootecnia',
+            $carrera->display_path
+        );
+
+        $res = $this->getJson('/api/categories');
+        $res->assertOk();
+        $catData = collect($res->json('data'))->firstWhere('id', $carrera->id);
+        $this->assertEquals(
+            'SEDE-CBB -> CBB-SALUD -> Medicina Veterinaria y Zootecnia',
+            $catData['display_path']
+        );
+    }
 }

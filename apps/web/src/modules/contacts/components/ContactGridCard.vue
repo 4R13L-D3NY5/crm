@@ -1,9 +1,24 @@
 <template>
   <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-    <q-card flat bordered class="contact-grid-card cursor-pointer" @click="emit('view', contact)">
+    <q-card
+      flat
+      bordered
+      class="contact-grid-card cursor-pointer"
+      :class="{ 'contact-grid-card--selected': selected }"
+      @click="emit('view', contact)"
+    >
       <q-card-section class="q-pb-sm">
         <div class="row items-center justify-between no-wrap">
           <div class="row items-center q-gutter-x-sm no-wrap">
+            <q-checkbox
+              :model-value="selected"
+              dense
+              dark
+              color="teal-4"
+              class="q-mr-xs"
+              @click.stop
+              @update:model-value="emit('toggle-select', contact.id)"
+            />
             <q-avatar
               size="40px"
               :style="{ backgroundColor: getAvatarColor(displayName) }"
@@ -127,11 +142,18 @@ import { computed } from 'vue'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import type { Contact } from '../types/contact.types'
 
-const props = defineProps<{
-  contact: Contact
-}>()
+const props = withDefaults(
+  defineProps<{
+    contact: Contact
+    selected?: boolean
+  }>(),
+  {
+    selected: false,
+  },
+)
 
 const emit = defineEmits<{
+  'toggle-select': [id: string]
   view: [contact: Contact]
   edit: [contact: Contact]
   delete: [contact: Contact]
@@ -173,6 +195,12 @@ function getAvatarColor(name: string): string {
   &:hover {
     transform: translateY(-2px);
     border-color: rgba(16, 185, 129, 0.4);
+  }
+
+  &.contact-grid-card--selected {
+    border-color: #10b981 !important;
+    background: rgba(16, 185, 129, 0.08) !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
   }
 }
 

@@ -337,8 +337,8 @@ class DemoCrmSeeder extends Seeder
             [
                 'organization_id' => $organization->getKey(),
                 'name' => 'WhatsApp Baileys Línea Principal',
-                'phone_number_id' => '+59179326793',
-                'display_phone_number' => '+591 79326793',
+                'phone_number_id' => 'baileys_demo_70000099',
+                'display_phone_number' => '+591 7000-0099',
                 'verify_token' => 'baileys_token_secret',
                 'session_type' => 'qr_baileys',
                 'status' => 'CONNECTED',

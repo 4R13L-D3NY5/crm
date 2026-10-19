@@ -113,4 +113,41 @@ class Category extends Model
 
         return implode(' > ', $path);
     }
+
+    /**
+     * Retorna la ruta jerárquica optimizada:
+     * Nivel más profundo muestra su nombre completo; ancestros muestran solo su código/abreviatura.
+     * Ejemplo: "SEDE-CBB -> CBB-SALUD -> Medicina Veterinaria y Zootecnia"
+     */
+    public function getDisplayPathAttribute(): string
+    {
+        $ancestors = [];
+        $current = $this->parent;
+
+        while ($current) {
+            array_unshift($ancestors, $current);
+            $current = $current->parent;
+        }
+
+        // Si el nodo raíz superior es "Nuestras Sedes (Pregrado)" o código "SEDES", omitir para evitar redundancia
+        if (!empty($ancestors)) {
+            $root = $ancestors[0];
+            if (
+                strtoupper((string) $root->code) === 'SEDES' ||
+                Str::contains(strtolower($root->name), 'nuestras sedes')
+            ) {
+                array_shift($ancestors);
+            }
+        }
+
+        $parts = [];
+        foreach ($ancestors as $ancestor) {
+            $parts[] = !empty($ancestor->code) ? trim($ancestor->code) : trim($ancestor->name);
+        }
+
+        $parts[] = trim($this->name);
+
+        return implode(' -> ', $parts);
+    }
 }
+

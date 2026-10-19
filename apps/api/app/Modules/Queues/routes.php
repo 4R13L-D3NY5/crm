@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 Route::apiResource('queues', QueueController::class);
 
 // Flujos de Chatbot y Árbol de Decisión
+Route::get('bot-flows/default', [BotFlowController::class, 'getDefault'])->name('bot-flows.default');
+Route::post('bot-flows/default', [BotFlowController::class, 'saveDefault'])->name('bot-flows.save-default');
 Route::get('bot-flows', [BotFlowController::class, 'index'])->name('bot-flows.index');
 Route::post('bot-flows', [BotFlowController::class, 'store'])->name('bot-flows.store');
 Route::put('bot-flows/{id}', [BotFlowController::class, 'update'])->name('bot-flows.update');

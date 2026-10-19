@@ -123,4 +123,56 @@ class Phase8BotFlowsAndRoutingTest extends TestCase
             'direction' => 'outbound',
         ]);
     }
+
+    public function test_default_bot_flow_can_be_saved_and_retrieved(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $user->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+        $user->update(['current_organization_id' => $organization->id]);
+
+        $saveResponse = $this->actingAs($user)->postJson('/api/bot-flows/default', [
+            'name' => 'Menú Principal de Bienvenida',
+            'greeting_message' => '¡Hola! Bienvenido a UNITEPC. Elige tu sede:',
+            'is_active' => true,
+            'handoff_to_ai' => true,
+            'fallback_message' => 'Opción no válida.',
+            'options' => [
+                ['option_number' => '1', 'label' => 'Cochabamba', 'queue_id' => null, 'reply_text' => 'Cochabamba'],
+            ],
+        ]);
+
+        $saveResponse->assertStatus(200)
+            ->assertJsonPath('data.is_active', true)
+            ->assertJsonPath('data.greeting_message', '¡Hola! Bienvenido a UNITEPC. Elige tu sede:');
+
+        $getResponse = $this->actingAs($user)->getJson('/api/bot-flows/default');
+        $getResponse->assertStatus(200)
+            ->assertJsonPath('data.is_active', true)
+            ->assertJsonPath('data.greeting_message', '¡Hola! Bienvenido a UNITEPC. Elige tu sede:');
+    }
+
+    public function test_dispatch_bot_flow_action_bypasses_when_inactive(): void
+    {
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $flow = BotFlow::create([
+            'organization_id' => $organization->id,
+            'name' => 'Menú Inactivo',
+            'greeting_message' => 'Elige sede:',
+            'is_active' => false,
+            'options' => [],
+        ]);
+
+        $contact = Contact::create(['organization_id' => $organization->id, 'first_name' => 'Pedro', 'phone' => '+59178945614', 'status' => 'active']);
+        $conversation = Conversation::create(['organization_id' => $organization->id, 'contact_id' => $contact->id, 'channel' => 'whatsapp', 'status' => 'pending']);
+
+        $action = new \App\Modules\Queues\Actions\DispatchBotFlowAction();
+        $handled = $action->execute($conversation, 'Hola');
+
+        $this->assertFalse($handled);
+        $this->assertDatabaseMissing('messages', [
+            'conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+        ]);
+    }
 }

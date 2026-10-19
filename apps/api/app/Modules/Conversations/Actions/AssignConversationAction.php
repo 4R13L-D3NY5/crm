@@ -20,6 +20,10 @@ class AssignConversationAction
             ],
         );
 
+        $conversation->update([
+            'assigned_to_user_id' => $payload['assigned_to_user_id'] ?? null,
+        ]);
+
         return $assignment->load('assignee', 'assignedBy');
     }
 }

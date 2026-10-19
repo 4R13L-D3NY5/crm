@@ -135,6 +135,7 @@ class ReportsAnalyticsController extends Controller
 
         $conversations = $convQuery->with([
             'assignee',
+            'assignment',
             'messages' => fn ($q) => $q->where('direction', 'outbound')->whereNotNull('user_id')->oldest('created_at'),
         ])->get();
 
@@ -151,7 +152,10 @@ class ReportsAnalyticsController extends Controller
         $globalTtrSeconds = [];
 
         foreach ($users as $user) {
-            $userConvs = $conversations->where('assigned_to_user_id', $user->id);
+            $userConvs = $conversations->filter(function ($conv) use ($user) {
+                return $conv->assigned_to_user_id === $user->id
+                    || $conv->assignment?->assigned_to_user_id === $user->id;
+            });
             $assignedCount = $userConvs->count();
 
             $resolvedCount = $userConvs->whereIn('status', ['closed', 'resolved'])->count();
@@ -521,8 +525,16 @@ class ReportsAnalyticsController extends Controller
                 'total_responses' => $totalRatings,
                 'satisfaction_percentage' => round(($avgScore / 5) * 100, 1),
                 'stars_breakdown' => $starDistribution,
+                'distribution' => [
+                    5 => $starDistribution['5_stars'],
+                    4 => $starDistribution['4_stars'],
+                    3 => $starDistribution['3_stars'],
+                    2 => $starDistribution['2_stars'],
+                    1 => $starDistribution['1_star'],
+                ],
             ],
         ]);
+
     }
 
     /**

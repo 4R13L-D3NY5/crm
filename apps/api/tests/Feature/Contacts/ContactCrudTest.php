@@ -295,6 +295,33 @@ class ContactCrudTest extends TestCase
             ->assertJsonPath('data.0.first_name', 'Iris');
     }
 
+    public function test_contact_list_can_filter_by_ids(): void
+    {
+        [$user, $organization] = $this->createMembership();
+
+        $c1 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Contacto Uno',
+        ]);
+        $c2 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Contacto Dos',
+        ]);
+        $c3 = Contact::factory()->create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Contacto Tres',
+        ]);
+
+        $response = $this->actingAs($user)->getJson("/api/contacts?ids[]={$c1->id}&ids[]={$c3->id}");
+        $response->assertOk()
+            ->assertJsonCount(2, 'data');
+
+        $idsReturned = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($c1->id, $idsReturned);
+        $this->assertContains($c3->id, $idsReturned);
+        $this->assertNotContains($c2->id, $idsReturned);
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();

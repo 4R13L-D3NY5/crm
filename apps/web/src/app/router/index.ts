@@ -21,10 +21,20 @@ router.beforeEach(async (to) => {
     return { name: 'login' }
   }
 
-  if (to.name === 'superadmin.portal' || to.path.includes('superadmin') || to.path.includes('saas-billing') || to.path.includes('master-control')) {
-    if (authStore.user?.email !== 'admin@crm.local') {
+  if (
+    to.name === 'superadmin.portal'
+    || to.path.includes('superadmin')
+    || to.path.includes('saas-billing')
+    || to.path.includes('master-control')
+    || to.meta.requiresSuperAdmin
+  ) {
+    if (!authStore.isSuperAdmin) {
       return { path: '/app/conversations' }
     }
+  }
+
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    return { path: '/app/conversations' }
   }
 
   const requiredPermission = typeof to.meta.permission === 'string'
@@ -36,7 +46,7 @@ router.beforeEach(async (to) => {
     && requiredPermission
     && !authStore.hasPermission(requiredPermission)
   ) {
-    return { name: 'dashboard' }
+    return { path: '/app/conversations' }
   }
 
   if (to.name === 'login' && authStore.isAuthenticated) {

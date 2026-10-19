@@ -104,6 +104,15 @@ class Conversation extends Model
         return $this->hasOne(Message::class)->latestOfMany();
     }
 
+    public function latestExternalMessage(): HasOne
+    {
+        return $this->hasOne(Message::class)->ofMany([
+            'id' => 'MAX',
+        ], function ($query) {
+            $query->where('is_internal', false);
+        });
+    }
+
     public function assignment(): HasOne
     {
         return $this->hasOne(ConversationAssignment::class);

@@ -34,6 +34,8 @@ class ConversationResource extends JsonResource
                 'code' => $c->code,
                 'color' => $c->color,
                 'icon' => $c->icon,
+                'full_path' => $c->full_path,
+                'display_path' => $c->display_path,
             ])->values() : [],
             'status' => $this->status,
             'subject' => $this->subject,

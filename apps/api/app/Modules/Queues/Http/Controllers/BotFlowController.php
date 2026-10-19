@@ -11,6 +11,47 @@ use Illuminate\Http\Request;
 
 class BotFlowController extends Controller
 {
+    public function getDefault(Request $request): JsonResponse
+    {
+        $organizationId = $request->user()->current_organization_id ?? $request->user()->currentOrganization?->id;
+        $flow = BotFlow::where('organization_id', $organizationId)->first();
+
+        return response()->json([
+            'data' => $flow,
+        ]);
+    }
+
+    public function saveDefault(Request $request): JsonResponse
+    {
+        $organizationId = $request->user()->current_organization_id ?? $request->user()->currentOrganization?->id;
+
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:150'],
+            'greeting_message' => ['required', 'string'],
+            'is_active' => ['required', 'boolean'],
+            'handoff_to_ai' => ['boolean'],
+            'fallback_message' => ['nullable', 'string'],
+            'options' => ['nullable', 'array'],
+        ]);
+
+        $flow = BotFlow::updateOrCreate(
+            ['organization_id' => $organizationId],
+            [
+                'name' => $validated['name'] ?? 'Menú Principal de Bienvenida',
+                'greeting_message' => $validated['greeting_message'],
+                'is_active' => $validated['is_active'],
+                'handoff_to_ai' => $validated['handoff_to_ai'] ?? true,
+                'fallback_message' => $validated['fallback_message'] ?? 'Opción no válida. Por favor responde con el número de la sede deseada.',
+                'options' => $validated['options'] ?? [],
+            ]
+        );
+
+        return response()->json([
+            'data' => $flow,
+            'message' => 'Configuración del chatbot de bienvenida guardada con éxito.',
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $organization = $request->user()->currentOrganization;

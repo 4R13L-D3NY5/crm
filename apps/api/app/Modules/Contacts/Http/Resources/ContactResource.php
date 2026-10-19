@@ -44,6 +44,7 @@ class ContactResource extends JsonResource
                 'color' => $c->color,
                 'icon' => $c->icon,
                 'full_path' => $c->full_path ?? $c->name,
+                'display_path' => $c->display_path ?? $c->name,
             ]),
             'notes' => $this->notes,
             'tags' => $this->tags->map(fn ($tag) => [

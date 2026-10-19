@@ -1,5 +1,6 @@
 <?php
 
+use App\Shared\Http\Middleware\RequireOrganizationAdmin;
 use App\Shared\Http\Middleware\SetCurrentOrganization;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'current.organization' => SetCurrentOrganization::class,
+            'require.admin' => RequireOrganizationAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

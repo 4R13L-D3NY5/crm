@@ -35,7 +35,7 @@
         <div class="row items-center q-gutter-x-sm">
           <!-- Selector de Organización -->
           <q-select
-            v-if="organizationOptions.length > 1"
+            v-if="organizationOptions.length > 1 && authStore.isAdmin"
             v-model="selectedOrganizationId"
             :options="organizationOptions"
             emit-value
@@ -57,6 +57,23 @@
             <span class="text-caption text-weight-bold text-ink ellipsis" style="max-width: 130px;">{{ authStore.user.current_organization.name }}</span>
           </div>
 
+
+          <!-- Botón de Guía Contextual & Centro de Ayuda (Foquito) -->
+          <q-btn
+            flat
+            dense
+            no-caps
+            class="xf-guide-bulb-btn q-px-sm"
+            @click="isGuideModalOpen = true"
+          >
+            <q-icon name="sym_r_lightbulb" color="amber-4" size="18px" class="q-mr-xs" />
+            <span class="text-caption text-weight-bold text-amber-2 gt-xs">
+              Guía: {{ currentMenuName }}
+            </span>
+            <q-tooltip class="bg-dark text-caption" anchor="bottom middle" self="top middle">
+              Abrir manual interactivo con figuras y ejemplos para {{ currentMenuName }}
+            </q-tooltip>
+          </q-btn>
 
           <!-- Centro de Notificaciones Persistente -->
           <NotificationBell />
@@ -204,14 +221,13 @@
     >
       <div class="xf-sidebar-content">
         <div>
-          <!-- Encabezado de Navegación -->
+          <!-- SECCIÓN 1: OPERACIÓN DIARIA (Visible para Operadores y Administradores) -->
           <div class="xf-nav-section-header">
             <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
-              Suite Omnicanal V2
+              Operación
             </div>
           </div>
 
-          <!-- Lista de Navegación: Fase 1 + Fase 2 + Fase 3 -->
           <q-list class="xf-nav-list" padding>
             <!-- 1. Dashboard / Resumen -->
             <q-item
@@ -244,20 +260,7 @@
               </q-item-section>
             </q-item>
 
-            <!-- 3. Canales & Conexiones (Fase 2) -->
-            <q-item
-              clickable
-              to="/app/whatsapp"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_hub" size="18px" />
-              </q-item-section>
-              <q-item-section>Canales & Conexiones</q-item-section>
-            </q-item>
-
-            <!-- 4. Pipeline Comercial & Kanban (Fase 3) -->
+            <!-- 3. Pipeline Comercial & Kanban -->
             <q-item
               clickable
               to="/app/deals"
@@ -270,7 +273,7 @@
               <q-item-section>Pipeline Comercial</q-item-section>
             </q-item>
 
-            <!-- 5. Respuestas Rápidas & Snippets (Fase 4) -->
+            <!-- 4. Respuestas Rápidas & Snippets -->
             <q-item
               clickable
               to="/app/quick-messages"
@@ -283,7 +286,7 @@
               <q-item-section>Respuestas Rápidas</q-item-section>
             </q-item>
 
-            <!-- 5.1 Notas & Micro-Conocimiento -->
+            <!-- 5. Notas & Base de Conocimiento -->
             <q-item
               clickable
               to="/app/notes"
@@ -321,143 +324,176 @@
               </q-item-section>
               <q-item-section>Etiquetas & Segmentos</q-item-section>
             </q-item>
-
-            <!-- 8. Campañas Masivas -->
-            <q-item
-              clickable
-              to="/app/campaigns"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_campaign" size="18px" />
-              </q-item-section>
-              <q-item-section>Campañas Masivas</q-item-section>
-            </q-item>
-
-            <!-- 9. Envíos Programados (Fase 6) -->
-            <q-item
-              clickable
-              to="/app/scheduled-messages"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_schedule_send" size="18px" />
-              </q-item-section>
-              <q-item-section>Envíos Programados</q-item-section>
-            </q-item>
-
-            <!-- 8. Empresas & Cuentas -->
-            <q-item
-              clickable
-              to="/app/companies"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_domain" size="18px" />
-              </q-item-section>
-              <q-item-section>Empresas & Cuentas</q-item-section>
-            </q-item>
-
-            <!-- 9. Operadores & Equipo -->
-            <q-item
-              clickable
-              to="/app/users"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_group" size="18px" />
-              </q-item-section>
-              <q-item-section>Operadores & Equipo</q-item-section>
-            </q-item>
-
-            <!-- 10. Filas & Departamentos -->
-            <q-item
-              clickable
-              to="/app/departments"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_alt_route" size="18px" />
-              </q-item-section>
-              <q-item-section>Filas & Departamentos</q-item-section>
-            </q-item>
-
-            <!-- 11. Reportes & Métricas -->
-            <q-item
-              clickable
-              to="/app/reports"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_monitoring" size="18px" />
-              </q-item-section>
-              <q-item-section>Reportes & Métricas</q-item-section>
-            </q-item>
-
-            <!-- 12. Parametrización -->
-            <q-item
-              clickable
-              to="/app/parameters"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_tune" size="18px" />
-              </q-item-section>
-              <q-item-section>Parametrización</q-item-section>
-            </q-item>
-
-            <!-- 13. Inteligencia Artificial (Hentle-AI) -->
-            <q-item
-              clickable
-              to="/app/wabot"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_psychology" size="18px" color="teal-4" />
-              </q-item-section>
-              <q-item-section>Inteligencia Artificial</q-item-section>
-            </q-item>
-
-            <!-- Planes & Precios -->
-            <q-item
-              clickable
-              to="/app/pricing"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_loyalty" size="18px" />
-              </q-item-section>
-              <q-item-section>Planes & Precios</q-item-section>
-            </q-item>
-
-            <!-- 14. SuperAdmin SaaS (Master Control) -->
-            <q-item
-              v-if="isSuperAdmin"
-              clickable
-              to="/app/superadmin"
-              class="xf-nav-item"
-              active-class="xf-nav-item--active"
-            >
-              <q-item-section avatar>
-                <q-icon name="sym_r_admin_panel_settings" size="18px" color="indigo-4" />
-              </q-item-section>
-              <q-item-section>
-                <div class="row items-center no-wrap justify-between">
-                  <span>SuperAdmin SaaS</span>
-                  <span class="xf-superadmin-badge">Master</span>
-                </div>
-              </q-item-section>
-            </q-item>
           </q-list>
+
+          <!-- SECCIÓN 2: GESTIÓN & CONFIGURACIÓN (Solo Administradores y Owners) -->
+          <template v-if="authStore.isAdmin">
+            <div class="xf-nav-section-header q-pt-sm">
+              <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
+                Gestión & Configuración
+              </div>
+            </div>
+
+            <q-list class="xf-nav-list" padding>
+              <!-- Canales & Conexiones -->
+              <q-item
+                clickable
+                to="/app/whatsapp"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_hub" size="18px" />
+                </q-item-section>
+                <q-item-section>Canales & Conexiones</q-item-section>
+              </q-item>
+
+              <!-- Parametrización (Sedes, Carreras, Horarios, Estados) -->
+              <q-item
+                clickable
+                to="/app/parameters"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_tune" size="18px" />
+                </q-item-section>
+                <q-item-section>Parametrización</q-item-section>
+              </q-item>
+
+              <!-- Operadores & Equipo -->
+              <q-item
+                clickable
+                to="/app/users"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_group" size="18px" />
+                </q-item-section>
+                <q-item-section>Operadores & Equipo</q-item-section>
+              </q-item>
+
+              <!-- Filas & Departamentos -->
+              <q-item
+                clickable
+                to="/app/departments"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_alt_route" size="18px" />
+                </q-item-section>
+                <q-item-section>Filas & Departamentos</q-item-section>
+              </q-item>
+
+              <!-- Campañas Masivas -->
+              <q-item
+                clickable
+                to="/app/campaigns"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_campaign" size="18px" />
+                </q-item-section>
+                <q-item-section>Campañas Masivas</q-item-section>
+              </q-item>
+
+              <!-- Envíos Programados -->
+              <q-item
+                clickable
+                to="/app/scheduled-messages"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_schedule_send" size="18px" />
+                </q-item-section>
+                <q-item-section>Envíos Programados</q-item-section>
+              </q-item>
+
+              <!-- Empresas & Cuentas -->
+              <q-item
+                clickable
+                to="/app/companies"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_domain" size="18px" />
+                </q-item-section>
+                <q-item-section>Empresas & Cuentas</q-item-section>
+              </q-item>
+
+              <!-- Reportes & Métricas -->
+              <q-item
+                clickable
+                to="/app/reports"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_monitoring" size="18px" />
+                </q-item-section>
+                <q-item-section>Reportes & Métricas</q-item-section>
+              </q-item>
+
+              <!-- Inteligencia Artificial (Hentle-AI) -->
+              <q-item
+                clickable
+                to="/app/wabot"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_psychology" size="18px" color="teal-4" />
+                </q-item-section>
+                <q-item-section>Inteligencia Artificial</q-item-section>
+              </q-item>
+
+              <!-- Planes & Precios -->
+              <q-item
+                clickable
+                to="/app/pricing"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_loyalty" size="18px" />
+                </q-item-section>
+                <q-item-section>Planes & Precios</q-item-section>
+              </q-item>
+            </q-list>
+          </template>
+
+          <!-- SECCIÓN 3: MASTER SAAS (Solo SuperAdmin admin@crm.local) -->
+          <template v-if="authStore.isSuperAdmin">
+            <div class="xf-nav-section-header q-pt-sm">
+              <div class="text-caption text-uppercase text-weight-bold text-grey-5 letter-spacing-wide">
+                Master SaaS
+              </div>
+            </div>
+
+            <q-list class="xf-nav-list" padding>
+              <q-item
+                clickable
+                to="/app/superadmin"
+                class="xf-nav-item"
+                active-class="xf-nav-item--active"
+              >
+                <q-item-section avatar>
+                  <q-icon name="sym_r_admin_panel_settings" size="18px" color="indigo-4" />
+                </q-item-section>
+                <q-item-section>
+                  <div class="row items-center no-wrap justify-between">
+                    <span>Portal SuperAdmin</span>
+                    <span class="xf-superadmin-badge">Master</span>
+                  </div>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </template>
         </div>
 
         <!-- Footer Sidebar: Toggle Modo Oscuro / Claro -->
@@ -493,21 +529,25 @@
     </q-page-container>
     <!-- Modal Centralizado de Ajustes de Usuario & Preferencias -->
     <UserSettingsModal v-model="isSettingsModalOpen" />
+    <!-- Modal Interactivo de Guía de Uso del Sistema (Foquito) -->
+    <SystemGuideModal v-model="isGuideModalOpen" />
   </q-layout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import type { PresenceStatus } from '@/modules/auth/types/auth.types'
 import UserSettingsModal from '@/shared/components/UserSettingsModal.vue'
+import SystemGuideModal from '@/shared/components/SystemGuideModal.vue'
 import NotificationBell from '@/modules/notifications/components/NotificationBell.vue'
 import { useAppTheme } from '@/shared/composables/useAppTheme'
 
 const $q = useQuasar()
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const themeStore = useAppTheme()
 const isDark = themeStore.isDark
@@ -515,6 +555,32 @@ const { applyThemeMode, initTheme } = themeStore
 
 const leftDrawerOpen = ref(!$q.screen.lt.md)
 const isSettingsModalOpen = ref(false)
+const isGuideModalOpen = ref(false)
+
+const currentMenuName = computed(() => {
+  const p = (route.path || '').toLowerCase()
+  const n = String(route.name || '').toLowerCase()
+
+  if (p.includes('/tags') || n.includes('tag')) return 'Etiquetas & Segmentos'
+  if (p.includes('/deals') || n.includes('deal')) return 'Pipeline Comercial'
+  if (p.includes('/quick-messages') || n.includes('quick-message')) return 'Respuestas Rápidas'
+  if (p.includes('/notes') || n.includes('note')) return 'Notas & Base de Conocimiento'
+  if (p.includes('/contacts') || n.includes('contact')) return 'Contactos & Audiencia'
+  if (p.includes('/conversations') || n.includes('conversation')) return 'Bandeja Multicanal'
+  if (p.includes('/whatsapp') || n.includes('whatsapp')) return 'Canales WhatsApp'
+  if (p.includes('/parameters') || n.includes('parameter')) return 'Parametrización & Horarios'
+  if (p.includes('/users') || n.includes('user')) return 'Operadores & Equipo'
+  if (p.includes('/departments') || n.includes('department')) return 'Filas & Departamentos'
+  if (p.includes('/campaigns') || n.includes('campaign')) return 'Campañas Masivas'
+  if (p.includes('/scheduled-messages') || n.includes('scheduled')) return 'Envíos Programados'
+  if (p.includes('/companies') || n.includes('compan')) return 'Empresas B2B'
+  if (p.includes('/reports') || n.includes('report')) return 'Reportes & Métricas'
+  if (p.includes('/wabot') || p.includes('/ai')) return 'Inteligencia Artificial'
+  if (p.includes('/pricing') || p.includes('/planes')) return 'Planes & Precios'
+  if (p.includes('/superadmin')) return 'Portal SuperAdmin'
+  if (p.includes('/settings')) return 'Ajustes del Sistema'
+  return 'Dashboard'
+})
 
 // Cerrar drawer lateral automáticamente en pantallas móviles al navegar
 router.afterEach(() => {
@@ -589,10 +655,6 @@ const organizationOptions = computed(() => {
     label: org.name,
     value: org.id,
   }))
-})
-
-const isSuperAdmin = computed(() => {
-  return authStore.user?.email === 'admin@crm.local'
 })
 
 const initials = computed(() => {
@@ -865,6 +927,21 @@ async function handleLogout() {
   transition: background var(--crm-transition-fast);
   &:hover {
     background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.xf-guide-bulb-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+  height: 32px;
+  &:hover {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: rgba(245, 158, 11, 0.65);
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.45));
+    transform: translateY(-1px);
   }
 }
 </style>

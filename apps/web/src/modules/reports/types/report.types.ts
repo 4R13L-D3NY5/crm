@@ -158,4 +158,12 @@ export interface CsatReportData {
     '2_stars': number
     '1_star': number
   }
+  distribution?: {
+    5: number
+    4: number
+    3: number
+    2: number
+    1: number
+  }
 }
+

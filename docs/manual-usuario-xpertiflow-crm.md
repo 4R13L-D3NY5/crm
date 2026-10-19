@@ -31,7 +31,8 @@
 20. [Módulo 18: Centro de Control SuperAdmin SaaS (Master)](#módulo-18-centro-de-control-superadmin-saas-master)
 21. [Módulo 19: Mi Cuenta, Preferencias & Presencia de Operador](#módulo-19-mi-cuenta-preferencias--presencia-de-operador)
 22. [Módulo 20: Tokens de API & Integraciones OpenAPI](#módulo-20-tokens-de-api--integraciones-openapi)
-23. [Guía de Onboarding Rápido para Nuevas Empresas (Caso UNITEPC)](#guía-de-onboarding-rápido-para-nuevas-empresas-caso-unitepc)
+23. [Módulo 21: Centro de Ayuda & Guía Interactiva en Navbar (💡)](#módulo-21-centro-de-ayuda--guía-interactiva-en-navbar-)
+24. [Guía de Onboarding Rápido para Nuevas Empresas (Caso UNITEPC)](#guía-de-onboarding-rápido-para-nuevas-empresas-caso-unitepc)
 
 ---
 
@@ -78,14 +79,25 @@ flowchart LR
 
 ## 2. Estructura de Roles y Niveles de Acceso
 
-El sistema maneja una jerarquía clara de permisos para salvaguardar la privacidad de la información:
+El sistema maneja una jerarquía clara de permisos y discriminación estricta de vistas para salvaguardar la privacidad y la seguridad operativa:
 
-| Rol | Ámbito | Visibilidad y Alcance |
+| Rol | Ámbito | Visibilidad y Menús Asignados |
 | :--- | :--- | :--- |
-| **SuperAdmin (Master)** | Global (SaaS) | Acceso exclusivo a la facturación de todas las empresas, MRR, concesión de licencias, prórroga de períodos de prueba y control de cuotas. (*Usuario: `admin@crm.local`*). |
-| **Owner / Administrador** | Organización | Control total de su propia empresa: vincula canales de WhatsApp, crea operadores, define embudos, configura horarios y ve reportes financieros de su plan. |
-| **Supervisor** | Organización | Monitorea todas las conversaciones de los asesores, revisa métricas de SLA, puede intervenir en chats en modo fantasma o reasignar colas. |
-| **Asesor / Operador** | Filas Asignadas | Atiende exclusivamente las conversaciones que ingresan a sus filas o que le han sido asignadas individualmente. |
+| **SuperAdmin (Master)** | Global (SaaS) | Acceso exclusivo al portal SaaS (`/app/superadmin`), facturación global, MRR, concesión de licencias, prórroga de períodos de prueba y control de cuotas (*Usuario: `admin@crm.local`*). |
+| **Owner / Administrador** | Organización | Acceso total a los bloques de **Operación** y **Gestión & Configuración**: vincula canales de WhatsApp, parametriza sedes/carreras, gestiona operadores, define horarios de atención y analiza reportes de rendimiento. |
+| **Supervisor** | Organización | Monitorea conversaciones de los asesores, revisa métricas de SLA, interviene en chats en modo fantasma o reasigna colas de atención. |
+| **Asesor / Operador** | Filas / Canales | Acceso **exclusivo al bloque de Operación** (Bandeja Multicanal, Pipeline Kanban, Respuestas Rápidas, Notas, Contactos y Etiquetas). Los menús de configuración están completamente ocultos y blindados por router y API. |
+
+### Segmentación Visual del Menú Lateral
+1. **Bloque Operación (Todos los usuarios):**
+   * Dashboard, Bandeja Multicanal, Pipeline Comercial, Respuestas Rápidas, Notas & Conocimiento, Contactos & Audiencia, Etiquetas & Segmentos.
+2. **Bloque Gestión & Configuración (Solo Administradores):**
+   * Canales & Conexiones, Parametrización, Operadores & Equipo, Filas & Departamentos, Campañas Masivas, Envíos Programados, Empresas & Cuentas, Reportes & Métricas, Inteligencia Artificial, Planes & Precios.
+3. **Bloque Master SaaS (Solo SuperAdmin Global):**
+   * Portal SuperAdmin SaaS.
+
+> [!IMPORTANT]
+> Si un operador intenta ingresar directamente a una ruta de gestión mediante la URL del navegador (ej. `/app/parameters` o `/app/users`), el sistema lo redirige de forma automática a la **Bandeja Multicanal** (`/app/conversations`). Además, el backend rechaza cualquier petición no autorizada con código **HTTP 403 Forbidden**.
 
 ---
 
@@ -217,8 +229,18 @@ Permite registrar plantillas de texto reutilizables para responder preguntas fre
 ### Gestión de Base de Datos de Contactos
 * **Creación Automática:** Cada persona que escribe por primera vez a cualquiera de los canales de WhatsApp se registra automáticamente como nuevo contacto.
 * **Importación Masiva (CSV / Excel):** Permite subir bases de datos de prospectos con asignación inmediata de etiquetas.
-* **Exportación de Datos:** Descarga la base de contactos filtrada en formato `.csv` para análisis o campañas de mailing.
-* **Historial Unificado:** Permite ver todos los tickets pasados y notas asociadas a un mismo cliente a lo largo del tiempo.
+* **Historial Unificado:** Permite ver todos los tickets pasados, notas privadas, sede, carrera y estado del lead a lo largo del tiempo.
+
+### Descarga Avanzada de Selecciones (Excel .xlsx y Reporte PDF)
+El sistema incluye un potente motor de exportación para generar informes inmediatos:
+1. **Selección Flexible:** Marca casillas individuales o haz clic en *Seleccionar Todos* los contactos de la vista actual.
+2. **Descarga en Excel (.xlsx):**
+   * Genera una hoja de cálculo con columnas completas y formateadas: Nombre, Teléfono internacional, Correo, Sede Regional, Carrera, Estado del Lead, Asesor Asignado y Fecha de Creación.
+   * Ideal para cruces con sistemas académicos, ERPs o reportes de admisión.
+3. **Generación de Reporte Ejecutivo en PDF:**
+   * Crea un documento imprimible con diseño corporativo, encabezado institucional con logo, fecha y usuario emisor.
+   * Incluye un **resumen de KPIs en la cabecera** (Total de prospectos seleccionados, desglose por Sede y desglose por Estado).
+   * Tabla paginada limpia y legible con numeración de páginas (ej. *Página 1 de 4*).
 
 ---
 
@@ -281,14 +303,14 @@ Si la institución realiza convenios o ventas B2B (por ejemplo: colegios secunda
 * **Ruta de acceso:** `/app/users`
 * **Audiencia:** Exclusivo de Administradores.
 
-### Administración de Usuarios
-* **Crear Operador:** Nombre, correo electrónico, contraseña provisional y rol (Admin, Supervisor, Agente).
-* **Asignación de Filas:** Marca qué departamentos podrá atender este operador (ej. *Admisiones*, *Soporte*).
+### Administración de Usuarios & Asesores Regionales
+* **Cuentas Institucionales:** Creación de operadores con correos oficiales institucionales (ej. `anet@unitepc.com.bo`, `juanpablo@unitepc.com.bo`, etc.).
+* **Asignación de Canales de WhatsApp:** El sistema permite operar con un modelo descentralizado donde los asesores tienen asignados canales específicos (ej. Línea WhatsApp Cochabamba asignada a Anet, Línea La Paz a Juan Pablo, Santa Cruz a Johana).
 * **Monitoreo de Presencia en Vivo:** Muestra el semáforo de disponibilidad de cada asesor:
   * 🟢 **En línea:** Activo en la plataforma y disponible para recibir chats.
   * 🟡 **En pausa / Ausente:** En refrigerio o capacitación; el sistema no le asigna nuevas conversaciones.
-  * ⚫ **Fuera de turno:** Desconectado.
-* **Control de Cuotas del Plan:** El sistema valida que la cantidad de usuarios activos no exceda el límite contratado (ej. 7 agentes en el Plan Pro).
+  * ⚫ **Fuera de turno:** Desconectado al finalizar su turno.
+* **Control de Seguridad:** Restablecimiento de credenciales provisionales y activación de 2FA.
 
 ---
 
@@ -300,8 +322,7 @@ Si la institución realiza convenios o ventas B2B (por ejemplo: colegios secunda
 ### El Centro de Distribución Automática
 1. **Configuración de la Cola:** Nombre del área (ej. *Admisiones*, *Cobranzas*), color identificador y mensaje de bienvenida.
 2. **Chatbot de Menú (Árbol de Decisión):** Genera el menú interactivo para el cliente (*"Marca 1 para Carreras, 2 para Cajas..."*).
-3. **Horarios Laborales:** Configura ventanas de atención (ej. 08:00 a 18:00). Los mensajes fuera de ese rango reciben un mensaje automático de ausencia.
-4. **Handoff a Hentle-AI:** Alternador para transferir preguntas abiertas directamente al copiloto de inteligencia artificial si el cliente no selecciona una opción numérica.
+3. **Handoff a Hentle-AI:** Alternador para transferir preguntas abiertas directamente al copiloto de inteligencia artificial si el cliente no selecciona una opción numérica.
 
 ---
 
@@ -318,20 +339,35 @@ Si la institución realiza convenios o ventas B2B (por ejemplo: colegios secunda
 
 ---
 
-## Módulo 15: Parametrización & Estados Personalizados
+## Módulo 15: Parametrización, Sedes & Horarios de Atención
 
 * **Ruta de acceso:** `/app/parameters`
-* **Audiencia:** Administradores.
+* **Audiencia:** Exclusivo de Administradores.
 
-### Configuración del Flujo Operativo del Lead
-Permite definir los estados específicos por los que pasa un contacto en la institución:
-* *Estados Base:*
-  1. `No Contactado` (Fase inicial - Azul)
-  2. `En Contacto` (Fase en proceso - Ámbar)
-  3. `Interesado` (Fase en proceso - Púrpura)
-  4. `Inscrito` (Fase ganada - Verde esmeralda)
-  5. `Abandono / Descartado` (Fase perdida - Rojo)
-* **Reglas de Alerta por Tiempo:** Define tiempos máximos tolerables sin respuesta (ej. alerta si un chat permanece más de 20 minutos sin atención del asesor).
+### 1. Catálogo Jerárquico de Sedes y Carreras
+* **Sedes Regionales Oficiales:** Cochabamba (`CBA`), La Paz (`LPZ`), El Alto (`EAL`), Santa Cruz (`STC`), Ivirgarzama (`IVI`), Cobija (`CBJ`), Puerto Quijarro (`PTO`), Guayaramerín (`GUA`) y Caranavi (`CVI`).
+* **Carreras con Códigos Institucionales:** Cada sede cuenta con su oferta académica vinculada (`CARMED` Medicina, `CARSIS` Ing. Sistemas, `CARODO` Odontología, `CARFIS` Fisioterapia, etc.).
+* **Uso Operativo:** Los asesores clasifican cada conversación en el cajón lateral derecho; esta información categoriza inmediatamente el contacto y los reportes de admisión.
+
+### 2. Ciclo de Vida del Prospecto (Estados Personalizados)
+Flujo optimizado para seguimiento comercial:
+1. `Nuevo Prospecto` (Azul cian) — Contacto entrante sin atender.
+2. `Contactado` (Ámbar) — Primer diálogo establecido.
+3. `Interesado Calificado` (Púrpura) — Conoce requisitos y evalúa postulación.
+4. `Visita a Sede Agendada` (Azul índigo) — Cita confirmada en campus.
+5. `Matriculado` (Verde esmeralda - Éxito) — Inscripción formalizada.
+6. `Perdido / Descartado` (Rojo) — Desistimiento o no responde.
+
+### 3. Horarios Laborales Flexibles & Auto-respuesta Fuera de Horario
+* **Múltiples Turnos por Día:** Soporta rangos diferenciados (ej. *Mañana* 07:45 a 12:30 y *Tarde* 14:00 a 18:30). Sábados turno único de 08:15 a 12:30.
+* **Parametrizaciones de Campaña:** Permite guardar calendarios especiales para épocas de alta demanda de admisiones con fecha de inicio y fin.
+* **Horarios Diferenciados por Operador:** Permite asignar esquemas de turno particulares a asesores específicos.
+* **Mensaje Automático de Ausencia:**
+  > *"¡Hola! Gracias por comunicarte con nosotros. En este momento nos encontramos fuera de nuestro horario de atención habitual. Tu mensaje ha sido registrado y un asesor te responderá a la brevedad tan pronto retomemos actividades. ¡Agradecemos tu paciencia!"*
+
+### 4. Reglas de Inactividad (SLA Omnicanal)
+* **Espera Asesor:** Alerta visual y notificación si un lead espera más de 20 minutos sin respuesta de su asesor.
+* **Espera Cliente:** Detección de leads inactivos tras más de 120 minutos para cierre automático o seguimiento.
 
 ---
 
@@ -398,6 +434,25 @@ Permite definir los estados específicos por los que pasa un contacto en la inst
 ### Conectividad Externa
 * **Generación de Tokens Bearer (Sanctum):** Permite a los programadores conectar el CRM con el sistema académico interno de la universidad, ERP o landing pages web.
 * **Documentación Swagger / OpenAPI:** Especificación completa de endpoints RESTful para enviar mensajes, crear contactos o consultar estados de leads por código.
+
+---
+
+## Módulo 21: Centro de Ayuda & Guía Interactiva en Navbar (💡)
+
+* **Ruta de acceso:** Ícono de bombilla/foquito en la barra superior (Navbar), disponible desde cualquier pantalla.
+* **Audiencia:** Todos los usuarios (con vista adaptativa según el rol: Operador o Administrador).
+
+### Características del Asistente Integrado
+1. **Acceso Inmediato:** Se despliega en un modal interactivo sin salir de la vista actual de trabajo ni perder el contexto de los chats.
+2. **Navegación Temática:**
+   * **Inicio & Roles:** Explicación clara de qué módulos corresponden a cada usuario y significado de los estados de presencia.
+   * **Bandeja Multicanal:** Procedimientos paso a paso para atender chats, usar atajos con barra (`/`), enviar adjuntos y clasificar leads.
+   * **Pipeline Kanban:** Instrucciones para mover oportunidades y filtrar por sede o asesor.
+   * **Contactos & Descargas:** Guía para exportar prospectos seleccionados a **Excel (.xlsx)** o generar el **Reporte PDF**.
+   * **Parametrización & Horarios:** Manual para administradores sobre turnos mañana/tarde, auto-respuestas y sedes oficiales.
+   * **Atajos de Teclado:** Tabla de combinaciones de teclas para maximizar la velocidad de respuesta.
+   * **Preguntas Frecuentes:** Respuestas directas a las dudas e incidencias operativas más recurrentes.
+3. **Buscador en Vivo:** Permite tipear términos como *"excel"*, *"turno"*, *"notas"* o *"presencia"* para saltar de inmediato a la sección de ayuda correspondiente.
 
 ---
 

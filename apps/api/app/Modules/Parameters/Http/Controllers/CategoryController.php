@@ -28,6 +28,31 @@ class CategoryController extends Controller
 
         $usedColors = $categories->pluck('color')->filter()->map(fn ($c) => strtolower(trim($c)))->unique()->values()->all();
 
+        // Mapeo en memoria de rutas jerárquicas optimizadas (Código -> Código -> Nombre Hoja)
+        $categoriesById = $categories->keyBy('id');
+        $displayPathMap = [];
+        foreach ($categories as $c) {
+            $anc = [];
+            $pid = $c->parent_id;
+            while ($pid && isset($categoriesById[$pid])) {
+                $p = $categoriesById[$pid];
+                array_unshift($anc, $p);
+                $pid = $p->parent_id;
+            }
+
+            if (!empty($anc) && (strtoupper((string) $anc[0]->code) === 'SEDES' || Str::contains(strtolower($anc[0]->name), 'nuestras sedes'))) {
+                array_shift($anc);
+            }
+
+            $parts = [];
+            foreach ($anc as $a) {
+                $parts[] = !empty($a->code) ? trim($a->code) : trim($a->name);
+            }
+            $parts[] = trim($c->name);
+
+            $displayPathMap[$c->id] = implode(' -> ', $parts);
+        }
+
         return response()->json([
             'data' => $categories->map(fn ($c) => [
                 'id' => $c->id,
@@ -49,6 +74,7 @@ class CategoryController extends Controller
                 'sort_order' => $c->sort_order,
                 'conversations_count' => $c->conversations_count,
                 'full_path' => $c->full_path,
+                'display_path' => $displayPathMap[$c->id] ?? $c->name,
             ]),
             'tree' => $tree,
             'used_colors' => $usedColors,

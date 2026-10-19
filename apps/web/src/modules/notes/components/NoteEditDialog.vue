@@ -294,22 +294,61 @@
 
         <!-- Selectores de Metadatos de Enlace -->
         <div class="row q-col-gutter-sm">
-          <!-- Categorías / Subcategorías -->
           <div class="col-12 col-sm-4">
             <q-select
               v-model="form.category_ids"
               multiple
               use-chips
+              use-input
+              input-debounce="0"
               dense
               outlined
               emit-value
               map-options
               option-value="id"
               option-label="name"
-              :options="categoriesOptions"
+              :options="filteredCategoriesOptions"
               label="Categorías / Subcategorías"
               class="xf-input-field"
-            />
+              @filter="filterCategories"
+            >
+              <template #selected-item="scope">
+                <q-chip
+                  removable
+                  dense
+                  class="q-my-none q-mr-xs"
+                  :style="{ backgroundColor: scope.opt.color ? scope.opt.color + '22' : 'rgba(16,185,129,0.15)', borderColor: scope.opt.color || '#10b981' }"
+                  style="border: 1px solid;"
+                  @remove="scope.removeAtIndex(scope.index)"
+                >
+                  <span class="text-caption text-white text-weight-medium">
+                    {{ scope.opt.name }}
+                  </span>
+                  <q-tooltip class="bg-dark text-white font-mono text-caption">{{ scope.opt.display_path || scope.opt.name }}</q-tooltip>
+                </q-chip>
+              </template>
+              <template #option="{ itemProps, opt, selected, toggleOption }">
+                <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                  <q-item-section side class="q-pr-xs">
+                    <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                  </q-item-section>
+                  <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                    <span class="filter-dot" :style="{ backgroundColor: opt.color || '#10b981' }"></span>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                    <q-item-label caption class="text-teal-3 font-mono text-caption">{{ opt.display_path }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+              <template #no-option>
+                <q-item dark>
+                  <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                    No se encontraron categorías
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
           </div>
 
           <!-- Estados Personalizados -->
@@ -444,6 +483,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { http } from '@/shared/api/http'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import { useNotes } from '../composables/useNotes'
 import type { AnalyzeResult, Note, NotePayload } from '../types/note.types'
 
@@ -500,6 +540,34 @@ const form = reactive<NotePayload>({
 const categoriesOptions = ref<Array<{ id: string; name: string }>>([])
 const statusesOptions = ref<Array<{ id: string; name: string }>>([])
 const tagsOptions = ref<Array<{ id: string; name: string }>>([])
+
+const categorySearchQuery = ref('')
+
+const formattedCategoriesOptions = computed(() => {
+  return categoriesOptions.value.map((c: any) => {
+    const displayPath = formatCategoryDisplayPath(c, categoriesOptions.value)
+    return {
+      ...c,
+      label: displayPath,
+      name: c.name,
+      display_path: displayPath,
+    }
+  })
+})
+
+const filteredCategoriesOptions = computed(() => {
+  const q = categorySearchQuery.value.toLowerCase().trim()
+  if (!q) return formattedCategoriesOptions.value
+  return formattedCategoriesOptions.value.filter((c: any) =>
+    matchesCategorySearch(c, q, c.display_path)
+  )
+})
+
+function filterCategories(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    categorySearchQuery.value = val
+  })
+}
 
 const detectedResult = ref<AnalyzeResult | null>(null)
 const showAiDiffModal = ref(false)

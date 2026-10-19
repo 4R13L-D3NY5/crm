@@ -27,6 +27,7 @@ class ConversationCategoryController extends Controller
                 'color' => $c->color,
                 'icon' => $c->icon,
                 'full_path' => $c->full_path,
+                'display_path' => $c->display_path,
                 'parent_name' => $c->parent?->name,
             ]);
 
@@ -90,6 +91,7 @@ class ConversationCategoryController extends Controller
             'color' => $c->color,
             'icon' => $c->icon,
             'full_path' => $c->full_path,
+            'display_path' => $c->display_path,
             'parent_name' => $c->parent?->name,
         ]);
 

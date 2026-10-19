@@ -55,6 +55,19 @@
 
           <div class="row items-center q-gutter-x-xs">
             <q-btn
+              flat
+              dense
+              no-caps
+              size="xs"
+              color="amber-4"
+              icon="sym_r_campaign"
+              label="Probar Alerta"
+              class="xf-btn-action-text q-mr-xs"
+              @click="store.triggerTestNotification"
+            >
+              <q-tooltip>Emitir alerta de prueba con sonido y ventana emergente</q-tooltip>
+            </q-btn>
+            <q-btn
               v-if="store.unreadCount > 0"
               flat
               dense
@@ -81,6 +94,30 @@
               <q-tooltip>Actualizar ahora</q-tooltip>
             </q-btn>
           </div>
+        </div>
+
+        <!-- Banner para habilitar notificaciones de escritorio si aún no están autorizadas -->
+        <div
+          v-if="!store.hasDesktopPermission"
+          class="q-px-sm q-py-xs bg-dark-soft row items-center justify-between border-bottom"
+          style="border-left: 3px solid #f59e0b;"
+        >
+          <div class="row items-center q-gutter-x-xs ellipsis" style="max-width: 320px;">
+            <q-icon name="sym_r_notifications_active" size="16px" color="amber-4" />
+            <span class="text-caption text-grey-3" style="font-size: 11px;">
+              Alertas de escritorio inactivas en navegador.
+            </span>
+          </div>
+          <q-btn
+            flat
+            dense
+            no-caps
+            size="xs"
+            color="amber-4"
+            label="Habilitar"
+            class="text-weight-bold"
+            @click="store.requestDesktopPermission"
+          />
         </div>
 
         <!-- Filtros Operativos SLA y No Leídos -->

@@ -112,9 +112,9 @@
               ></span>
             </q-item-section>
             <q-item-section>
-              <q-item-label class="text-body2 text-white">{{ opt.label }}</q-item-label>
-              <q-item-label v-if="opt.full_path" caption class="text-grey-5">
-                {{ opt.full_path }}
+              <q-item-label class="text-body2 text-white">{{ opt.name || opt.label }}</q-item-label>
+              <q-item-label v-if="opt.display_path" caption class="text-cyan-3 font-mono text-caption">
+                {{ opt.display_path }}
               </q-item-label>
             </q-item-section>
           </q-item>
@@ -261,6 +261,7 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { http } from '@/shared/api/http'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import type { ContactTag } from '../types/contact.types'
 
 const props = withDefaults(
@@ -351,22 +352,26 @@ const { data: categoriesQuery } = useQuery({
 
 const allCategoryOptions = computed(() => {
   const list = (categoriesQuery.value as any[]) || []
-  return list.map((c: any) => ({
-    label: c.code ? `[${c.code}] ${c.name}` : c.name,
-    value: c.id,
-    color: c.color,
-    icon: c.icon || 'sym_r_category',
-    full_path: c.full_path,
-  }))
+  return list.map((c: any) => {
+    const displayPath = formatCategoryDisplayPath(c, list)
+    return {
+      label: displayPath,
+      name: c.name,
+      code: c.code,
+      value: c.id,
+      color: c.color,
+      icon: c.icon || 'sym_r_category',
+      display_path: displayPath,
+      full_path: c.full_path,
+    }
+  })
 })
 
 const filteredCategoryOptions = computed(() => {
   const needle = categorySearch.value.toLowerCase().trim()
   if (!needle) return allCategoryOptions.value
-  return allCategoryOptions.value.filter(
-    (c) =>
-      c.label.toLowerCase().includes(needle) ||
-      (c.full_path && c.full_path.toLowerCase().includes(needle)),
+  return allCategoryOptions.value.filter((c) =>
+    matchesCategorySearch(c, needle, c.display_path)
   )
 })
 
@@ -403,7 +408,7 @@ const filteredTagOptions = computed(() => {
 function getSelectedCategoryText(ids: string[]): string {
   const names = allCategoryOptions.value
     .filter((c) => ids.includes(c.value))
-    .map((c) => c.label)
+    .map((c) => c.name || c.label)
   return names.join(', ')
 }
 

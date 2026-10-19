@@ -66,4 +66,38 @@ class NotificationController extends Controller
             'message' => $deleted ? 'Notificación eliminada.' : 'No se encontró la notificación.',
         ]);
     }
+
+    /**
+     * Genera una notificación de prueba para verificar campana y alertas emergentes.
+     */
+    public function sendTest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $notif = $this->notificationService->createNotification(
+            organizationId: $user->current_organization_id,
+            title: 'Mensaje de WhatsApp: Postulante UNITEPC (Prueba)',
+            message: '¡Hola! Quisiera consultar los requisitos y fechas de admisión para Medicina en Cochabamba.',
+            type: 'unread',
+            userId: $user->id,
+            actionUrl: '/app/conversations',
+            data: [
+                'is_test' => true,
+                'phone' => '+591 70012345',
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notificación de prueba generada exitosamente.',
+            'notification' => [
+                'id' => $notif->id,
+                'type' => $notif->type,
+                'title' => $notif->title,
+                'message' => $notif->message,
+                'action_url' => $notif->action_url,
+                'is_read' => false,
+                'created_at_human' => 'Ahora mismo',
+            ],
+        ]);
+    }
 }

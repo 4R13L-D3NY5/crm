@@ -100,6 +100,7 @@ export interface Contact {
 }
 
 export interface ContactFilters {
+  ids?: string[]
   search?: string
   status?: string
   channel?: string | null

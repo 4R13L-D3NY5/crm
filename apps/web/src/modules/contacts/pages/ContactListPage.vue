@@ -16,6 +16,105 @@
 
       <!-- Acciones Principales -->
       <div class="col-12 col-md-auto row items-center q-gutter-sm">
+        <!-- Menú Desplegable de Exportación -->
+        <q-btn-dropdown
+          outline
+          dense
+          no-caps
+          color="teal-3"
+          icon="sym_r_download"
+          label="Exportar"
+          class="q-px-md xf-btn-secondary"
+          :loading="isExporting"
+        >
+          <q-list dark class="bg-dark text-white" style="min-width: 270px;">
+            <q-item-label header class="text-grey-4 text-caption text-bold text-uppercase">
+              Descargar Datos
+            </q-item-label>
+
+            <!-- Opciones si hay seleccionados -->
+            <template v-if="selectedContactIds.length > 0">
+              <q-item clickable v-close-popup @click="exportSelected('excel')">
+                <q-item-section avatar>
+                  <q-icon name="sym_r_table_view" color="positive" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-bold">Selección a Excel (.xlsx)</q-item-label>
+                  <q-item-label caption class="text-teal-3">
+                    {{ selectedContactIds.length }} contactos marcados
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-item clickable v-close-popup @click="exportSelected('pdf')">
+                <q-item-section avatar>
+                  <q-icon name="sym_r_picture_as_pdf" color="red-5" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-bold">Selección a Reporte PDF</q-item-label>
+                  <q-item-label caption class="text-red-3">
+                    Reporte formal institucional
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-separator dark class="q-my-xs" />
+            </template>
+
+            <!-- Vista actual -->
+            <q-item clickable v-close-popup @click="exportCurrentView('excel')">
+              <q-item-section avatar>
+                <q-icon name="sym_r_file_download" color="teal-4" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Vista actual a Excel (.xlsx)</q-item-label>
+                <q-item-label caption class="text-grey-4">
+                  {{ contacts.length }} contactos visibles
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item clickable v-close-popup @click="exportCurrentView('pdf')">
+              <q-item-section avatar>
+                <q-icon name="sym_r_picture_as_pdf" color="cyan-4" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Vista actual a Reporte PDF</q-item-label>
+                <q-item-label caption class="text-grey-4">
+                  {{ contacts.length }} contactos visibles
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-separator dark class="q-my-xs" />
+
+            <!-- Todos filtrados -->
+            <q-item clickable v-close-popup @click="exportAllFiltered('excel')">
+              <q-item-section avatar>
+                <q-icon name="sym_r_download_for_offline" color="positive" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Todos los filtrados a Excel</q-item-label>
+                <q-item-label caption class="text-grey-4">
+                  Catálogo total ({{ totalContacts }} contactos)
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item clickable v-close-popup @click="exportAllFiltered('pdf')">
+              <q-item-section avatar>
+                <q-icon name="sym_r_picture_as_pdf" color="red-4" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>Todos los filtrados a Reporte PDF</q-item-label>
+                <q-item-label caption class="text-grey-4">
+                  Catálogo total ({{ totalContacts }} contactos)
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-btn-dropdown>
+
         <q-btn
           outline
           dense
@@ -60,7 +159,7 @@
           <q-badge color="positive" text-color="dark" class="text-bold q-px-sm">
             {{ selectedContactIds.length }} seleccionados
           </q-badge>
-          <span class="text-caption text-white">Contactos marcados para difusión masiva</span>
+          <span class="text-caption text-white">Contactos marcados para exportación o difusión</span>
           <q-btn
             flat
             dense
@@ -74,6 +173,38 @@
         </div>
 
         <div class="row items-center q-gutter-x-sm">
+          <!-- Botones directos de descarga de selección solicitados por el usuario -->
+          <q-btn
+            unelevated
+            dense
+            no-caps
+            color="positive"
+            text-color="dark"
+            icon="sym_r_table_view"
+            label="Descargar Excel"
+            class="text-bold q-px-md shadow-1"
+            :loading="isExporting"
+            @click="exportSelected('excel')"
+          >
+            <q-tooltip>Descargar los {{ selectedContactIds.length }} seleccionados en Excel (.xlsx)</q-tooltip>
+          </q-btn>
+
+          <q-btn
+            unelevated
+            dense
+            no-caps
+            color="red-7"
+            icon="sym_r_picture_as_pdf"
+            label="Reporte PDF"
+            class="text-bold q-px-md shadow-1"
+            :loading="isExporting"
+            @click="exportSelected('pdf')"
+          >
+            <q-tooltip>Descargar reporte formal en PDF de los {{ selectedContactIds.length }} seleccionados</q-tooltip>
+          </q-btn>
+
+          <q-separator vertical dark inset class="q-mx-xs" />
+
           <q-btn
             outline
             dense
@@ -123,6 +254,8 @@
         v-else
         :key="c.id"
         :contact="c"
+        :selected="selectedContactIds.includes(c.id)"
+        @toggle-select="toggleSelection(c.id)"
         @view="openDetailDrawer"
         @edit="openEditDialog"
         @delete="confirmDelete"
@@ -202,6 +335,8 @@ import {
   useContacts,
   useContactTags,
 } from '../composables/useContacts'
+import { getContacts } from '../api/contacts.api'
+import { exportContactsToExcel, exportContactsToPdf } from '../utils/contactExport'
 import type {
   Contact,
   ContactPayload,
@@ -217,6 +352,7 @@ const isFormOpen = ref(false)
 const isImportOpen = ref(false)
 const isConfirmDeleteOpen = ref(false)
 const isBulkMessageOpen = ref(false)
+const isExporting = ref(false)
 const bulkModalMode = ref<'immediate' | 'scheduled'>('immediate')
 const selectedContactIds = ref<string[]>([])
 
@@ -340,6 +476,138 @@ function openBulkImmediate() {
 function onBulkMessagesSent() {
   selectedContactIds.value = []
   contactsQuery.refetch()
+}
+
+function toggleSelection(id: string) {
+  if (selectedContactIds.value.includes(id)) {
+    selectedContactIds.value = selectedContactIds.value.filter((item) => item !== id)
+  } else {
+    selectedContactIds.value = [...selectedContactIds.value, id]
+  }
+}
+
+async function resolveSelectedContacts(): Promise<Contact[]> {
+  if (selectedContactIds.value.length === 0) return []
+
+  // Si todos los contactos seleccionados están presentes en la lista actual visible
+  const currentMap = new Map(contacts.value.map((c) => [c.id, c]))
+  const allInCurrent = selectedContactIds.value.every((id) => currentMap.has(id))
+  if (allInCurrent) {
+    return selectedContactIds.value
+      .map((id) => currentMap.get(id))
+      .filter((c): c is Contact => c !== undefined)
+  }
+
+  // Si hay seleccionados de otras páginas, consultar al backend
+  const res = await getContacts({
+    ids: selectedContactIds.value,
+    per_page: Math.min(Math.max(selectedContactIds.value.length, 15), 1000),
+  })
+  return res.data || []
+}
+
+async function exportSelected(format: 'excel' | 'pdf') {
+  if (selectedContactIds.value.length === 0) {
+    notify.warning({ message: 'No hay contactos seleccionados para exportar.' })
+    return
+  }
+
+  isExporting.value = true
+  try {
+    const list = await resolveSelectedContacts()
+    if (list.length === 0) {
+      notify.warning({ message: 'No se encontraron datos para los contactos seleccionados.' })
+      return
+    }
+
+    if (format === 'excel') {
+      const ok = exportContactsToExcel(list)
+      if (ok) {
+        notify.success({ message: `Se exportaron ${list.length} contactos seleccionados a Excel (.xlsx).` })
+      }
+    } else {
+      const ok = exportContactsToPdf(list, {
+        title: 'UNITEPC — SELECCIÓN DE CONTACTOS & AUDIENCIA',
+        subtitle: `Reporte de ${list.length} contactos seleccionados para gestión institucional`,
+      })
+      if (ok) {
+        notify.success({ message: `Se descargó el Reporte PDF de ${list.length} contactos seleccionados.` })
+      }
+    }
+  } catch {
+    notify.error({ message: 'Ocurrió un error al generar la exportación de contactos.' })
+  } finally {
+    isExporting.value = false
+  }
+}
+
+function exportCurrentView(format: 'excel' | 'pdf') {
+  if (contacts.value.length === 0) {
+    notify.warning({ message: 'No hay contactos en la página actual para exportar.' })
+    return
+  }
+
+  isExporting.value = true
+  try {
+    if (format === 'excel') {
+      const ok = exportContactsToExcel(contacts.value)
+      if (ok) {
+        notify.success({ message: `Se exportaron los ${contacts.value.length} contactos de la vista actual a Excel.` })
+      }
+    } else {
+      const ok = exportContactsToPdf(contacts.value, {
+        title: 'UNITEPC — DIRECTORIO DE CONTACTOS (VISTA ACTUAL)',
+        subtitle: `Listado de ${contacts.value.length} contactos en pantalla`,
+      })
+      if (ok) {
+        notify.success({ message: `Reporte PDF generado con ${contacts.value.length} contactos.` })
+      }
+    }
+  } catch {
+    notify.error({ message: 'Error al exportar los contactos.' })
+  } finally {
+    isExporting.value = false
+  }
+}
+
+async function exportAllFiltered(format: 'excel' | 'pdf') {
+  isExporting.value = true
+  try {
+    const res = await getContacts({
+      search: filters.search || undefined,
+      channel: filters.channel || undefined,
+      category_ids: filters.category_ids.length ? filters.category_ids : undefined,
+      custom_status_ids: filters.custom_status_ids.length ? filters.custom_status_ids : undefined,
+      tags: filters.tags.length ? filters.tags : undefined,
+      page: 1,
+      per_page: Math.min(Math.max(totalContacts.value, 15), 5000),
+    })
+
+    const allContacts = res.data || []
+    if (allContacts.length === 0) {
+      notify.warning({ message: 'No se encontraron contactos para los filtros aplicados.' })
+      return
+    }
+
+    if (format === 'excel') {
+      const ok = exportContactsToExcel(allContacts)
+      if (ok) {
+        notify.success({ message: `Se exportó el catálogo completo de ${allContacts.length} contactos a Excel.` })
+      }
+    } else {
+      const ok = exportContactsToPdf(allContacts, {
+        title: 'UNITEPC — REPORTE GENERAL DE CONTACTOS',
+        subtitle: `Catálogo de prospectos y audiencia (${allContacts.length} contactos)`,
+      })
+      if (ok) {
+        notify.success({ message: `Reporte PDF generado exitosamente con ${allContacts.length} contactos.` })
+      }
+    }
+  } catch {
+    notify.error({ message: 'Error al exportar el catálogo completo de contactos.' })
+  } finally {
+    isExporting.value = false
+  }
 }
 </script>
 

@@ -168,6 +168,7 @@ class ProcessWhatsAppWebhook implements ShouldQueue
             'sent_at' => $sentAt,
         ]);
 
+        $conversation->increment('unread_count');
         $conversation->forceFill([
             'last_message_at' => $sentAt,
             'status' => 'open',
@@ -193,6 +194,15 @@ class ProcessWhatsAppWebhook implements ShouldQueue
             $conversation->getKey(),
             $message->getKey(),
         ));
+
+        // Auto-respuesta si entra fuera de horario laboral
+        $outOfHoursMsg = app(\App\Modules\Parameters\Actions\DispatchOutOfHoursAutoReplyAction::class)->execute($conversation);
+
+        // Flujo de Bot de Bienvenida / Enrutamiento de Filas si no fue fuera de horario
+        if (! $outOfHoursMsg) {
+            $textBody = $messagePayload['text']['body'] ?? null;
+            app(\App\Modules\Queues\Actions\DispatchBotFlowAction::class)->execute($conversation, $textBody);
+        }
     }
 
     private function processStatusUpdate(array $statusPayload): void

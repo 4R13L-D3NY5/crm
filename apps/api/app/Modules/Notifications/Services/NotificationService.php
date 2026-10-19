@@ -44,27 +44,52 @@ class NotificationService
         $orgId = $user->current_organization_id;
         $now = Carbon::now();
 
-        // 1. Obtener regla de SLA de inactividad de la organización
-        $rule = TimeAlertRule::where('organization_id', $orgId)
+        // 1. Obtener todas las reglas activas de SLA de inactividad de la organización
+        $rules = TimeAlertRule::where('organization_id', $orgId)
             ->where('is_active', true)
-            ->first();
+            ->get();
 
-        $advisorTimeoutMinutes = $rule?->user_timeout_minutes ?? 20;
-        $clientTimeoutMinutes = $rule?->client_timeout_minutes ?? 120;
+        $defaultRule = $rules->firstWhere('apply_to_all_statuses', true) ?? $rules->first();
+        $globalAdvisorTimeout = $defaultRule?->user_timeout_minutes ?? 20;
+        $globalClientTimeout = $defaultRule?->client_timeout_minutes ?? 120;
 
         // 2. Traer conversaciones abiertas o pendientes para calcular alertas operativas en tiempo real
-        $conversations = Conversation::where('organization_id', $orgId)
+        $convQuery = Conversation::where('organization_id', $orgId)
             ->whereIn('status', ['open', 'pending'])
-            ->with(['contact', 'assignedToUser', 'latestMessage'])
-            ->latest('last_message_at')
-            ->get();
+            ->with(['contact', 'assignedToUser', 'latestExternalMessage', 'latestMessage']);
+
+        // Si el usuario es operador/agente (no admin), limitar alertas a sus conversaciones o sin asignar
+        if (!$user->isAdmin()) {
+            $convQuery->where(function ($q) use ($user) {
+                $q->where('assigned_to_user_id', $user->id)
+                  ->orWhereNull('assigned_to_user_id');
+            });
+        }
+
+        $conversations = $convQuery->latest('last_message_at')->get();
 
         $operationalAlerts = collect();
 
         foreach ($conversations as $conv) {
             $contactName = $conv->contact?->name ?? 'Contacto';
             $assigneeName = $conv->assignedToUser?->name ?? 'Sin asignar';
-            $latestMsg = $conv->latestMessage;
+            $latestMsg = $conv->latestExternalMessage ?? $conv->latestMessage;
+
+            // Determinar la regla aplicable a la conversación (específica por estado o global)
+            $matchedRule = null;
+            if ($conv->custom_status_id) {
+                $matchedRule = $rules->first(function ($r) use ($conv) {
+                    return !$r->apply_to_all_statuses
+                        && is_array($r->custom_status_ids)
+                        && in_array($conv->custom_status_id, $r->custom_status_ids, true);
+                });
+            }
+            $matchedRule = $matchedRule ?? $defaultRule;
+
+            $advisorTimeoutMinutes = $matchedRule?->user_timeout_minutes ?? $globalAdvisorTimeout;
+            $clientTimeoutMinutes = $matchedRule?->client_timeout_minutes ?? $globalClientTimeout;
+            $notifyUser = $matchedRule?->notify_user_inactivity ?? true;
+            $notifyClient = $matchedRule?->notify_client_inactivity ?? true;
 
             // A. Alerta de "No Leídos"
             if ($conv->unread_count > 0) {
@@ -87,7 +112,7 @@ class NotificationService
             }
 
             // B. Alerta de SLA: "Sin respuesta del Asesor" (el cliente espera respuesta)
-            if ($latestMsg && $latestMsg->direction === 'inbound') {
+            if ($notifyUser && $latestMsg && $latestMsg->direction === 'inbound') {
                 $elapsedMinutes = abs((int) $now->diffInMinutes($latestMsg->created_at));
                 if ($elapsedMinutes >= $advisorTimeoutMinutes) {
                     $timeFormatted = $this->formatMinutes($elapsedMinutes);
@@ -111,7 +136,7 @@ class NotificationService
             }
 
             // C. Alerta de Inactividad: "Sin respuesta del Cliente" (el asesor espera respuesta del cliente)
-            if ($latestMsg && $latestMsg->direction === 'outbound') {
+            if ($notifyClient && $latestMsg && $latestMsg->direction === 'outbound') {
                 $elapsedMinutes = abs((int) $now->diffInMinutes($latestMsg->created_at));
                 if ($elapsedMinutes >= $clientTimeoutMinutes) {
                     $timeFormatted = $this->formatMinutes($elapsedMinutes);
@@ -182,8 +207,8 @@ class NotificationService
                 'waiting_advisor' => $countWaitingAdvisor,
                 'waiting_client' => $countWaitingClient,
             ],
-            'advisor_timeout_minutes' => $advisorTimeoutMinutes,
-            'client_timeout_minutes' => $clientTimeoutMinutes,
+            'advisor_timeout_minutes' => $globalAdvisorTimeout,
+            'client_timeout_minutes' => $globalClientTimeout,
             'notifications' => $combined->values()->take($limit),
         ];
     }

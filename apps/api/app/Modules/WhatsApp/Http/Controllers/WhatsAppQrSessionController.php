@@ -253,6 +253,9 @@ class WhatsAppQrSessionController extends Controller
         // 4. Emitir evento de Socket en tiempo real
         event(new TicketMessageCreatedEvent($msg));
 
+        // 5. Verificar y enviar auto-respuesta si entra fuera de horario laboral
+        app(\App\Modules\Parameters\Actions\DispatchOutOfHoursAutoReplyAction::class)->execute($conversation);
+
         return response()->json([
             'data' => [
                 'conversation_id' => $conversation->id,

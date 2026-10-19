@@ -479,20 +479,59 @@
           <!-- Categorías Padre (Multiselección para Grafo/Múltiples Dependencias Cruzadas) -->
           <q-select
             v-model="form.parent_ids"
-            :options="parentCategoryOptions"
+            :options="filteredParentCategoryOptions"
             emit-value
             map-options
             multiple
             use-chips
+            use-input
+            input-debounce="0"
             clearable
             label="Categorías Padre (Dejar vacío para nivel raíz)"
             outlined
             dark
             dense
             hint="Puedes seleccionar múltiples ramas padre para compartir esta categoría en varias dependencias"
+            @filter="filterParentCategories"
           >
             <template #prepend>
               <q-icon name="sym_r_subdirectory_arrow_right" size="18px" class="text-grey-5" />
+            </template>
+            <template #selected-item="scope">
+              <q-chip
+                removable
+                dense
+                class="q-my-none q-mr-xs"
+                :style="{ backgroundColor: scope.opt.color ? scope.opt.color + '22' : 'rgba(16,185,129,0.15)', borderColor: scope.opt.color || '#10b981' }"
+                style="border: 1px solid;"
+                @remove="scope.removeAtIndex(scope.index)"
+              >
+                <span class="text-caption text-white text-weight-medium">
+                  {{ scope.opt.name }}
+                </span>
+                <q-tooltip class="bg-dark text-white font-mono text-caption">{{ scope.opt.display_path || scope.opt.name }}</q-tooltip>
+              </q-chip>
+            </template>
+            <template #option="{ itemProps, opt, selected, toggleOption }">
+              <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                <q-item-section side class="q-pr-xs">
+                  <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                </q-item-section>
+                <q-item-section avatar style="min-width: 20px" class="q-pr-xs">
+                  <span class="filter-dot" :style="{ backgroundColor: opt.color || '#10b981' }"></span>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                  <q-item-label caption class="text-teal-3 font-mono text-caption">{{ opt.display_path }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+            <template #no-option>
+              <q-item dark>
+                <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                  No se encontraron categorías
+                </q-item-section>
+              </q-item>
             </template>
           </q-select>
 
@@ -640,26 +679,45 @@
         <q-card-section class="q-gutter-y-md col scroll">
           <q-select
             v-model="selectedCategoryToLink"
-            :options="linkableCategoryOptions"
+            :options="filteredLinkableCategoryOptions"
             emit-value
             map-options
-            label="Selecciona la categoría a vincular"
+            use-input
+            input-debounce="0"
+            label="Escribe para buscar categoría a vincular..."
             outlined
             dark
             dense
+            @filter="filterLinkCategories"
           >
+            <template #selected-item="scope">
+              <div class="row items-center no-wrap ellipsis text-caption text-white">
+                <span class="filter-dot q-mr-xs" :style="{ backgroundColor: scope.opt.color || '#10b981' }"></span>
+                <span class="text-weight-bold text-teal-3 ellipsis">{{ scope.opt.name }}</span>
+              </div>
+            </template>
             <template #option="scope">
-              <q-item v-bind="scope.itemProps" dark dense>
-                <q-item-section avatar>
-                  <span class="xf-dot-indicator" :style="{ backgroundColor: scope.opt.color }"></span>
+              <q-item v-bind="scope.itemProps" dark dense class="q-py-xs cursor-pointer">
+                <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                  <span class="xf-dot-indicator" :style="{ backgroundColor: scope.opt.color || '#10b981' }"></span>
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label>
+                  <q-item-label class="text-white text-body2">
                     <q-badge v-if="scope.opt.code" outline color="teal-3" class="q-mr-xs text-caption font-mono">
                       {{ scope.opt.code }}
                     </q-badge>
-                    {{ scope.opt.label }}
+                    {{ scope.opt.name }}
                   </q-item-label>
+                  <q-item-label caption class="text-teal-3 font-mono text-caption">
+                    {{ scope.opt.display_path }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+            <template #no-option>
+              <q-item dark>
+                <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                  No se encontraron categorías
                 </q-item-section>
               </q-item>
             </template>
@@ -838,6 +896,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { http } from '@/shared/api/http'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '../utils/category-formatter'
 import CategoryTreeNode from '../components/CategoryTreeNode.vue'
 import StatusFlowDiagram from '../components/StatusFlowDiagram.vue'
 import TimeAlertRulesTab from '../components/TimeAlertRulesTab.vue'
@@ -916,14 +975,38 @@ const iconOptions = [
   { label: 'Salud & Bienestar', value: 'sym_r_medical_services' },
 ]
 
+const parentSearchQuery = ref('')
+const linkSearchQuery = ref('')
+
 const parentCategoryOptions = computed(() => {
   return categories.value
     .filter((c) => !selectedCategory.value || c.id !== selectedCategory.value.id)
-    .map((c) => ({
-      label: c.code ? `[${c.code}] ${c.full_path || c.name}` : (c.full_path || c.name),
-      value: c.id,
-    }))
+    .map((c) => {
+      const displayPath = formatCategoryDisplayPath(c, categories.value)
+      return {
+        label: displayPath,
+        name: c.name,
+        code: c.code,
+        display_path: displayPath,
+        color: c.color,
+        value: c.id,
+      }
+    })
 })
+
+const filteredParentCategoryOptions = computed(() => {
+  const q = parentSearchQuery.value.toLowerCase().trim()
+  if (!q) return parentCategoryOptions.value
+  return parentCategoryOptions.value.filter((c) =>
+    matchesCategorySearch(c, q, c.display_path)
+  )
+})
+
+function filterParentCategories(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    parentSearchQuery.value = val
+  })
+}
 
 // Opciones para vincular una categoría existente a targetParentNode
 const linkableCategoryOptions = computed(() => {
@@ -937,13 +1020,32 @@ const linkableCategoryOptions = computed(() => {
       if (c.parent_ids?.includes(parentId)) return false
       return true
     })
-    .map((c) => ({
-      label: c.name,
-      code: c.code,
-      color: c.color,
-      value: c.id,
-    }))
+    .map((c) => {
+      const displayPath = formatCategoryDisplayPath(c, categories.value)
+      return {
+        label: displayPath,
+        name: c.name,
+        code: c.code,
+        color: c.color,
+        display_path: displayPath,
+        value: c.id,
+      }
+    })
 })
+
+const filteredLinkableCategoryOptions = computed(() => {
+  const q = linkSearchQuery.value.toLowerCase().trim()
+  if (!q) return linkableCategoryOptions.value
+  return linkableCategoryOptions.value.filter((c) =>
+    matchesCategorySearch(c, q, c.display_path)
+  )
+})
+
+function filterLinkCategories(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    linkSearchQuery.value = val
+  })
+}
 
 const filteredTree = computed(() => {
   if (!search.value) return tree.value

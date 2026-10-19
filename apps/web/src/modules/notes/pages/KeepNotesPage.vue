@@ -77,7 +77,7 @@
         </div>
 
         <!-- Filtro por Categoría / Subcategoría -->
-        <div class="col-12 col-sm-6 col-md-2">
+        <div class="col-12 col-sm-6 col-md-3">
           <q-select
             v-model="selectedCategory"
             dense
@@ -85,13 +85,41 @@
             clearable
             emit-value
             map-options
+            use-input
+            input-debounce="0"
             option-value="id"
             option-label="name"
-            :options="categoryOptions"
+            :options="filteredCategoryOptions"
             label="Categoría / Área"
             class="xf-filter-select"
+            @filter="filterCategories"
             @update:model-value="applyFilters"
-          />
+          >
+            <template #selected-item="scope">
+              <span class="ellipsis text-white text-caption text-weight-medium">
+                {{ scope.opt.name }}
+              </span>
+              <q-tooltip class="bg-dark text-white font-mono text-caption">{{ scope.opt.display_path || scope.opt.name }}</q-tooltip>
+            </template>
+            <template #option="{ itemProps, opt }">
+              <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs">
+                <q-item-section avatar style="min-width: 20px" class="q-pr-xs">
+                  <span class="filter-dot" :style="{ backgroundColor: opt.color || '#10b981' }"></span>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                  <q-item-label caption class="text-teal-3 font-mono text-caption">{{ opt.display_path }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+            <template #no-option>
+              <q-item dark>
+                <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                  No se encontraron categorías
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
         </div>
 
         <!-- Filtro por Estado -->
@@ -209,6 +237,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import { http } from '@/shared/api/http'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import { useNotes } from '../composables/useNotes'
 import type { Note } from '../types/note.types'
 import NoteCard from '../components/NoteCard.vue'
@@ -229,6 +258,35 @@ const selectedStatus = ref<string | null>(null)
 
 const categoryOptions = ref<Array<{ id: string; name: string }>>([])
 const statusOptions = ref<Array<{ id: string; name: string }>>([])
+
+const categoryFilterSearch = ref('')
+
+const formattedCategoryOptions = computed(() => {
+  return categoryOptions.value.map((c: any) => {
+    const displayPath = formatCategoryDisplayPath(c, categoryOptions.value)
+    return {
+      ...c,
+      label: displayPath,
+      name: c.name,
+      display_path: displayPath,
+      value: c.id,
+    }
+  })
+})
+
+const filteredCategoryOptions = computed(() => {
+  const q = categoryFilterSearch.value.toLowerCase().trim()
+  if (!q) return formattedCategoryOptions.value
+  return formattedCategoryOptions.value.filter((c: any) =>
+    matchesCategorySearch(c, q, c.display_path)
+  )
+})
+
+function filterCategories(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    categoryFilterSearch.value = val
+  })
+}
 
 const isDialogOpen = ref(false)
 const selectedNote = ref<Note | null>(null)

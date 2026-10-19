@@ -9,6 +9,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
+use App\Modules\Contacts\Models\Contact;
+use App\Modules\Conversations\Models\Conversation;
+use App\Modules\Conversations\Models\Message;
+use App\Modules\Parameters\Models\TimeAlertRule;
+use Carbon\Carbon;
+
 class NotificationCenterTest extends TestCase
 {
     use RefreshDatabase;
@@ -145,5 +151,221 @@ class NotificationCenterTest extends TestCase
         $res->assertStatus(200);
         $res->assertJsonPath('success', true);
         $this->assertDatabaseMissing('app_notifications', ['id' => $notif->id]);
+    }
+
+    public function test_operator_inactivity_triggers_waiting_advisor_notification(): void
+    {
+        $org = Organization::create(['name' => 'Org SLA', 'slug' => 'org-sla-' . uniqid()]);
+        $user = User::factory()->create(['current_organization_id' => $org->id]);
+        $org->users()->attach($user->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+
+        // Regla SLA: 20 min asesor, 120 min cliente
+        TimeAlertRule::create([
+            'organization_id' => $org->id,
+            'name' => 'Regla SLA General',
+            'user_timeout_minutes' => 20,
+            'client_timeout_minutes' => 120,
+            'notify_user_inactivity' => true,
+            'notify_client_inactivity' => true,
+            'apply_to_all_statuses' => true,
+            'is_active' => true,
+        ]);
+
+        $contact = Contact::create([
+            'organization_id' => $org->id,
+            'first_name' => 'Carlos',
+            'phone' => '+59178899001',
+        ]);
+
+        $conv = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+            'unread_count' => 0,
+            'last_message_at' => Carbon::now()->subMinutes(25),
+        ]);
+
+        // Mensaje entrante del cliente hace 25 min (supera 20 min SLA)
+        $msg = Message::create([
+            'organization_id' => $org->id,
+            'conversation_id' => $conv->id,
+            'direction' => 'inbound',
+            'is_internal' => false,
+            'body' => 'Hola, sigo esperando información.',
+        ]);
+        $msg->created_at = Carbon::now()->subMinutes(25);
+        $msg->save();
+
+        $res = $this->actingAs($user)->getJson('/api/notifications');
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('counts.waiting_advisor', 1);
+        $res->assertJsonPath('notifications.0.type', 'waiting_advisor');
+        $res->assertJsonPath('notifications.0.title', 'Sin respuesta del Asesor: Carlos');
+    }
+
+    public function test_client_inactivity_triggers_waiting_client_notification(): void
+    {
+        $org = Organization::create(['name' => 'Org Client SLA', 'slug' => 'org-client-sla-' . uniqid()]);
+        $user = User::factory()->create(['current_organization_id' => $org->id]);
+        $org->users()->attach($user->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+
+        // Regla SLA: 20 min asesor, 120 min cliente
+        TimeAlertRule::create([
+            'organization_id' => $org->id,
+            'name' => 'Regla SLA General',
+            'user_timeout_minutes' => 20,
+            'client_timeout_minutes' => 120,
+            'notify_user_inactivity' => true,
+            'notify_client_inactivity' => true,
+            'apply_to_all_statuses' => true,
+            'is_active' => true,
+        ]);
+
+        $contact = Contact::create([
+            'organization_id' => $org->id,
+            'first_name' => 'Lucia',
+            'phone' => '+59178899002',
+        ]);
+
+        $conv = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+            'unread_count' => 0,
+            'last_message_at' => Carbon::now()->subMinutes(130),
+        ]);
+
+        // Mensaje saliente del asesor hace 130 min (supera 120 min de inactividad de cliente)
+        $msg = Message::create([
+            'organization_id' => $org->id,
+            'conversation_id' => $conv->id,
+            'direction' => 'outbound',
+            'is_internal' => false,
+            'body' => '¿Pudiste revisar la cotización que te enviamos?',
+        ]);
+        $msg->created_at = Carbon::now()->subMinutes(130);
+        $msg->save();
+
+        $res = $this->actingAs($user)->getJson('/api/notifications');
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('counts.waiting_client', 1);
+        $res->assertJsonPath('notifications.0.type', 'waiting_client');
+        $res->assertJsonPath('notifications.0.title', 'Sin respuesta del Cliente: Lucia');
+    }
+
+    public function test_custom_parameterized_time_alert_rule_is_applied(): void
+    {
+        $org = Organization::create(['name' => 'Org Param', 'slug' => 'org-param-' . uniqid()]);
+        $user = User::factory()->create(['current_organization_id' => $org->id]);
+        $org->users()->attach($user->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+
+        // Regla personalizada muy estricta: 5 min asesor, 30 min cliente
+        TimeAlertRule::create([
+            'organization_id' => $org->id,
+            'name' => 'Regla Express Urgente',
+            'user_timeout_minutes' => 5,
+            'client_timeout_minutes' => 30,
+            'notify_user_inactivity' => true,
+            'notify_client_inactivity' => true,
+            'apply_to_all_statuses' => true,
+            'is_active' => true,
+        ]);
+
+        $contact = Contact::create([
+            'organization_id' => $org->id,
+            'first_name' => 'Daniel',
+            'phone' => '+59178899003',
+        ]);
+
+        $conv = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+            'unread_count' => 0,
+            'last_message_at' => Carbon::now()->subMinutes(7),
+        ]);
+
+        // Mensaje entrante hace 7 min (supera el parámetro de 5 min)
+        $msg = Message::create([
+            'organization_id' => $org->id,
+            'conversation_id' => $conv->id,
+            'direction' => 'inbound',
+            'is_internal' => false,
+            'body' => 'Consulta urgente.',
+        ]);
+        $msg->created_at = Carbon::now()->subMinutes(7);
+        $msg->save();
+
+        $res = $this->actingAs($user)->getJson('/api/notifications');
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('advisor_timeout_minutes', 5);
+        $res->assertJsonPath('client_timeout_minutes', 30);
+        $res->assertJsonPath('counts.waiting_advisor', 1);
+    }
+
+    public function test_internal_note_does_not_mask_waiting_advisor_sla(): void
+    {
+        $org = Organization::create(['name' => 'Org Internal SLA', 'slug' => 'org-internal-sla-' . uniqid()]);
+        $user = User::factory()->create(['current_organization_id' => $org->id]);
+        $org->users()->attach($user->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+
+        TimeAlertRule::create([
+            'organization_id' => $org->id,
+            'name' => 'Regla SLA General',
+            'user_timeout_minutes' => 20,
+            'client_timeout_minutes' => 120,
+            'notify_user_inactivity' => true,
+            'notify_client_inactivity' => true,
+            'apply_to_all_statuses' => true,
+            'is_active' => true,
+        ]);
+
+        $contact = Contact::create([
+            'organization_id' => $org->id,
+            'first_name' => 'Elena',
+            'phone' => '+59178899004',
+        ]);
+
+        $conv = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+            'unread_count' => 0,
+            'last_message_at' => Carbon::now()->subMinutes(25),
+        ]);
+
+        // 1. Cliente envía mensaje hace 25 min (inbound)
+        $inbound = Message::create([
+            'organization_id' => $org->id,
+            'conversation_id' => $conv->id,
+            'direction' => 'inbound',
+            'is_internal' => false,
+            'body' => 'Necesito ayuda con mi trámite.',
+        ]);
+        $inbound->created_at = Carbon::now()->subMinutes(25);
+        $inbound->save();
+
+        // 2. Operador deja nota interna hace 5 min (is_internal = true)
+        // La nota interna NO debe interpretarse como respuesta al cliente
+        $note = Message::create([
+            'organization_id' => $org->id,
+            'conversation_id' => $conv->id,
+            'direction' => 'outbound',
+            'is_internal' => true,
+            'body' => 'Nota interna: verificar expediente antes de llamar.',
+        ]);
+        $note->created_at = Carbon::now()->subMinutes(5);
+        $note->save();
+
+        $res = $this->actingAs($user)->getJson('/api/notifications');
+
+        $res->assertStatus(200);
+        // Debe alertar que el asesor aún no ha respondido al cliente (SLA vencido hace 25m)
+        $res->assertJsonPath('counts.waiting_advisor', 1);
+        $res->assertJsonPath('notifications.0.type', 'waiting_advisor');
+        $res->assertJsonPath('notifications.0.title', 'Sin respuesta del Asesor: Elena');
     }
 }

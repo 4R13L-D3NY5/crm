@@ -147,8 +147,11 @@
               {{ cat.code }}
             </q-badge>
             <span class="text-caption text-white text-weight-medium q-ml-xs">
-              {{ cat.parent_name ? `${cat.parent_name} › ` : '' }}{{ cat.name }}
+              {{ cat.name }}
             </span>
+            <q-tooltip class="bg-dark text-white shadow-3 font-mono text-caption">
+              {{ cat.display_path || (cat.parent_name ? `${cat.parent_name} -> ` : '') + cat.name }}
+            </q-tooltip>
           </q-chip>
         </div>
       </div>
@@ -234,25 +237,68 @@
 
       <!-- Diálogo Asignar Categoría al Chat -->
       <q-dialog v-model="isAssignDialogOpen">
-        <q-card style="width: 420px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
+        <q-card style="width: 540px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
           <q-card-section>
             <div class="text-subtitle1 text-bold text-white">Asignar Clasificación al Chat</div>
-            <div class="text-caption text-grey-4">Selecciona la categoría o subcategoría de interés del contacto.</div>
+            <div class="text-caption text-grey-4">Busca o selecciona la carrera, área o programa de interés del contacto.</div>
           </q-card-section>
 
           <q-card-section class="q-gutter-y-sm">
             <q-select
               v-model="selectedCategoryIdToAssign"
-              :options="availableCategoryOptions"
+              :options="filteredCategoryOptions"
               emit-value
               map-options
               outlined
               dark
               dense
-              label="Seleccionar categoría / subcategoría"
+              use-input
+              input-debounce="0"
+              clearable
+              label="Escribe para buscar categoría..."
+              class="xf-category-select"
+              @filter="filterCategoryOptions"
             >
               <template #prepend>
-                <q-icon name="sym_r_account_tree" size="18px" class="text-grey-5" />
+                <q-icon name="sym_r_search" size="18px" class="text-teal-4" />
+              </template>
+
+              <!-- Vista seleccionada -->
+              <template #selected-item="scope">
+                <div class="row items-center no-wrap ellipsis text-caption text-white q-py-xs">
+                  <span
+                    class="filter-dot q-mr-xs"
+                    :style="{ backgroundColor: scope.opt.color || '#10b981' }"
+                  ></span>
+                  <span class="text-weight-bold text-teal-3 ellipsis">{{ scope.opt.label }}</span>
+                </div>
+              </template>
+
+              <!-- Opciones en dropdown -->
+              <template #option="{ itemProps, opt }">
+                <q-item v-bind="itemProps" dense dark class="q-py-sm cursor-pointer category-select-item">
+                  <q-item-section avatar style="min-width: 28px" class="q-pr-xs">
+                    <q-avatar size="24px" :style="{ backgroundColor: opt.color ? opt.color + '22' : 'rgba(16,185,129,0.15)', border: `1px solid ${opt.color || '#10b981'}` }">
+                      <q-icon :name="opt.icon || 'sym_r_sell'" size="13px" :style="{ color: opt.color || '#10b981' }" />
+                    </q-avatar>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-body2 text-white text-weight-medium">
+                      {{ opt.name }}
+                    </q-item-label>
+                    <q-item-label caption class="text-teal-3 text-caption font-mono">
+                      {{ opt.display_path }}
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+
+              <template #no-option>
+                <q-item dark>
+                  <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                    No se encontraron categorías coincidentes.
+                  </q-item-section>
+                </q-item>
               </template>
             </q-select>
           </q-card-section>
@@ -261,7 +307,7 @@
             <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
             <q-btn
               unelevated
-              label="Asignar"
+              label="Asignar al Chat"
               color="primary"
               no-caps
               :loading="assigning"
@@ -468,6 +514,7 @@ import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { http } from '@/shared/api/http'
 import { getHentleAiSummary } from '../api/conversations.api'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import type { Conversation } from '../types/conversation.types'
 
 const props = defineProps<{
@@ -640,15 +687,39 @@ async function removeTagFromContact(tagIdentifier: string) {
   }
 }
 
+const categorySearchQuery = ref('')
+
 const availableCategoryOptions = computed(() => {
   const assignedIds = new Set(assignedCategories.value.map((c) => c.id))
   return allCategories.value
     .filter((c) => !assignedIds.has(c.id) && c.is_selectable !== false)
-    .map((c) => ({
-      label: c.code ? `[${c.code}] ${c.full_path || c.name}` : (c.full_path || c.name),
-      value: c.id,
-    }))
+    .map((c) => {
+      const displayPath = formatCategoryDisplayPath(c, allCategories.value)
+      return {
+        label: displayPath,
+        value: c.id,
+        name: c.name,
+        code: c.code,
+        color: c.color || '#10b981',
+        icon: c.icon || 'sym_r_sell',
+        display_path: displayPath,
+      }
+    })
 })
+
+const filteredCategoryOptions = computed(() => {
+  const query = categorySearchQuery.value.toLowerCase().trim()
+  if (!query) return availableCategoryOptions.value
+  return availableCategoryOptions.value.filter((opt) =>
+    matchesCategorySearch(opt, query, opt.display_path)
+  )
+})
+
+function filterCategoryOptions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    categorySearchQuery.value = val
+  })
+}
 
 async function fetchAssignedCategories() {
   if (!props.conversation?.id) return
@@ -674,6 +745,7 @@ async function fetchAllCategories() {
 
 function openAssignDialog() {
   selectedCategoryIdToAssign.value = null
+  categorySearchQuery.value = ''
   isAssignDialogOpen.value = true
 }
 

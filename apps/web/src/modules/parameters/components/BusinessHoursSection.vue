@@ -12,29 +12,29 @@
               <span class="text-subtitle1 text-bold text-white">
                 {{ isCurrentlyOpen ? '🟢 EN HORARIO DE ATENCIÓN' : '🌙 FUERA DE HORARIO LABORAL' }}
               </span>
-              <q-badge :color="form.is_active ? 'teal-9' : 'grey-8'" class="text-caption text-bold">
-                {{ form.is_active ? 'Horario Activo' : 'Pausado' }}
+              <q-badge :color="selectedConfig?.is_active ? 'teal-9' : 'grey-8'" class="text-caption text-bold">
+                {{ selectedConfig?.is_active ? 'Horario Activo' : 'Pausado' }}
               </q-badge>
-              <q-badge v-if="form.auto_reply_enabled" color="cyan-9" text-color="cyan-2" class="text-caption">
+              <q-badge v-if="selectedConfig?.auto_reply_enabled" color="cyan-9" text-color="cyan-2" class="text-caption">
                 Auto-respuesta Activa
               </q-badge>
             </div>
             <div class="text-caption text-grey-4 q-mt-xs">
               {{ currentDayName }}, {{ currentTime }} ({{ form.timezone }}).
-              {{ isCurrentlyOpen ? 'Los asesores se encuentran disponibles para recibir y responder chats.' : 'Los mensajes entrantes recibirán la respuesta automática si está habilitada.' }}
+              {{ isCurrentlyOpen ? 'Los operadores se encuentran atendiendo chats.' : 'Los mensajes entrantes recibirán la respuesta automática programada.' }}
             </div>
           </div>
         </div>
 
-        <div class="row items-center q-gutter-x-xs">
-          <span class="text-caption text-grey-4">Control General:</span>
+        <div class="row items-center q-gutter-x-sm">
+          <span class="text-caption text-grey-4">Estado de este Horario:</span>
           <q-toggle
             v-model="form.is_active"
             dense
             color="positive"
-            @update:model-value="toggleActive"
+            @update:model-value="toggleCurrentActive"
           >
-            <q-tooltip>{{ form.is_active ? 'Pausar horario' : 'Activar horario' }}</q-tooltip>
+            <q-tooltip>{{ form.is_active ? 'Pausar este horario' : 'Activar este horario' }}</q-tooltip>
           </q-toggle>
         </div>
       </div>
@@ -43,24 +43,187 @@
     <!-- Spinner de carga -->
     <div v-if="loading" class="text-center q-pa-xl text-grey-4">
       <q-spinner-dots size="36px" color="primary" />
-      <div class="q-mt-sm">Cargando configuración de horario laboral...</div>
+      <div class="q-mt-sm">Cargando parametrizaciones de horario laboral...</div>
     </div>
 
     <div v-else class="q-gutter-y-lg">
-      <!-- 2. Sector: Vigencia del Horario (Iniciar Ya vs Rango de Fechas) -->
+      <!-- 2. Selector de Parametrizaciones (Perfiles, Campañas y Operadores) -->
+      <q-card flat bordered class="xf-panel-card q-pa-md">
+        <div class="row items-center justify-between q-mb-sm">
+          <div class="row items-center q-gutter-x-xs">
+            <q-icon name="sym_r_tune" color="teal-4" size="20px" />
+            <span class="text-subtitle2 text-bold text-white">Parametrizaciones de Horario Guardadas</span>
+            <q-badge color="grey-8" class="q-ml-xs text-caption">{{ configsList.length }} configuraciones</q-badge>
+          </div>
+
+          <q-btn
+            unelevated
+            size="sm"
+            color="teal-4"
+            text-color="dark"
+            icon="sym_r_add"
+            label="Nueva Parametrización / Campaña"
+            no-caps
+            class="text-weight-bold"
+            @click="openNewConfigForm"
+          />
+        </div>
+
+        <!-- Chips / Píldoras de Configuraciones -->
+        <div class="row items-center q-gutter-sm q-pt-xs">
+          <div
+            v-for="cfg in configsList"
+            :key="cfg.id"
+            class="xf-config-pill cursor-pointer"
+            :class="{ 'xf-config-pill--active': selectedConfig?.id === cfg.id }"
+            @click="selectConfig(cfg)"
+          >
+            <div class="row items-center q-gutter-x-xs no-wrap">
+              <q-icon
+                :name="cfg.scope_type === 'operator' ? 'sym_r_person' : 'sym_r_domain'"
+                size="16px"
+                :color="selectedConfig?.id === cfg.id ? 'teal-3' : 'grey-4'"
+              />
+              <span class="text-body2 text-weight-medium text-white ellipsis" style="max-width: 200px">
+                {{ cfg.name }}
+              </span>
+              <q-badge v-if="cfg.is_default" color="blue-9" class="text-caption font-mono" style="font-size: 0.65rem">
+                Principal
+              </q-badge>
+              <q-badge v-if="cfg.scope_type === 'operator'" color="purple-9" class="text-caption" style="font-size: 0.65rem">
+                {{ (cfg.users || []).length }} op.
+              </q-badge>
+              <q-badge v-if="cfg.validity_type === 'date_range'" color="amber-9" class="text-caption" style="font-size: 0.65rem">
+                Temporada
+              </q-badge>
+            </div>
+          </div>
+        </div>
+      </q-card>
+
+      <!-- 3. Formulario de Edición de la Parametrización Seleccionada -->
       <q-card flat bordered class="xf-panel-card q-pa-lg">
-        <div class="row items-center justify-between q-mb-md">
+        <div class="row items-center justify-between q-mb-lg border-bottom-subtle pb-sm">
           <div>
             <div class="text-subtitle1 text-bold text-white flex items-center q-gutter-x-xs">
-              <q-icon name="sym_r_calendar_today" color="amber-4" size="20px" />
-              <span>Vigencia del Horario Laboral</span>
+              <q-icon name="sym_r_edit_calendar" color="teal-4" size="22px" />
+              <span>{{ isCreatingNew ? 'Creando Nueva Parametrización' : `Editando: ${form.name}` }}</span>
             </div>
             <div class="text-caption text-grey-4">
-              Selecciona si el horario rige de inmediato de forma continua o si corresponde a un rango de fechas programado.
+              Configura el nombre, ámbito (general o por operador), vigencia por campaña y turnos mañana/tarde.
             </div>
           </div>
 
-          <!-- Selector de Zona Horaria -->
+          <div v-if="!isCreatingNew && configsList.length > 1" class="row items-center q-gutter-x-xs">
+            <q-btn
+              flat
+              dense
+              color="negative"
+              icon="sym_r_delete"
+              label="Eliminar Configuración"
+              no-caps
+              size="sm"
+              @click="confirmDeleteConfig"
+            />
+          </div>
+        </div>
+
+        <!-- Fila 1: Nombre y Ámbito (General vs Operador) -->
+        <div class="row q-col-gutter-md q-mb-md">
+          <div class="col-12 col-md-6">
+            <q-input
+              v-model="form.name"
+              label="Nombre de la Parametrización *"
+              outlined
+              dark
+              dense
+              placeholder="ej: Horario General UNITEPC, Campaña Admisiones 2026, Turno Tarde..."
+              hint="Identificador de la temporada, campaña u horario de operador"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_label" color="grey-4" size="18px" />
+              </template>
+            </q-input>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="row items-center q-gutter-x-md">
+              <div class="text-caption text-grey-4 text-bold">ÁMBITO / ASIGNACIÓN:</div>
+              <q-radio
+                v-model="form.scope_type"
+                val="general"
+                label="🏢 General (Toda la Sede / Organización)"
+                dark
+                color="teal-4"
+                dense
+              />
+              <q-radio
+                v-model="form.scope_type"
+                val="operator"
+                label="👤 Diferenciado por Operador"
+                dark
+                color="purple-4"
+                dense
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Selector de Operadores (si el ámbito es por operador) -->
+        <div v-if="form.scope_type === 'operator'" class="q-mb-md bg-dark-subtle q-pa-md rounded-borders">
+          <div class="text-caption text-purple-3 text-bold q-mb-xs">
+            SELECCIONA LOS OPERADORES A LOS QUE SE APLICA ESTE HORARIO DIFERENCIADO:
+          </div>
+          <q-select
+            v-model="form.user_ids"
+            :options="operatorsList"
+            option-value="id"
+            option-label="name"
+            emit-value
+            map-options
+            multiple
+            use-chips
+            outlined
+            dark
+            dense
+            placeholder="Selecciona uno o más operadores (ej: Yerko, Anet, Juan Pablo...)"
+            hint="Los chats asignados a estos operadores se regirán bajo este horario específico"
+          >
+            <template #prepend>
+              <q-icon name="sym_r_group" color="purple-4" size="18px" />
+            </template>
+            <template #option="{ itemProps, opt, selected, toggleOption }">
+              <q-item v-bind="itemProps" dense dark class="cursor-pointer" @click="toggleOption(opt)">
+                <q-item-section side>
+                  <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-white text-bold">{{ opt.name }}</q-item-label>
+                  <q-item-label caption class="text-grey-4">{{ opt.email }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </div>
+
+        <!-- Checkbox Horario Predeterminado (si es general) -->
+        <div v-if="form.scope_type === 'general'" class="q-mb-md">
+          <q-checkbox
+            v-model="form.is_default"
+            label="Marcar como Horario General Predeterminado de la Universidad"
+            dark
+            color="primary"
+            dense
+          />
+        </div>
+
+        <!-- Vigencia del Horario (Iniciar Ya vs Rango de Fechas) -->
+        <div class="row items-center justify-between q-mb-sm q-mt-md">
+          <div class="text-caption text-grey-4 text-bold flex items-center q-gutter-x-xs">
+            <q-icon name="sym_r_calendar_today" color="amber-4" size="18px" />
+            <span>VIGENCIA TEMPORAL:</span>
+          </div>
+
           <div class="row items-center q-gutter-x-xs">
             <span class="text-caption text-grey-4">Zona Horaria:</span>
             <q-select
@@ -70,14 +233,12 @@
               outlined
               dark
               options-dense
-              style="min-width: 190px"
+              style="min-width: 180px"
             />
           </div>
         </div>
 
-        <!-- Selector Tipo de Vigencia -->
         <div class="row q-col-gutter-md q-mb-md">
-          <!-- Opción 1: Iniciar Ya -->
           <div class="col-12 col-md-6">
             <div
               class="xf-validity-option cursor-pointer"
@@ -89,17 +250,16 @@
                 <div>
                   <div class="text-body2 text-bold text-white flex items-center q-gutter-x-xs">
                     <q-icon name="sym_r_bolt" color="amber-4" size="18px" />
-                    <span>Iniciar Ya (Continuo e indefinido)</span>
+                    <span>Continuo e Indefinido</span>
                   </div>
                   <div class="text-caption text-grey-4 q-mt-xs">
-                    El horario laboral entra en vigencia de inmediato y se aplica permanentemente semana a semana sin fecha de expiración.
+                    Rige permanentemente semana tras semana sin fecha de expiración.
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Opción 2: Rango de Fechas -->
           <div class="col-12 col-md-6">
             <div
               class="xf-validity-option cursor-pointer"
@@ -111,10 +271,10 @@
                 <div>
                   <div class="text-body2 text-bold text-white flex items-center q-gutter-x-xs">
                     <q-icon name="sym_r_date_range" color="cyan-4" size="18px" />
-                    <span>Programar Rango de Fechas (Temporada / Período)</span>
+                    <span>Temporada / Rango Programado (Campaña)</span>
                   </div>
                   <div class="text-caption text-grey-4 q-mt-xs">
-                    Aplica para temporadas específicas (por ejemplo: periodo de admisiones, semestre universitario, receso o campañas).
+                    Aplica para campañas específicas (admisiones, cursos de verano, receso).
                   </div>
                 </div>
               </div>
@@ -122,8 +282,7 @@
           </div>
         </div>
 
-        <!-- Inputs de Rango de Fechas (si está seleccionado date_range) -->
-        <div v-if="form.validity_type === 'date_range'" class="row q-col-gutter-md bg-dark-subtle q-pa-md rounded-borders">
+        <div v-if="form.validity_type === 'date_range'" class="row q-col-gutter-md bg-dark-subtle q-pa-md rounded-borders q-mb-md">
           <div class="col-12 col-sm-6">
             <q-input
               v-model="form.start_date"
@@ -153,18 +312,16 @@
             </q-input>
           </div>
         </div>
-      </q-card>
 
-      <!-- 3. Sector: Días de la Semana y Horarios de Atención -->
-      <q-card flat bordered class="xf-panel-card q-pa-lg">
-        <div class="row items-center justify-between q-mb-md">
+        <!-- 4. Días de la Semana & Horarios de Atención (con Soporte de Turnos Mañana / Tarde) -->
+        <div class="row items-center justify-between q-my-md">
           <div>
             <div class="text-subtitle1 text-bold text-white flex items-center q-gutter-x-xs">
               <q-icon name="sym_r_schedule" color="teal-4" size="20px" />
-              <span>Días de la Semana & Horas de Atención</span>
+              <span>Jornadas & Turnos de Atención (Mañana / Tarde)</span>
             </div>
             <div class="text-caption text-grey-4">
-              Marca los días en que el equipo atiende y define el rango horario de cada jornada.
+              Configura los rangos horarios de cada día. Puedes definir múltiples turnos divididos para cubrir mañana y tarde.
             </div>
           </div>
 
@@ -178,74 +335,131 @@
             class="q-px-sm"
             @click="copyMondayToWeekdays"
           >
-            <q-tooltip>Replica la hora de inicio y fin del Lunes a Martes, Miércoles, Jueves y Viernes</q-tooltip>
+            <q-tooltip>Replica los turnos del Lunes a Martes, Miércoles, Jueves y Viernes</q-tooltip>
           </q-btn>
         </div>
 
-        <!-- Lista de 7 Días -->
+        <!-- Lista de los 7 Días -->
         <div class="q-gutter-y-sm">
           <div
             v-for="day in weekDays"
             :key="day.key"
-            class="xf-day-row row items-center justify-between q-pa-sm rounded-borders"
+            class="xf-day-row q-pa-md rounded-borders"
             :class="{ 'xf-day-row--disabled': !form.schedule_days[day.key]?.enabled }"
           >
-            <!-- Checkbox y Nombre del Día -->
-            <div class="row items-center q-gutter-x-sm" style="min-width: 170px">
-              <q-checkbox
-                v-model="form.schedule_days[day.key].enabled"
-                dark
-                color="primary"
-                dense
-              />
-              <span class="text-body2 text-bold" :class="form.schedule_days[day.key]?.enabled ? 'text-white' : 'text-grey-5'">
-                {{ day.label }}
-              </span>
-            </div>
-
-            <!-- Horarios Si está Habilitado -->
-            <div v-if="form.schedule_days[day.key]?.enabled" class="row items-center q-gutter-x-sm">
-              <div class="row items-center q-gutter-x-xs">
-                <span class="text-caption text-grey-4">Desde:</span>
-                <q-input
-                  v-model="form.schedule_days[day.key].start_time"
-                  type="time"
-                  dense
-                  outlined
+            <div class="row items-center justify-between">
+              <!-- Checkbox y Nombre del Día -->
+              <div class="row items-center q-gutter-x-sm" style="min-width: 160px">
+                <q-checkbox
+                  v-model="form.schedule_days[day.key].enabled"
                   dark
-                  style="width: 120px"
+                  color="primary"
+                  dense
                 />
+                <span class="text-body2 text-bold" :class="form.schedule_days[day.key]?.enabled ? 'text-white' : 'text-grey-5'">
+                  {{ day.label }}
+                </span>
               </div>
 
-              <span class="text-grey-5">—</span>
-
-              <div class="row items-center q-gutter-x-xs">
-                <span class="text-caption text-grey-4">Hasta:</span>
-                <q-input
-                  v-model="form.schedule_days[day.key].end_time"
-                  type="time"
-                  dense
-                  outlined
-                  dark
-                  style="width: 120px"
-                />
+              <!-- Si está deshabilitado: Cerrado -->
+              <div v-if="!form.schedule_days[day.key]?.enabled" class="text-caption text-grey-5 italic">
+                Cerrado / No laborable
               </div>
 
-              <q-badge color="teal-9" text-color="teal-2" class="text-caption q-ml-sm">
-                {{ calculateDailyHours(form.schedule_days[day.key].start_time, form.schedule_days[day.key].end_time) }}
-              </q-badge>
-            </div>
+              <!-- Si está habilitado: Lista de Turnos / Rangos -->
+              <div v-else class="col row items-center justify-end q-gutter-x-md">
+                <div class="column q-gutter-y-xs">
+                  <!-- Iterar sobre los slots del día -->
+                  <div
+                    v-for="(slot, sIdx) in (form.schedule_days[day.key].slots || [])"
+                    :key="sIdx"
+                    class="row items-center q-gutter-x-xs"
+                  >
+                    <q-badge color="teal-10" text-color="teal-2" class="text-caption q-mr-xs">
+                      {{ slot.name || `Turno ${sIdx + 1}` }}
+                    </q-badge>
 
-            <!-- Badge si está cerrado -->
-            <div v-else class="text-caption text-grey-5 italic q-px-sm">
-              Cerrado / No laborable
+                    <q-input
+                      v-model="slot.start_time"
+                      type="time"
+                      dense
+                      outlined
+                      dark
+                      style="width: 110px"
+                    />
+                    <span class="text-grey-5">—</span>
+                    <q-input
+                      v-model="slot.end_time"
+                      type="time"
+                      dense
+                      outlined
+                      dark
+                      style="width: 110px"
+                    />
+
+                    <!-- Botón para eliminar turno si hay más de 1 -->
+                    <q-btn
+                      v-if="(form.schedule_days[day.key].slots || []).length > 1"
+                      flat
+                      round
+                      dense
+                      size="sm"
+                      icon="sym_r_close"
+                      color="grey-4"
+                      @click="removeSlot(day.key, sIdx)"
+                    >
+                      <q-tooltip>Eliminar este turno</q-tooltip>
+                    </q-btn>
+                  </div>
+
+                  <!-- Si no tiene slots, mostrar start_time y end_time directos -->
+                  <div v-if="!form.schedule_days[day.key].slots || form.schedule_days[day.key].slots.length === 0" class="row items-center q-gutter-x-xs">
+                    <q-input
+                      v-model="form.schedule_days[day.key].start_time"
+                      type="time"
+                      dense
+                      outlined
+                      dark
+                      style="width: 110px"
+                    />
+                    <span class="text-grey-5">—</span>
+                    <q-input
+                      v-model="form.schedule_days[day.key].end_time"
+                      type="time"
+                      dense
+                      outlined
+                      dark
+                      style="width: 110px"
+                    />
+                  </div>
+                </div>
+
+                <!-- Botón para agregar turno (ej: Tarde) -->
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="sm"
+                  color="cyan-3"
+                  icon="sym_r_add"
+                  label="+ Turno / Rango"
+                  @click="addSlot(day.key)"
+                >
+                  <q-tooltip>Agregar otro rango horario para este día (ej: turno tarde)</q-tooltip>
+                </q-btn>
+
+                <!-- Badge con el total de horas -->
+                <q-badge color="teal-9" text-color="teal-2" class="text-caption font-mono">
+                  {{ calculateDayTotalHours(form.schedule_days[day.key]) }}
+                </q-badge>
+              </div>
             </div>
           </div>
         </div>
-      </q-card>
 
-      <!-- 4. Sector: Respuesta Automática Fuera de Horario Laboral -->
-      <q-card flat bordered class="xf-panel-card q-pa-lg">
+        <!-- 5. Respuesta Automática Fuera de Horario -->
+        <q-separator dark class="q-my-lg" />
+
         <div class="row items-center justify-between q-mb-sm">
           <div class="row items-center q-gutter-x-sm">
             <q-avatar size="36px" color="cyan-9" text-color="cyan-2">
@@ -256,12 +470,11 @@
                 Respuesta Automática Fuera de Horario Laboral
               </div>
               <div class="text-caption text-grey-4">
-                Envía un mensaje instantáneo a los clientes que escriban mientras el horario de atención está cerrado.
+                Envía un mensaje instantáneo a los prospectos o alumnos que escriban cuando el horario está cerrado.
               </div>
             </div>
           </div>
 
-          <!-- Toggle Activable o No -->
           <div class="row items-center q-gutter-x-xs">
             <span class="text-caption" :class="form.auto_reply_enabled ? 'text-cyan-3' : 'text-grey-5'">
               {{ form.auto_reply_enabled ? 'Activada' : 'Desactivada' }}
@@ -270,18 +483,15 @@
               v-model="form.auto_reply_enabled"
               dense
               color="cyan-4"
-              @update:model-value="toggleAutoReply"
             />
           </div>
         </div>
 
-        <q-separator dark class="q-my-md" />
-
-        <div v-if="form.auto_reply_enabled" class="row q-col-gutter-lg">
+        <div v-if="form.auto_reply_enabled" class="row q-col-gutter-lg q-mt-xs">
           <!-- Editor del Mensaje -->
           <div class="col-12 col-md-7 q-gutter-y-sm">
             <div class="row items-center justify-between">
-              <span class="text-caption text-grey-4 text-bold">MENSAJE AUTOMÁTICO AL CLIENTE:</span>
+              <span class="text-caption text-grey-4 text-bold">MENSAJE AUTOMÁTICO PROGRAMADO:</span>
               <q-btn
                 flat
                 dense
@@ -289,7 +499,7 @@
                 size="sm"
                 color="cyan-3"
                 icon="sym_r_restart_alt"
-                label="Restablecer mensaje predeterminado"
+                label="Restablecer mensaje oficial UNITEPC"
                 @click="resetDefaultMessage"
               />
             </div>
@@ -304,19 +514,15 @@
               maxlength="1000"
               placeholder="Escribe el mensaje que recibirá el cliente..."
             />
-
-            <div class="text-caption text-grey-5">
-              💡 <strong>Tip:</strong> Puedes incluir información de interés, horario en que se retomará la atención o canales de auto-servicio alternativos.
-            </div>
           </div>
 
-          <!-- Vista Previa Estilo WhatsApp -->
+          <!-- Vista Previa de Chat WhatsApp -->
           <div class="col-12 col-md-5">
-            <div class="text-caption text-grey-4 text-bold q-mb-xs">VISTA PREVIA DE CHAT:</div>
+            <div class="text-caption text-grey-4 text-bold q-mb-xs">VISTA PREVIA EN WHATSAPP:</div>
             <div class="xf-whatsapp-preview q-pa-md">
               <div class="xf-chat-bubble">
                 <div class="text-caption text-white" style="white-space: pre-line; line-height: 1.45;">
-                  {{ form.auto_reply_message || '¡Hola! En este momento estamos fuera de horario...' }}
+                  {{ form.auto_reply_message || '¡Hola! Gracias por comunicarte con nosotros...' }}
                 </div>
                 <div class="row justify-end items-center q-gutter-x-xs q-mt-xs">
                   <span class="text-grey-4" style="font-size: 0.68rem;">{{ currentTime }}</span>
@@ -327,24 +533,29 @@
           </div>
         </div>
 
-        <div v-else class="text-caption text-grey-5 italic q-pa-sm">
-          ⚠️ La auto-respuesta está desactivada. Los mensajes recibidos fuera de horario quedarán en espera sin enviar notificación automática al cliente.
+        <!-- Botones de Acción -->
+        <div class="row items-center justify-end q-gutter-x-md q-mt-xl">
+          <q-btn
+            v-if="isCreatingNew"
+            flat
+            color="grey-4"
+            label="Cancelar"
+            no-caps
+            @click="cancelCreate"
+          />
+
+          <q-btn
+            unelevated
+            color="primary"
+            icon="sym_r_save"
+            :label="isCreatingNew ? 'Crear Parametrización de Horario' : 'Guardar Cambios de Horario'"
+            no-caps
+            class="xf-btn-primary q-px-xl q-py-sm text-weight-bold"
+            :loading="saving"
+            @click="saveCurrentConfig"
+          />
         </div>
       </q-card>
-
-      <!-- Botón Guardar Cambios -->
-      <div class="row justify-end q-mt-md">
-        <q-btn
-          unelevated
-          color="primary"
-          icon="sym_r_save"
-          label="Guardar Configuración de Horario"
-          no-caps
-          class="xf-btn-primary q-px-xl q-py-sm text-weight-bold"
-          :loading="saving"
-          @click="saveBusinessHours"
-        />
-      </div>
     </div>
   </div>
 </template>
@@ -358,10 +569,14 @@ const notify = useAppNotify()
 
 const loading = ref(false)
 const saving = ref(false)
-
 const isCurrentlyOpen = ref(true)
 const currentTime = ref('08:30')
 const currentDayName = ref('Lunes')
+
+const configsList = ref<any[]>([])
+const operatorsList = ref<any[]>([])
+const selectedConfig = ref<any | null>(null)
+const isCreatingNew = ref(false)
 
 const defaultMessageTemplate =
   '¡Hola! Gracias por comunicarte con nosotros. En este momento nos encontramos fuera de nuestro horario de atención habitual. Tu mensaje ha sido registrado y un asesor te responderá a la brevedad tan pronto retomemos actividades. ¡Agradecemos tu paciencia!'
@@ -387,68 +602,266 @@ const timezoneOptions = [
   'UTC',
 ]
 
+interface DayScheduleSlot {
+  name: string
+  start_time: string
+  end_time: string
+  enabled: boolean
+}
+
+interface DaySchedule {
+  enabled: boolean
+  start_time: string
+  end_time: string
+  slots: DayScheduleSlot[]
+}
+
+type WeekScheduleDays = Record<string, DaySchedule>
+
+function defaultDaysStructure(): WeekScheduleDays {
+  return {
+    monday: {
+      enabled: true,
+      start_time: '07:45',
+      end_time: '18:30',
+      slots: [
+        { name: 'Mañana', start_time: '07:45', end_time: '12:30', enabled: true },
+        { name: 'Tarde', start_time: '14:00', end_time: '18:30', enabled: true },
+      ],
+    },
+    tuesday: {
+      enabled: true,
+      start_time: '07:45',
+      end_time: '18:30',
+      slots: [
+        { name: 'Mañana', start_time: '07:45', end_time: '12:30', enabled: true },
+        { name: 'Tarde', start_time: '14:00', end_time: '18:30', enabled: true },
+      ],
+    },
+    wednesday: {
+      enabled: true,
+      start_time: '07:45',
+      end_time: '18:30',
+      slots: [
+        { name: 'Mañana', start_time: '07:45', end_time: '12:30', enabled: true },
+        { name: 'Tarde', start_time: '14:00', end_time: '18:30', enabled: true },
+      ],
+    },
+    thursday: {
+      enabled: true,
+      start_time: '07:45',
+      end_time: '18:30',
+      slots: [
+        { name: 'Mañana', start_time: '07:45', end_time: '12:30', enabled: true },
+        { name: 'Tarde', start_time: '14:00', end_time: '18:30', enabled: true },
+      ],
+    },
+    friday: {
+      enabled: true,
+      start_time: '07:45',
+      end_time: '18:30',
+      slots: [
+        { name: 'Mañana', start_time: '07:45', end_time: '12:30', enabled: true },
+        { name: 'Tarde', start_time: '14:00', end_time: '18:30', enabled: true },
+      ],
+    },
+    saturday: {
+      enabled: true,
+      start_time: '08:15',
+      end_time: '12:30',
+      slots: [{ name: 'Mañana', start_time: '08:15', end_time: '12:30', enabled: true }],
+    },
+    sunday: {
+      enabled: false,
+      start_time: '09:00',
+      end_time: '13:00',
+      slots: [] as DayScheduleSlot[],
+    },
+  }
+}
+
 const form = reactive({
-  name: 'Horario Laboral General',
+  id: '' as string,
+  name: 'Horario General UNITEPC',
+  scope_type: 'general' as 'general' | 'operator',
+  user_ids: [] as string[],
   is_active: true,
+  is_default: true,
   validity_type: 'immediate' as 'immediate' | 'date_range',
   start_date: null as string | null,
   end_date: null as string | null,
   timezone: 'America/La_Paz',
-  schedule_days: {
-    monday: { enabled: true, start_time: '08:30', end_time: '18:30' },
-    tuesday: { enabled: true, start_time: '08:30', end_time: '18:30' },
-    wednesday: { enabled: true, start_time: '08:30', end_time: '18:30' },
-    thursday: { enabled: true, start_time: '08:30', end_time: '18:30' },
-    friday: { enabled: true, start_time: '08:30', end_time: '18:30' },
-    saturday: { enabled: false, start_time: '09:00', end_time: '13:00' },
-    sunday: { enabled: false, start_time: '09:00', end_time: '13:00' },
-  } as Record<string, { enabled: boolean; start_time: string; end_time: string }>,
+  schedule_days: defaultDaysStructure() as WeekScheduleDays,
   auto_reply_enabled: true,
   auto_reply_message: defaultMessageTemplate,
 })
 
-async function fetchBusinessHours() {
+async function fetchConfigs() {
   loading.value = true
   try {
-    const res = await http.get('/business-hours')
-    const data = res.data.data
-    const meta = res.data.meta
+    const res = await http.get('/business-hours/configs')
+    configsList.value = res.data.data || []
+    operatorsList.value = res.data.operators || []
 
-    form.name = data.name || 'Horario Laboral General'
-    form.is_active = data.is_active ?? true
-    form.validity_type = data.validity_type || 'immediate'
-    form.start_date = data.start_date ? data.start_date.split('T')[0] : null
-    form.end_date = data.end_date ? data.end_date.split('T')[0] : null
-    form.timezone = data.timezone || 'America/La_Paz'
-    if (data.schedule_days) {
-      form.schedule_days = { ...form.schedule_days, ...data.schedule_days }
+    if (res.data.meta) {
+      currentTime.value = res.data.meta.current_time || '08:30'
+      currentDayName.value = translateDay(res.data.meta.current_day)
     }
-    form.auto_reply_enabled = data.auto_reply_enabled ?? true
-    form.auto_reply_message = data.auto_reply_message || defaultMessageTemplate
 
-    if (meta) {
-      isCurrentlyOpen.value = meta.is_within_hours ?? true
-      currentTime.value = meta.current_time || '08:30'
-      currentDayName.value = translateDay(meta.current_day)
+    if (configsList.value.length > 0) {
+      // Si no hay seleccionado o el seleccionado ya no existe, elegir el primero (default)
+      const target = configsList.value.find((c) => c.id === selectedConfig.value?.id) || configsList.value[0]
+      selectConfig(target)
     }
   } catch {
-    notify.error({ message: 'Error al cargar la configuración de horario laboral.' })
+    notify.error({ message: 'Error al cargar las configuraciones de horario.' })
   } finally {
     loading.value = false
   }
 }
 
-async function saveBusinessHours() {
+function selectConfig(cfg: any) {
+  isCreatingNew.value = false
+  selectedConfig.value = cfg
+
+  form.id = cfg.id
+  form.name = cfg.name
+  form.scope_type = cfg.scope_type || 'general'
+  form.user_ids = (cfg.users || []).map((u: any) => u.id)
+  form.is_active = cfg.is_active ?? true
+  form.is_default = cfg.is_default ?? false
+  form.validity_type = cfg.validity_type || 'immediate'
+  form.start_date = cfg.start_date ? cfg.start_date.split('T')[0] : null
+  form.end_date = cfg.end_date ? cfg.end_date.split('T')[0] : null
+  form.timezone = cfg.timezone || 'America/La_Paz'
+  form.auto_reply_enabled = cfg.auto_reply_enabled ?? true
+  form.auto_reply_message = cfg.auto_reply_message || defaultMessageTemplate
+
+  // Normalizar schedule_days asegurando slots
+  const mergedDays = { ...defaultDaysStructure(), ...(cfg.schedule_days || {}) }
+  for (const dayKey of Object.keys(mergedDays)) {
+    const dayObj = mergedDays[dayKey as keyof typeof mergedDays]
+    if (dayObj && !dayObj.slots) {
+      dayObj.slots = dayObj.enabled
+        ? [{ name: 'Continuo', start_time: dayObj.start_time || '07:45', end_time: dayObj.end_time || '18:30', enabled: true }]
+        : []
+    }
+  }
+  form.schedule_days = mergedDays
+}
+
+function openNewConfigForm() {
+  isCreatingNew.value = true
+  selectedConfig.value = null
+
+  form.id = ''
+  form.name = 'Nueva Campaña / Temporada'
+  form.scope_type = 'general'
+  form.user_ids = []
+  form.is_active = true
+  form.is_default = false
+  form.validity_type = 'date_range'
+  form.start_date = null
+  form.end_date = null
+  form.timezone = 'America/La_Paz'
+  form.schedule_days = defaultDaysStructure()
+  form.auto_reply_enabled = true
+  form.auto_reply_message = defaultMessageTemplate
+}
+
+function cancelCreate() {
+  if (configsList.value.length > 0) {
+    selectConfig(configsList.value[0])
+  }
+}
+
+function addSlot(dayKey: string) {
+  const day = form.schedule_days[dayKey as keyof typeof form.schedule_days]
+  if (!day) return
+  if (!day.slots) day.slots = []
+
+  const nextName = day.slots.length === 0 ? 'Mañana' : day.slots.length === 1 ? 'Tarde' : `Turno ${day.slots.length + 1}`
+  const defaultStart = day.slots.length === 1 ? '14:00' : '07:45'
+  const defaultEnd = day.slots.length === 1 ? '18:30' : '12:30'
+
+  day.slots.push({
+    name: nextName,
+    start_time: defaultStart,
+    end_time: defaultEnd,
+    enabled: true,
+  })
+}
+
+function removeSlot(dayKey: string, index: number) {
+  const day = form.schedule_days[dayKey as keyof typeof form.schedule_days]
+  if (day && day.slots) {
+    day.slots.splice(index, 1)
+  }
+}
+
+function calculateDayTotalHours(dayObj: any): string {
+  if (!dayObj || !dayObj.enabled) return 'Cerrado'
+  let totalMins = 0
+
+  if (dayObj.slots && dayObj.slots.length > 0) {
+    for (const slot of dayObj.slots) {
+      if (slot.start_time && slot.end_time) {
+        const [sh, sm] = slot.start_time.split(':').map(Number)
+        const [eh, em] = slot.end_time.split(':').map(Number)
+        let diff = eh * 60 + em - (sh * 60 + sm)
+        if (diff > 0) totalMins += diff
+      }
+    }
+  } else if (dayObj.start_time && dayObj.end_time) {
+    const [sh, sm] = dayObj.start_time.split(':').map(Number)
+    const [eh, em] = dayObj.end_time.split(':').map(Number)
+    let diff = eh * 60 + em - (sh * 60 + sm)
+    if (diff > 0) totalMins += diff
+  }
+
+  const h = Math.floor(totalMins / 60)
+  const m = totalMins % 60
+  return m > 0 ? `${h}h ${m}m atención` : `${h}h atención`
+}
+
+function copyMondayToWeekdays() {
+  const mon = form.schedule_days.monday
+  if (!mon) return
+  ;['tuesday', 'wednesday', 'thursday', 'friday'].forEach((k) => {
+    form.schedule_days[k as keyof typeof form.schedule_days] = JSON.parse(JSON.stringify(mon))
+  })
+  notify.info({ message: 'Horario y turnos de Lunes replicados de Martes a Viernes.' })
+}
+
+function resetDefaultMessage() {
+  form.auto_reply_message = defaultMessageTemplate
+  notify.info({ message: 'Mensaje restaurado al estándar institucional de UNITEPC.' })
+}
+
+async function saveCurrentConfig() {
+  if (!form.name.trim()) {
+    notify.warning({ message: 'Por favor ingresa un nombre para esta parametrización.' })
+    return
+  }
+
   if (form.validity_type === 'date_range' && (!form.start_date || !form.end_date)) {
-    notify.warning({ message: 'Por favor define la fecha de inicio y fin para el rango programado.' })
+    notify.warning({ message: 'Por favor define la fecha de inicio y fin para la campaña/temporada.' })
+    return
+  }
+
+  if (form.scope_type === 'operator' && form.user_ids.length === 0) {
+    notify.warning({ message: 'Selecciona al menos un operador para este horario diferenciado.' })
     return
   }
 
   saving.value = true
   try {
     const payload = {
-      name: form.name,
+      name: form.name.trim(),
+      scope_type: form.scope_type,
+      user_ids: form.scope_type === 'operator' ? form.user_ids : [],
       is_active: form.is_active,
+      is_default: form.scope_type === 'general' ? form.is_default : false,
       validity_type: form.validity_type,
       start_date: form.validity_type === 'date_range' ? form.start_date : null,
       end_date: form.validity_type === 'date_range' ? form.end_date : null,
@@ -458,67 +871,49 @@ async function saveBusinessHours() {
       auto_reply_message: form.auto_reply_message.trim(),
     }
 
-    const res = await http.put('/business-hours', payload)
-    notify.success({ message: 'Horario laboral y auto-respuesta guardados exitosamente.' })
-
-    if (res.data.meta) {
-      isCurrentlyOpen.value = res.data.meta.is_within_hours
-      currentTime.value = res.data.meta.current_time
-      currentDayName.value = translateDay(res.data.meta.current_day)
+    if (isCreatingNew.value) {
+      const res = await http.post('/business-hours/configs', payload)
+      notify.success({ message: 'Nueva parametrización de horario creada exitosamente.' })
+      await fetchConfigs()
+      selectConfig(res.data.data)
+    } else {
+      const res = await http.put(`/business-hours/configs/${form.id}`, payload)
+      notify.success({ message: 'Parametrización de horario actualizada exitosamente.' })
+      await fetchConfigs()
+      selectConfig(res.data.data)
     }
   } catch (err: any) {
-    notify.error({ message: err?.response?.data?.message || 'Error al guardar horario.' })
+    notify.error({ message: err?.response?.data?.message || 'Error al guardar horario laboral.' })
   } finally {
     saving.value = false
   }
 }
 
-async function toggleActive() {
+async function toggleCurrentActive() {
+  if (!form.id) return
   try {
-    const res = await http.patch('/business-hours/toggle')
+    const res = await http.patch(`/business-hours/configs/${form.id}/toggle`)
     form.is_active = res.data.data.is_active
     notify.success({ message: res.data.message })
-    await fetchBusinessHours()
+    await fetchConfigs()
   } catch {
-    notify.error({ message: 'No se pudo alternar el estado del horario laboral.' })
+    notify.error({ message: 'No se pudo alternar el estado del horario.' })
   }
 }
 
-async function toggleAutoReply() {
+async function confirmDeleteConfig() {
+  if (!confirm(`¿Estás seguro de eliminar la parametrización "${form.name}"?`)) {
+    return
+  }
+
   try {
-    const res = await http.patch('/business-hours/toggle-auto-reply')
-    form.auto_reply_enabled = res.data.data.auto_reply_enabled
-    notify.success({ message: res.data.message })
-  } catch {
-    notify.error({ message: 'No se pudo alternar la auto-respuesta.' })
+    await http.delete(`/business-hours/configs/${form.id}`)
+    notify.success({ message: 'Parametrización eliminada correctamente.' })
+    selectedConfig.value = null
+    await fetchConfigs()
+  } catch (err: any) {
+    notify.error({ message: err?.response?.data?.message || 'Error al eliminar configuración.' })
   }
-}
-
-function copyMondayToWeekdays() {
-  const mon = form.schedule_days.monday
-  if (!mon) return
-  ;['tuesday', 'wednesday', 'thursday', 'friday'].forEach((k) => {
-    form.schedule_days[k].enabled = mon.enabled
-    form.schedule_days[k].start_time = mon.start_time
-    form.schedule_days[k].end_time = mon.end_time
-  })
-  notify.info({ message: 'Horario de Lunes replicado de Martes a Viernes.' })
-}
-
-function resetDefaultMessage() {
-  form.auto_reply_message = defaultMessageTemplate
-  notify.info({ message: 'Mensaje restaurado al valor predeterminado.' })
-}
-
-function calculateDailyHours(start: string, end: string): string {
-  if (!start || !end) return ''
-  const [sh, sm] = start.split(':').map(Number)
-  const [eh, em] = end.split(':').map(Number)
-  let mins = eh * 60 + em - (sh * 60 + sm)
-  if (mins < 0) mins += 24 * 60
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return m > 0 ? `${h}h ${m}m de atención` : `${h} horas de atención`
 }
 
 function translateDay(day?: string): string {
@@ -535,7 +930,7 @@ function translateDay(day?: string): string {
 }
 
 onMounted(() => {
-  fetchBusinessHours()
+  fetchConfigs()
 })
 </script>
 
@@ -565,6 +960,25 @@ onMounted(() => {
   border-radius: 14px;
 }
 
+.xf-config-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  &--active {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  }
+}
+
 .xf-validity-option {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -587,17 +1001,21 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.25);
 }
 
+.border-bottom-subtle {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
 .xf-day-row {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: background 0.15s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.035);
   }
 
   &--disabled {
-    opacity: 0.65;
+    opacity: 0.6;
   }
 }
 

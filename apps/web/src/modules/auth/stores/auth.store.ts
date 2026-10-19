@@ -48,13 +48,8 @@ const ROLE_PERMISSIONS: Record<AuthRole, string[]> = {
   admin: [...ALL_PERMISSIONS],
   agent: [
     'dashboard.view',
-    'reports.view',
-    'organizations.switch',
-    'users.view',
     'contacts.view',
     'contacts.manage',
-    'companies.view',
-    'companies.manage',
     'deals.view',
     'deals.manage',
     'pipelines.view',
@@ -62,20 +57,12 @@ const ROLE_PERMISSIONS: Record<AuthRole, string[]> = {
     'conversations.manage',
     'conversations.assign',
     'conversations.status.manage',
-    'whatsapp.view',
-    'whatsapp.manage',
-    'automations.view',
     'ai.use',
   ],
   member: [
     'dashboard.view',
-    'reports.view',
-    'organizations.switch',
-    'users.view',
     'contacts.view',
     'contacts.manage',
-    'companies.view',
-    'companies.manage',
     'deals.view',
     'deals.manage',
     'pipelines.view',
@@ -83,22 +70,14 @@ const ROLE_PERMISSIONS: Record<AuthRole, string[]> = {
     'conversations.manage',
     'conversations.assign',
     'conversations.status.manage',
-    'whatsapp.view',
-    'whatsapp.manage',
-    'automations.view',
     'ai.use',
   ],
   viewer: [
     'dashboard.view',
-    'reports.view',
-    'organizations.switch',
-    'users.view',
     'contacts.view',
-    'companies.view',
     'deals.view',
     'pipelines.view',
     'conversations.view',
-    'whatsapp.view',
   ],
 }
 
@@ -124,6 +103,20 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => state.user !== null,
     currentOrganization: (state) => state.user?.current_organization ?? null,
     currentRole: (state): AuthRole | null => state.demoRole ?? state.user?.current_role ?? null,
+    isAdmin: (state): boolean => {
+      if (state.user?.email === 'admin@crm.local') {
+        return true
+      }
+      const role = state.demoRole ?? state.user?.current_role ?? null
+      return role === 'owner' || role === 'admin'
+    },
+    isSuperAdmin: (state): boolean => {
+      return state.user?.email === 'admin@crm.local'
+    },
+    isAgent: (state): boolean => {
+      const role = state.demoRole ?? state.user?.current_role ?? null
+      return role === 'agent' || role === 'member'
+    },
     isUsingDemoRole: (state): boolean => state.demoRole !== null,
     permissions: (state): string[] => {
       if (state.demoRole) {

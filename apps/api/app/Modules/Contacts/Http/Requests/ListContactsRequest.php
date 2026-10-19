@@ -14,6 +14,8 @@ class ListContactsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'ids' => ['nullable'],
+            'ids.*' => ['nullable', 'string'],
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'in:active,lead,inactive'],
             'channel' => ['nullable', 'string', 'max:50'],
@@ -24,7 +26,7 @@ class ListContactsRequest extends FormRequest
             'tag' => ['nullable'],
             'tags' => ['nullable'],
             'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:5000'],
         ];
     }
 }

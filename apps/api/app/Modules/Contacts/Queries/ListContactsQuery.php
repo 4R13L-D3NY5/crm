@@ -16,6 +16,13 @@ class ListContactsQuery
         return Contact::query()
             ->with(['tags', 'customStatus', 'categories', 'conversations.categories', 'conversations.whatsappAccount'])
             ->where('organization_id', $user->current_organization_id)
+            ->when($filters['ids'] ?? null, function (Builder $query, $ids) {
+                $idList = is_array($ids) ? $ids : explode(',', (string) $ids);
+                $idList = array_filter(array_map('trim', $idList));
+                if (!empty($idList)) {
+                    $query->whereIn('id', $idList);
+                }
+            })
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
                 $query->where(function (Builder $nested) use ($search) {
                     $nested

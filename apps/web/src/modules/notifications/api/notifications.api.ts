@@ -47,3 +47,9 @@ export async function deleteNotification(id: string) {
   const { data } = await http.delete<{ success: boolean; message: string }>(`/notifications/${id}`)
   return data
 }
+
+export async function triggerTestNotificationApi() {
+  const { data } = await http.post<{ success: boolean; message: string; notification: AppNotificationItem }>('/notifications/test')
+  return data
+}
+

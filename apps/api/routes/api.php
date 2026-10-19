@@ -23,6 +23,10 @@ Route::get('social/comments/webhook', [\App\Modules\Social\Http\Controllers\Soci
 Route::post('social/comments/webhook', [\App\Modules\Social\Http\Controllers\SocialCommentController::class, 'handleWebhook'])->name('social.comments.webhook');
 
 Route::middleware('web')->group(function (): void {
+    Route::get('/login', static function () {
+        return response()->json(['message' => 'Unauthenticated.'], 401);
+    })->name('login');
+
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:login')
         ->name('api.login');
