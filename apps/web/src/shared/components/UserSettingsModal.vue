@@ -475,6 +475,7 @@ import {
   setupTwoFactor,
   updatePassword,
 } from '@/modules/auth/api/profile.api'
+import { playNotificationSound } from '@/modules/notifications/utils/sound.util'
 
 const props = defineProps<{
   modelValue: boolean
@@ -626,55 +627,8 @@ async function handleSavePreferences() {
   }
 }
 
-// Web Audio API Synthesizer (reproduce sonidos reales sin necesidad de mp3 externos)
 function playTestSound(soundType?: string) {
-  if (!soundType || soundType === 'none') return
-  try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const gain = ctx.createGain()
-    const vol = ((preferences.notification_volume ?? 80) / 100) * 0.3
-    gain.gain.setValueAtTime(vol, ctx.currentTime)
-    gain.connect(ctx.destination)
-
-    if (soundType === 'chime') {
-      const osc1 = ctx.createOscillator()
-      const osc2 = ctx.createOscillator()
-      osc1.frequency.setValueAtTime(523.25, ctx.currentTime) // C5
-      osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1) // E5
-      osc1.connect(gain)
-      osc2.connect(gain)
-      osc1.start(ctx.currentTime)
-      osc1.stop(ctx.currentTime + 0.2)
-      osc2.start(ctx.currentTime + 0.1)
-      osc2.stop(ctx.currentTime + 0.35)
-    } else if (soundType === 'bell') {
-      const osc = ctx.createOscillator()
-      osc.type = 'triangle'
-      osc.frequency.setValueAtTime(880, ctx.currentTime) // A5
-      osc.connect(gain)
-      osc.start(ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
-      osc.stop(ctx.currentTime + 0.5)
-    } else if (soundType === 'modern') {
-      const osc = ctx.createOscillator()
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(600, ctx.currentTime)
-      osc.frequency.setValueAtTime(900, ctx.currentTime + 0.08)
-      osc.connect(gain)
-      osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.2)
-    } else if (soundType === 'pop') {
-      const osc = ctx.createOscillator()
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(400, ctx.currentTime)
-      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1)
-      osc.connect(gain)
-      osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.12)
-    }
-  } catch {
-    // Si no tiene soporte de AudioContext
-  }
+  playNotificationSound(soundType || 'chime', preferences.notification_volume ?? 80)
 }
 
 function checkNotificationPermission() {

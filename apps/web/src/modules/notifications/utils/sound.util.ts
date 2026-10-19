@@ -6,9 +6,39 @@
 export type NotificationSoundType = 'chime' | 'bell' | 'modern' | 'pop' | 'none'
 
 let audioCtx: AudioContext | null = null
+let hasUserInteracted = false
+
+function initInteractionListener(): void {
+  if (typeof window === 'undefined' || hasUserInteracted) return
+
+  const unlockAudio = () => {
+    hasUserInteracted = true
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {})
+    }
+    window.removeEventListener('click', unlockAudio, true)
+    window.removeEventListener('keydown', unlockAudio, true)
+    window.removeEventListener('touchstart', unlockAudio, true)
+    window.removeEventListener('pointerdown', unlockAudio, true)
+  }
+
+  window.addEventListener('click', unlockAudio, { once: true, passive: true, capture: true })
+  window.addEventListener('keydown', unlockAudio, { once: true, passive: true, capture: true })
+  window.addEventListener('touchstart', unlockAudio, { once: true, passive: true, capture: true })
+  window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true, capture: true })
+}
+
+if (typeof window !== 'undefined') {
+  initInteractionListener()
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
+
+  // Si el usuario aún no interactuó con el DOM, no instanciamos ni forzamos resume()
+  // para cumplir con la política de autoplay del navegador y no emitir advertencias en consola.
+  if (!hasUserInteracted) return null
+
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     if (AudioContextClass) {
@@ -17,7 +47,7 @@ function getAudioContext(): AudioContext | null {
   }
   if (audioCtx && audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {
-      // Navegador bloqueó audio hasta primer gesto de usuario
+      // Navegador suspendió audio
     })
   }
   return audioCtx
