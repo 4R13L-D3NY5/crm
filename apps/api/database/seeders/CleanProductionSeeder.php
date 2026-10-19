@@ -157,5 +157,14 @@ class CleanProductionSeeder extends Seeder
                 'is_active' => true,
             ]);
         }
+
+        // 6. Sembrar Estructura Oficial UNITEPC (Sedes, Carreras con Códigos, Operadores Regionales y Horarios SLA)
+        // No toca ni modifica bajo ninguna circunstancia cuentas de WhatsApp ni canales conectados
+        if (!\App\Modules\Parameters\Models\Category::where('organization_id', $organization->id)->exists()) {
+            \Illuminate\Support\Facades\Artisan::call('crm:seed-unitepc-structure', [
+                '--org' => $organization->id,
+            ]);
+        }
     }
 }
+

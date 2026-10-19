@@ -306,8 +306,20 @@ class CategoryController extends Controller
     {
         $organization = $request->user()->currentOrganization;
 
+        // Si la organización es UNITEPC o se solicita la estructura oficial
+        if ($organization->slug === 'unitepc' || str_contains(strtolower($organization->name), 'unitepc') || $request->input('type') === 'unitepc') {
+            \Illuminate\Support\Facades\Artisan::call('crm:seed-unitepc-structure', [
+                '--org' => $organization->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Estructura oficial de UNITEPC (Sedes, Carreras con Códigos, Horarios y Operadores) cargada exitosamente.',
+            ]);
+        }
+
         // 1. Rama Productos & Soluciones
         $soluciones = Category::create([
+
             'organization_id' => $organization->id,
             'name' => 'Productos & Soluciones',
             'code' => 'PROD-SOL',

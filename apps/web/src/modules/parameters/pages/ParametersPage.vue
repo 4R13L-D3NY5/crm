@@ -14,13 +14,13 @@
           v-if="activeTab === 'categories' && categories.length === 0"
           outline
           color="teal-4"
-          icon="sym_r_category"
-          label="Cargar Plantilla Comercial"
+          icon="sym_r_school"
+          label="Cargar Estructura UNITEPC"
           no-caps
           :loading="seeding"
           @click="seedAcademicTemplate"
         >
-          <q-tooltip>Carga automática de ejemplo: Categorías principales (Productos, Servicios) y subcategorías vinculadas</q-tooltip>
+          <q-tooltip>Carga automática oficial: Sedes (Cochabamba, La Paz, El Alto, Santa Cruz, etc.) y Carreras con Códigos</q-tooltip>
         </q-btn>
 
         <q-btn
@@ -102,15 +102,15 @@
       <q-card v-if="!loading && categories.length === 0" flat bordered class="xf-empty-card q-pa-xl text-center">
         <q-icon name="sym_r_account_tree" size="56px" color="teal-4" class="q-mb-md" />
         <div class="text-h6 text-white text-bold">No hay categorías configuradas</div>
-        <p class="text-caption text-grey-4 q-mt-sm" style="max-width: 520px; margin: 8px auto 20px">
-          Puedes crear una estructura multinivel a la medida (por ejemplo: Línea de Negocio &gt; Categoría &gt; Subcategoría), o cargar la plantilla comercial base en 1 clic.
+        <p class="text-caption text-grey-4 q-mt-sm" style="max-width: 540px; margin: 8px auto 20px">
+          Puedes crear una taxonomía a la medida, o cargar en 1 clic la estructura oficial de la Universidad UNITEPC (Sedes regionales y Carreras con códigos oficiales).
         </p>
         <div class="row justify-center q-gutter-sm">
           <q-btn
             unelevated
             class="xf-btn-primary"
-            icon="sym_r_category"
-            label="Cargar Plantilla Comercial Base"
+            icon="sym_r_school"
+            label="Cargar Estructura Oficial UNITEPC (Sedes & Carreras)"
             no-caps
             :loading="seeding"
             @click="seedAcademicTemplate"
@@ -1207,7 +1207,7 @@ async function seedAcademicTemplate() {
   seeding.value = true
   try {
     await http.post('/categories/seed-template')
-    notify.success('Plantilla comercial de categorías y subcategorías cargada exitosamente')
+    notify.success('Estructura oficial de UNITEPC (Sedes, Carreras y Códigos) cargada exitosamente.')
     await fetchCategories()
   } catch (error: any) {
     notify.error(error.response?.data?.message || 'Error al cargar plantilla')
