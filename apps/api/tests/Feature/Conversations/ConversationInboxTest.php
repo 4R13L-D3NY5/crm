@@ -113,6 +113,76 @@ class ConversationInboxTest extends TestCase
         $visibleResponse->assertOk();
     }
 
+    public function test_agent_can_access_companies_and_reports_and_is_scoped_by_channel(): void
+    {
+        $organization = Organization::factory()->create();
+        
+        $admin = User::factory()->create(['current_organization_id' => $organization->id]);
+        $organization->users()->attach($admin->id, ['id' => (string) str()->ulid(), 'role' => 'admin']);
+
+        $agent = User::factory()->create(['current_organization_id' => $organization->id]);
+        $organization->users()->attach($agent->id, ['id' => (string) str()->ulid(), 'role' => 'agent']);
+
+        // 1. Agent can access companies and reports without 403
+        $this->actingAs($agent)->getJson('/api/companies')->assertOk();
+        $this->actingAs($agent)->getJson('/api/reports/dashboard')->assertOk();
+
+        // 2. Channel isolation
+        $channelCochabamba = \App\Modules\WhatsApp\Models\WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->id,
+            'name' => 'Canal Cochabamba',
+        ]);
+        $channelLaPaz = \App\Modules\WhatsApp\Models\WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->id,
+            'name' => 'Canal La Paz',
+        ]);
+
+        // Restrict channel La Paz to admin only
+        $channelLaPaz->authorizedUsers()->attach($admin->id, [
+            'id' => (string) str()->ulid(),
+            'can_view' => true,
+            'can_reply' => true,
+        ]);
+
+        // Restrict channel Cochabamba to agent
+        $channelCochabamba->authorizedUsers()->attach($agent->id, [
+            'id' => (string) str()->ulid(),
+            'can_view' => true,
+            'can_reply' => true,
+        ]);
+
+        $convCbba = Conversation::factory()->create([
+            'organization_id' => $organization->id,
+            'whatsapp_account_id' => $channelCochabamba->id,
+            'status' => 'open',
+        ]);
+
+        $convLP = Conversation::factory()->create([
+            'organization_id' => $organization->id,
+            'whatsapp_account_id' => $channelLaPaz->id,
+            'status' => 'open',
+        ]);
+
+        // Agent querying inbox should see convCbba, but NOT convLP
+        $listResponse = $this->actingAs($agent)->getJson('/api/conversations');
+        $listResponse->assertOk();
+        $ids = collect($listResponse->json('data'))->pluck('id')->all();
+        $this->assertContains($convCbba->id, $ids);
+        $this->assertNotContains($convLP->id, $ids);
+
+        // Agent viewing convLP directly gets 403
+        $this->actingAs($agent)->getJson("/api/conversations/{$convLP->id}")->assertForbidden();
+
+        // Agent viewing convCbba succeeds
+        $this->actingAs($agent)->getJson("/api/conversations/{$convCbba->id}")->assertOk();
+
+        // Admin sees both
+        $adminList = $this->actingAs($admin)->getJson('/api/conversations');
+        $adminIds = collect($adminList->json('data'))->pluck('id')->all();
+        $this->assertContains($convCbba->id, $adminIds);
+        $this->assertContains($convLP->id, $adminIds);
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();

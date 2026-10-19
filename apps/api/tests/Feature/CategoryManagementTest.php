@@ -152,15 +152,15 @@ class CategoryManagementTest extends TestCase
 
         $this->assertDatabaseHas('categories', [
             'organization_id' => $this->organization->id,
-            'name' => 'Productos & Soluciones',
+            'name' => 'Sede Cochabamba (Central)',
         ]);
         $this->assertDatabaseHas('categories', [
             'organization_id' => $this->organization->id,
-            'name' => 'Desarrollo de Software',
+            'name' => 'Sede La Paz',
         ]);
         $this->assertDatabaseHas('categories', [
             'organization_id' => $this->organization->id,
-            'name' => 'Soluciones Cloud & Software',
+            'name' => 'Sede El Alto',
         ]);
     }
 

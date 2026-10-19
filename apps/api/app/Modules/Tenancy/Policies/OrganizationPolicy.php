@@ -9,7 +9,7 @@ class OrganizationPolicy
 {
     public function view(User $user, Organization $organization): bool
     {
-        return $user->hasPermission('reports.view')
+        return ($user->hasPermission('reports.view') || $user->hasPermission('dashboard.view'))
             && $this->belongsToOrganization($user, $organization);
     }
 

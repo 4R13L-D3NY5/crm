@@ -58,11 +58,24 @@ class NotificationService
             ->whereIn('status', ['open', 'pending'])
             ->with(['contact', 'assignedToUser', 'latestExternalMessage', 'latestMessage']);
 
-        // Si el usuario es operador/agente (no admin), limitar alertas a sus conversaciones o sin asignar
+        // Si el usuario es operador/agente (no admin), limitar alertas a sus conversaciones o de sus canales asignados
         if (!$user->isAdmin()) {
             $convQuery->where(function ($q) use ($user) {
                 $q->where('assigned_to_user_id', $user->id)
-                  ->orWhereNull('assigned_to_user_id');
+                  ->orWhere(function ($unassigned) use ($user) {
+                      $unassigned->whereNull('assigned_to_user_id')
+                          ->where(function ($channelQ) use ($user) {
+                              $channelQ->whereHas('whatsappAccount.authorizedUsers', function ($uq) use ($user) {
+                                  $uq->where('users.id', $user->id)
+                                     ->where('whatsapp_account_users.can_view', true);
+                              })
+                              ->orWhere(function ($unrestricted) {
+                                  $unrestricted->whereNotNull('whatsapp_account_id')
+                                               ->whereDoesntHave('whatsappAccount.authorizedUsers');
+                              })
+                              ->orWhereNull('whatsapp_account_id');
+                          });
+                  });
             });
         }
 

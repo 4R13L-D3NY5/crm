@@ -282,6 +282,70 @@ class SendWhatsAppMessageTest extends TestCase
         $this->assertSame('sent', $message->message_status, (string) $message->error_message);
     }
 
+    public function test_agent_with_channel_permission_can_send_whatsapp_message(): void
+    {
+        $organization = Organization::factory()->create();
+        $agent = User::factory()->create(['current_organization_id' => $organization->getKey()]);
+        $organization->users()->attach($agent->getKey(), [
+            'id' => (string) str()->ulid(),
+            'role' => 'agent',
+        ]);
+
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => '555987654321',
+            'access_token' => 'meta-token',
+            'is_active' => true,
+        ]);
+
+        // Authorize agent on this channel
+        $account->authorizedUsers()->attach($agent->getKey(), [
+            'id' => (string) str()->ulid(),
+            'can_view' => true,
+            'can_reply' => true,
+        ]);
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone' => '59170001099',
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->getKey(),
+            'whatsapp_account_id' => $account->getKey(),
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+
+        Http::fake([
+            'https://graph.facebook.com/*' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [['id' => 'wamid.agent.123']],
+            ], 200),
+        ]);
+
+        // Agent sends message successfully
+        $response = $this->actingAs($agent)->postJson("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'body' => 'Hola desde el operador autorizado.',
+        ]);
+
+        $response->assertCreated();
+
+        // Another agent WITHOUT reply permission on this channel should be forbidden (403)
+        $unauthorizedAgent = User::factory()->create(['current_organization_id' => $organization->getKey()]);
+        $organization->users()->attach($unauthorizedAgent->getKey(), [
+            'id' => (string) str()->ulid(),
+            'role' => 'agent',
+        ]);
+
+        $forbiddenResponse = $this->actingAs($unauthorizedAgent)->postJson("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'body' => 'Intento no autorizado.',
+        ]);
+
+        $forbiddenResponse->assertForbidden();
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();
