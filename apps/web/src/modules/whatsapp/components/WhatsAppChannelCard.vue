@@ -16,14 +16,17 @@
 
           <div class="col overflow-hidden" style="min-width: 0">
             <div class="row items-center q-gutter-x-xs no-wrap">
-              <span class="channel-name ellipsis text-weight-bold text-white" :title="account.name" style="max-width: calc(100% - 90px)">
+              <span class="channel-name ellipsis text-weight-bold text-white cursor-pointer" :title="account.name" style="max-width: calc(100% - 105px)" @click="openEditDialog">
                 {{ account.name }}
               </span>
+              <q-btn flat round dense size="xs" icon="sym_r_edit" color="grey-4" @click.stop="openEditDialog">
+                <q-tooltip class="text-caption">Editar datos del canal</q-tooltip>
+              </q-btn>
               <span class="platform-badge shrink-0" :style="{ borderColor: platformMeta.color + '44', color: platformMeta.color }">
                 {{ platformMeta.label }}
               </span>
             </div>
-            <div class="channel-number text-caption text-grey-4 ellipsis">
+            <div class="channel-number text-caption text-grey-4 ellipsis cursor-pointer" @click="openEditDialog" title="Clic para editar número visible">
               {{ channelDisplayIdentifier }}
             </div>
           </div>
@@ -34,6 +37,15 @@
           <q-tooltip class="text-caption">Opciones del Canal</q-tooltip>
           <q-menu dark dense class="channel-menu">
             <q-list>
+              <q-item
+                clickable
+                v-close-popup
+                @click="openEditDialog"
+              >
+                <q-item-section avatar><q-icon name="sym_r_edit" size="16px" color="teal-4" /></q-item-section>
+                <q-item-section>Editar Datos del Canal</q-item-section>
+              </q-item>
+
               <q-item
                 clickable
                 v-close-popup
@@ -255,6 +267,16 @@
           label="Simular Entrada"
           color="teal-4"
           @click="emit('simulate', account)"
+        />
+        <q-btn
+          flat
+          dense
+          size="sm"
+          no-caps
+          icon="sym_r_edit"
+          label="Editar"
+          color="teal-4"
+          @click="openEditDialog"
         />
         <q-btn
           flat
@@ -562,11 +584,194 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Modal para Editar Datos del Canal -->
+    <q-dialog v-model="showEditDialog">
+      <q-card style="width: 520px; max-width: 95vw; max-height: 90vh;" class="credentials-card column no-wrap">
+        <q-card-section class="row items-center justify-between q-pb-none col-auto">
+          <div class="row items-center q-gutter-x-sm">
+            <q-avatar size="28px" :style="{ background: platformMeta.color + '22' }">
+              <q-icon :name="platformMeta.icon" size="16px" :style="{ color: platformMeta.color }" />
+            </q-avatar>
+            <div>
+              <div class="text-subtitle2 text-weight-bold text-white">Editar Datos del Canal</div>
+              <div class="text-caption text-grey-4">{{ platformMeta.label }}</div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+
+        <q-form class="col column no-wrap overflow-hidden" @submit.prevent="handleSaveEdit">
+          <q-card-section class="q-pt-md col scroll q-gutter-y-md">
+            <!-- Nombre del Canal -->
+            <div>
+              <label class="text-caption text-grey-4 q-mb-xs block">Nombre del Canal / Identificador *</label>
+              <q-input
+                v-model="editForm.name"
+                outlined
+                dark
+                dense
+                placeholder="Ej. Whatsapp Ivirgarzama"
+                :rules="[val => !!val && !!val.trim() || 'El nombre del canal es obligatorio']"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_label" size="16px" color="teal-4" />
+                </template>
+              </q-input>
+            </div>
+
+            <!-- Número Visible / Identificador de Línea -->
+            <div>
+              <div class="row items-center justify-between q-mb-xs">
+                <label class="text-caption text-grey-4 block">
+                  {{ isQrSession ? 'Número de Teléfono Visible' : 'Identificador / Usuario Visible' }}
+                </label>
+                <span class="text-caption text-teal-4" style="font-size: 0.68rem">Editable</span>
+              </div>
+              <q-input
+                v-model="editForm.display_phone_number"
+                outlined
+                dark
+                dense
+                placeholder="Ej. +591 72227760"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_call" size="16px" color="teal-4" />
+                </template>
+              </q-input>
+              <div class="text-caption text-grey-5 q-mt-xs" style="font-size: 0.72rem">
+                Este es el número que se muestra en la tarjeta del canal, selector de chats y reportes.
+              </div>
+            </div>
+
+            <!-- Límite Diario Anti-Ban -->
+            <div v-if="account.session_type === 'baileys_qr' || !['facebook', 'instagram', 'tiktok'].includes(account.session_type)">
+              <div class="row items-center justify-between q-mb-xs">
+                <label class="text-caption text-grey-4 block">Límite Diario Anti-Ban (Chats / día)</label>
+                <span class="text-caption text-teal-4" style="font-size: 0.7rem">Recomendado QR: 80 - 150</span>
+              </div>
+              <q-input
+                v-model.number="editForm.daily_limit"
+                type="number"
+                outlined
+                dark
+                dense
+                min="10"
+                max="10000"
+                placeholder="100"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_shield" size="16px" color="teal-4" />
+                </template>
+              </q-input>
+              <div class="text-caption text-grey-5 q-mt-xs" style="font-size: 0.7rem">
+                Previene bloqueos del algoritmo de WhatsApp limitando los chats nuevos por día.
+              </div>
+            </div>
+
+            <!-- Campos Técnicos Específicos según Plataforma -->
+            <template v-if="account.session_type === 'meta_cloud'">
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">Phone Number ID (Meta)</label>
+                <q-input
+                  v-model="editForm.phone_number_id"
+                  outlined
+                  dark
+                  dense
+                  placeholder="ID de número de WhatsApp Cloud"
+                />
+              </div>
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">WABA Account ID</label>
+                <q-input
+                  v-model="editForm.business_account_id"
+                  outlined
+                  dark
+                  dense
+                  placeholder="ID de WhatsApp Business Account"
+                />
+              </div>
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">Actualizar Access Token (Opcional)</label>
+                <q-input
+                  v-model="editForm.access_token"
+                  outlined
+                  dark
+                  dense
+                  type="password"
+                  placeholder="Dejar en blanco para conservar el token actual"
+                />
+              </div>
+            </template>
+
+            <template v-else-if="account.session_type === 'facebook' || account.session_type === 'instagram'">
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">Page ID / Account ID</label>
+                <q-input
+                  v-model="editForm.phone_number_id"
+                  outlined
+                  dark
+                  dense
+                  placeholder="ID de Fanpage o Cuenta"
+                />
+              </div>
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">Actualizar Access Token (Opcional)</label>
+                <q-input
+                  v-model="editForm.access_token"
+                  outlined
+                  dark
+                  dense
+                  type="password"
+                  placeholder="Dejar en blanco para conservar el token actual"
+                />
+              </div>
+            </template>
+
+            <template v-else-if="account.session_type === 'tiktok'">
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">TikTok Client Key / App ID</label>
+                <q-input
+                  v-model="editForm.business_account_id"
+                  outlined
+                  dark
+                  dense
+                  placeholder="Client Key de TikTok"
+                />
+              </div>
+              <div>
+                <label class="text-caption text-grey-4 q-mb-xs block">Actualizar Access Token (Opcional)</label>
+                <q-input
+                  v-model="editForm.access_token"
+                  outlined
+                  dark
+                  dense
+                  type="password"
+                  placeholder="Dejar en blanco para conservar el token actual"
+                />
+              </div>
+            </template>
+          </q-card-section>
+
+          <q-card-actions align="right" class="q-px-md q-py-sm col-auto" style="border-top: 1px solid rgba(255,255,255,0.06)">
+            <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+            <q-btn
+              type="submit"
+              unelevated
+              label="Guardar Cambios"
+              color="primary"
+              no-caps
+              :loading="isSavingEdit"
+            />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
   </q-card>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useQueryClient } from '@tanstack/vue-query'
 import { http } from '@/shared/api/http'
@@ -575,6 +780,8 @@ import {
   syncFacebookMessages,
   syncInstagramMessages,
   updateWhatsAppDailyLimit,
+  updateWhatsAppAccountById,
+  type UpdateWhatsAppAccountPayload,
 } from '../api/whatsapp.api'
 import type { WhatsAppAccount } from '../types/whatsapp.types'
 
@@ -809,6 +1016,77 @@ async function handleSaveLimit() {
     })
   } finally {
     isUpdatingLimit.value = false
+  }
+}
+
+// Edición de Datos del Canal
+const showEditDialog = ref(false)
+const isSavingEdit = ref(false)
+const editForm = reactive({
+  name: '',
+  display_phone_number: '',
+  daily_limit: 100,
+  phone_number_id: '',
+  business_account_id: '',
+  access_token: '',
+})
+
+function openEditDialog() {
+  editForm.name = props.account.name || ''
+  editForm.display_phone_number = props.account.display_phone_number || ''
+  editForm.daily_limit = props.account.daily_limit || props.account.anti_ban?.daily_limit || 100
+  editForm.phone_number_id = props.account.phone_number_id || ''
+  editForm.business_account_id = props.account.business_account_id || ''
+  editForm.access_token = ''
+  showEditDialog.value = true
+}
+
+async function handleSaveEdit() {
+  if (!editForm.name || !editForm.name.trim()) {
+    $q.notify({
+      type: 'warning',
+      message: 'El nombre del canal es obligatorio.',
+      position: 'bottom-right',
+    })
+    return
+  }
+
+  isSavingEdit.value = true
+  try {
+    const payload: UpdateWhatsAppAccountPayload = {
+      name: editForm.name.trim(),
+      display_phone_number: editForm.display_phone_number?.trim() || null,
+      daily_limit: editForm.daily_limit || 100,
+    }
+
+    if (props.account.session_type !== 'baileys_qr') {
+      if (editForm.phone_number_id) payload.phone_number_id = editForm.phone_number_id.trim()
+      if (editForm.business_account_id) payload.business_account_id = editForm.business_account_id.trim()
+      if (editForm.access_token && editForm.access_token.trim()) {
+        payload.access_token = editForm.access_token.trim()
+      }
+    }
+
+    await updateWhatsAppAccountById(props.account.id, payload)
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] })
+    await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Datos del canal actualizados exitosamente.',
+      position: 'bottom-right',
+      timeout: 2500,
+    })
+    showEditDialog.value = false
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al actualizar los datos del canal.',
+      position: 'bottom-right',
+      timeout: 3500,
+    })
+  } finally {
+    isSavingEdit.value = false
   }
 }
 

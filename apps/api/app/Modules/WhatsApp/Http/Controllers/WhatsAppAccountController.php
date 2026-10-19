@@ -189,5 +189,51 @@ class WhatsAppAccountController
             'message' => 'Límite de seguridad Anti-Ban actualizado correctamente.',
         ]);
     }
+
+    public function updateAccount(\Illuminate\Http\Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $account = WhatsAppAccount::where('organization_id', $organization->id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'display_phone_number' => ['nullable', 'string', 'max:100'],
+            'daily_limit' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'phone_number_id' => ['nullable', 'string', 'max:255'],
+            'business_account_id' => ['nullable', 'string', 'max:255'],
+            'access_token' => ['nullable', 'string'],
+        ]);
+
+        $updateData = [
+            'name' => $validated['name'],
+        ];
+
+        if (array_key_exists('display_phone_number', $validated)) {
+            $updateData['display_phone_number'] = $validated['display_phone_number'];
+        }
+
+        if (array_key_exists('daily_limit', $validated) && $validated['daily_limit'] !== null) {
+            $updateData['daily_limit'] = $validated['daily_limit'];
+        }
+
+        if (!empty($validated['phone_number_id'])) {
+            $updateData['phone_number_id'] = $validated['phone_number_id'];
+        }
+
+        if (array_key_exists('business_account_id', $validated)) {
+            $updateData['business_account_id'] = $validated['business_account_id'];
+        }
+
+        if (!empty($validated['access_token'])) {
+            $updateData['access_token'] = $validated['access_token'];
+        }
+
+        $account->update($updateData);
+
+        return response()->json([
+            'data' => (new WhatsAppAccountResource($account->fresh()))->resolve(),
+            'message' => 'Canal actualizado exitosamente.',
+        ]);
+    }
 }
 

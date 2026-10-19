@@ -131,3 +131,24 @@ export async function assignUsersToWhatsAppAccount(
   return response.data.data
 }
 
+export interface UpdateWhatsAppAccountPayload {
+  name: string
+  display_phone_number?: string | null
+  daily_limit?: number | null
+  phone_number_id?: string | null
+  business_account_id?: string | null
+  access_token?: string | null
+}
+
+export async function updateWhatsAppAccountById(
+  id: string,
+  payload: UpdateWhatsAppAccountPayload,
+): Promise<WhatsAppAccount> {
+  const response = await http.put<{ data: WhatsAppAccount; message: string }>(
+    `/whatsapp/accounts/${id}`,
+    payload,
+  )
+  return response.data.data
+}
+
+
