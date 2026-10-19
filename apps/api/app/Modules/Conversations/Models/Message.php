@@ -28,6 +28,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'transcription',
     'transcription_status',
     'quoted_message_id',
+    'is_edited',
+    'edited_at',
+    'original_body',
     'sent_at',
 ])]
 class Message extends Model
@@ -44,6 +47,8 @@ class Message extends Model
     {
         return [
             'is_internal' => 'boolean',
+            'is_edited' => 'boolean',
+            'edited_at' => 'datetime',
             'sent_at' => 'datetime',
             'media_duration_seconds' => 'integer',
         ];

@@ -9,6 +9,7 @@ import type {
   CloseTicketPayload,
   Conversation,
   ConversationFilters,
+  ConversationMessage,
   CreateConversationPayload,
   InternalMessagePayload,
   PaginatedConversations,
@@ -103,6 +104,18 @@ export async function retryWhatsAppMessage(
   messageId: string,
 ): Promise<void> {
   await http.post(`/conversations/${conversationId}/messages/${messageId}/whatsapp-retry`, {})
+}
+
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  body: string,
+): Promise<ConversationMessage> {
+  const response = await http.put<{ data: ConversationMessage }>(
+    `/conversations/${conversationId}/messages/${messageId}`,
+    { body },
+  )
+  return response.data.data
 }
 
 // Hentle-AI Copilot Endpoints

@@ -89,4 +89,43 @@ class BaileysWhatsAppClient implements WhatsAppClient
             'raw' => $data,
         ];
     }
+
+    public function editTextMessage(WhatsAppAccount $account, string $to, string $messageId, string $newBody): array
+    {
+        $baseUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
+
+        $cleanPhone = preg_replace('/[^0-9]/', '', $to);
+
+        $response = Http::baseUrl($baseUrl)
+            ->timeout(10)
+            ->acceptJson()
+            ->post("/sessions/{$account->id}/edit-message", [
+                'to' => $cleanPhone,
+                'messageId' => $messageId,
+                'text' => $newBody,
+            ]);
+
+        if ($response->failed()) {
+            Log::error('Baileys edit message failed', [
+                'account_id' => $account->id,
+                'to' => $to,
+                'message_id' => $messageId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new RequestException($response);
+        }
+
+        $data = $response->json();
+
+        return [
+            'messages' => [
+                [
+                    'id' => $data['messageId'] ?? $messageId,
+                ],
+            ],
+            'status' => 'edited',
+            'raw' => $data,
+        ];
+    }
 }
