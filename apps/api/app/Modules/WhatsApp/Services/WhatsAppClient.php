@@ -9,4 +9,6 @@ interface WhatsAppClient
     public function sendTextMessage(WhatsAppAccount $account, string $to, string $body): array;
 
     public function sendMediaMessage(WhatsAppAccount $account, string $to, string $mediaUrl, string $mediaType, ?string $caption = null): array;
+
+    public function editTextMessage(WhatsAppAccount $account, string $to, string $messageId, string $newBody): array;
 }

@@ -270,6 +270,26 @@ async function initSession(sessionId) {
       // Desempaquetar contenido de mensaje (efímero, viewOnce, documento, captions, texto)
       const content = (extractMessageContent ? extractMessageContent(msg.message) : null) || msg.message || {};
 
+      // Detectar edición de mensaje entrante (protocolMessage con editedMessage)
+      const protocolMsg = content.protocolMessage || msg.message?.protocolMessage;
+      if (protocolMsg && protocolMsg.editedMessage) {
+        const targetId = protocolMsg.key?.id;
+        const editedContent = (extractMessageContent ? extractMessageContent(protocolMsg.editedMessage) : null) || protocolMsg.editedMessage || {};
+        const newBody = editedContent.conversation || editedContent.extendedTextMessage?.text || '';
+        if (targetId && newBody) {
+          console.log(`[Incoming Message Edited Event] account=${sessionId} targetId=${targetId} newBody=${newBody.trim()}`);
+          await notifyLaravel({
+            event: 'message_edited',
+            account_id: sessionId,
+            target_message_id: targetId,
+            body: newBody.trim(),
+            from_phone: cleanPhone,
+            from_me: isFromMe,
+          });
+          continue;
+        }
+      }
+
       // Detectar tipo multimedia
       let mediaType = null;
       let mimeType = null;
@@ -524,6 +544,48 @@ app.post('/sessions/:sessionId/send-message', async (req, res) => {
     });
   } catch (err) {
     console.error(`[Error Sending Message] ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/sessions/:sessionId/edit-message', async (req, res) => {
+  const { sessionId } = req.params;
+  const { to, messageId, text } = req.body;
+
+  if (!to || !messageId || !text) {
+    return res.status(400).json({ error: 'Parámetros "to", "messageId" y "text" son requeridos' });
+  }
+
+  const session = sessions[sessionId];
+  if (!session || !session.sock || session.status !== 'CONNECTED') {
+    return res.status(400).json({ error: 'La sesión no está conectada a WhatsApp' });
+  }
+
+  try {
+    const cleanTo = to.replace(/[^0-9]/g, '');
+    let jid;
+    if (to.includes('@lid') || cleanTo.length >= 14) {
+      jid = `${cleanTo}@lid`;
+    } else {
+      jid = `${cleanTo}@s.whatsapp.net`;
+    }
+
+    console.log(`[Editing Outbound Message] account=${sessionId} to=${jid} messageId=${messageId} text=${text}`);
+    const key = {
+      remoteJid: jid,
+      id: messageId,
+      fromMe: true,
+    };
+    const edited = await session.sock.sendMessage(jid, { text, edit: key });
+    console.log(`[Outbound Message Edited] account=${sessionId} messageId=${edited?.key?.id || messageId}`);
+
+    res.json({
+      success: true,
+      messageId: edited?.key?.id || messageId,
+      timestamp: edited?.messageTimestamp || Math.floor(Date.now() / 1000),
+    });
+  } catch (err) {
+    console.error(`[Error Editing Message] ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });

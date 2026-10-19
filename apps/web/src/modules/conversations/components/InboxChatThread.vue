@@ -307,6 +307,34 @@
           </div>
 
           <div class="message-footer row items-center justify-end q-gutter-x-xs q-mt-xs">
+            <!-- Botón de Editar Mensaje (disponible en los primeros 15 min) -->
+            <q-btn
+              v-if="canEditMessage(msg)"
+              flat
+              round
+              dense
+              size="xs"
+              color="teal-2"
+              icon="sym_r_edit"
+              class="message-edit-btn q-mr-xs"
+              @click.stop="openEditDialog(msg)"
+            >
+              <q-tooltip anchor="top middle" self="bottom middle">
+                Editar mensaje en WhatsApp (quedan {{ getRemainingMinutes(msg) }} min)
+              </q-tooltip>
+            </q-btn>
+
+            <!-- Distintivo de (editado) -->
+            <span
+              v-if="msg.is_edited"
+              class="message-edited-badge text-grey-4 row items-center no-wrap q-mr-xs"
+              style="font-size: 11px; opacity: 0.9;"
+            >
+              <q-icon name="sym_r_edit" size="11px" class="q-mr-xs" />
+              <span>(editado)</span>
+              <q-tooltip v-if="msg.edited_at">Editado a las {{ formatMessageTime(msg.edited_at) }}</q-tooltip>
+            </span>
+
             <span
               v-if="msg.direction === 'outbound' && !msg.is_internal && msg.user?.name"
               class="message-sender-author text-teal-2 q-mr-xs row items-center no-wrap"
@@ -1016,6 +1044,57 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Dialog para Editar Mensaje de WhatsApp -->
+    <q-dialog v-model="editModalOpen" persistent>
+      <q-card style="min-width: 380px; max-width: 520px; width: 100%; border-radius: 12px;" class="bg-dark text-white q-pa-sm">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="row items-center q-gutter-x-sm">
+            <div class="q-pa-xs bg-teal-10 rounded-borders text-teal-3 flex flex-center">
+              <q-icon name="sym_r_edit" size="20px" />
+            </div>
+            <div>
+              <div class="text-subtitle1 text-weight-bold">Editar mensaje de WhatsApp</div>
+              <div class="text-caption text-grey-4" v-if="editingMessage">
+                Tiempo restante para editar: <span class="text-amber-4 text-weight-medium">{{ getRemainingMinutes(editingMessage) }} min</span>
+              </div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" v-close-popup :disable="isEditingSubmitting" />
+        </q-card-section>
+
+        <q-card-section class="q-py-md">
+          <div class="text-caption text-grey-4 q-mb-sm">
+            El texto se actualizará en WhatsApp para el destinatario y mostrará la etiqueta <em>(editado)</em>.
+          </div>
+          <q-input
+            v-model="editedMessageBody"
+            type="textarea"
+            filled
+            dark
+            autogrow
+            counter
+            maxlength="4096"
+            placeholder="Escribe la corrección del mensaje..."
+            :rules="[val => !!val && val.trim().length > 0 || 'El mensaje no puede quedar vacío']"
+            class="q-mt-xs"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pt-none q-pb-sm q-px-md">
+          <q-btn flat label="Cancelar" color="grey-5" v-close-popup :disable="isEditingSubmitting" />
+          <q-btn
+            unelevated
+            color="teal-7"
+            icon="sym_r_check"
+            label="Guardar y actualizar"
+            :loading="isEditingSubmitting"
+            :disable="!editedMessageBody.trim() || Boolean(editingMessage && editedMessageBody.trim() === editingMessage.body.trim())"
+            @click="submitEditMessage"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </main>
 </template>
 
@@ -1031,8 +1110,11 @@ import {
   getConversationAiAnalysis,
   applyAiStatus,
   applyAiTags,
+  editMessage,
   type AiConversationAnalysis,
 } from '../api/conversations.api'
+import { useAuthStore } from '@/modules/auth/stores/auth.store'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import type { Conversation, ConversationMessage } from '../types/conversation.types'
 
@@ -1059,6 +1141,79 @@ const emit = defineEmits<{
 }>()
 
 const notify = useAppNotify()
+const authStore = useAuthStore()
+const queryClient = useQueryClient()
+
+// Estado y funciones para Edición de Mensajes (Ventana máxima 15 min)
+const editModalOpen = ref(false)
+const editingMessage = ref<ConversationMessage | null>(null)
+const editedMessageBody = ref('')
+const isEditingSubmitting = ref(false)
+
+function canEditMessage(msg: ConversationMessage): boolean {
+  if (msg.direction !== 'outbound' || msg.is_internal) return false
+  if (msg.message_type !== 'text') return false
+  if (!msg.created_at && !msg.sent_at) return false
+
+  // Solo autor o administrador
+  const currentUserId = authStore.user?.id
+  const isAdmin = authStore.isAdmin
+  if (!isAdmin && msg.user?.id !== currentUserId) return false
+
+  // Límite de 15 minutos (900.000 ms)
+  const timestamp = new Date(msg.sent_at || msg.created_at || '').getTime()
+  if (isNaN(timestamp)) return false
+  const elapsedMs = Date.now() - timestamp
+  return elapsedMs <= 15 * 60 * 1000
+}
+
+function getRemainingMinutes(msg: ConversationMessage): number {
+  const timestamp = new Date(msg.sent_at || msg.created_at || '').getTime()
+  if (isNaN(timestamp)) return 0
+  const elapsedMinutes = Math.floor((Date.now() - timestamp) / 60000)
+  return Math.max(0, 15 - elapsedMinutes)
+}
+
+function openEditDialog(msg: ConversationMessage) {
+  editingMessage.value = msg
+  editedMessageBody.value = msg.body
+  editModalOpen.value = true
+}
+
+async function submitEditMessage() {
+  if (!editingMessage.value || !props.conversation?.id) return
+  if (!editedMessageBody.value.trim()) return
+
+  isEditingSubmitting.value = true
+  try {
+    const updated = await editMessage(
+      props.conversation.id,
+      editingMessage.value.id,
+      editedMessageBody.value.trim(),
+    )
+
+    if (props.conversation.messages) {
+      const idx = props.conversation.messages.findIndex((m) => m.id === updated.id)
+      if (idx !== -1) {
+        props.conversation.messages[idx].body = updated.body
+        props.conversation.messages[idx].is_edited = true
+        props.conversation.messages[idx].edited_at = updated.edited_at
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['conversation', props.conversation.id] })
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+
+    notify.success({ message: 'Mensaje editado y actualizado en WhatsApp correctamente.' })
+    editModalOpen.value = false
+  } catch (err: any) {
+    const errorMsg = err?.response?.data?.message || err?.message || 'Error al editar mensaje'
+    notify.error({ message: errorMsg })
+  } finally {
+    isEditingSubmitting.value = false
+  }
+}
+
 const isGeneratingAiSuggestion = ref(false)
 const aiSuggestionText = ref<string | null>(null)
 

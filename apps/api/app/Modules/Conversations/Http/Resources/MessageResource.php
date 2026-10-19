@@ -14,6 +14,8 @@ class MessageResource extends JsonResource
             'conversation_id' => $this->conversation_id,
             'direction' => $this->direction,
             'is_internal' => (bool) $this->is_internal,
+            'is_edited' => (bool) $this->is_edited,
+            'edited_at' => $this->edited_at?->toIso8601String(),
             'message_type' => $this->message_type,
             'message_status' => $this->message_status,
             'delivery_status' => $this->delivery_status ?? 'sent',

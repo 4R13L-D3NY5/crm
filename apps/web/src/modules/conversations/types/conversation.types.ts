@@ -19,6 +19,8 @@ export interface ConversationMessage {
   conversation_id: string
   direction: 'internal' | 'inbound' | 'outbound'
   is_internal?: boolean
+  is_edited?: boolean
+  edited_at?: string | null
   message_type: string
   message_status?: string | null
   delivery_status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'

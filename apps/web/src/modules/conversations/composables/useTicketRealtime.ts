@@ -33,6 +33,13 @@ export function useTicketRealtime(selectedTicketId?: () => string | null) {
             queryClient.invalidateQueries({ queryKey: ['conversation', currentId] })
           }
         })
+        .listen('.message.updated', () => {
+          queryClient.invalidateQueries({ queryKey: ['conversations'] })
+          const currentId = selectedTicketId?.()
+          if (currentId) {
+            queryClient.invalidateQueries({ queryKey: ['conversation', currentId] })
+          }
+        })
     } else {
       // Fallback: Smart polling suave cada 8 segundos si no hay servidor WebSocket activo en local
       pollingInterval = window.setInterval(() => {

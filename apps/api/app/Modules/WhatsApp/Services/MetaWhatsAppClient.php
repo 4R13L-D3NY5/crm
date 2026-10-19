@@ -66,4 +66,9 @@ class MetaWhatsAppClient implements WhatsAppClient
 
         return $response->json();
     }
+
+    public function editTextMessage(WhatsAppAccount $account, string $to, string $messageId, string $newBody): array
+    {
+        throw new \BadMethodCallException('Meta Cloud API no permite la edición de mensajes salientes.');
+    }
 }

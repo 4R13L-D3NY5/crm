@@ -5,7 +5,9 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Modules\Conversations\Http\Resources\MessageResource;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
+use App\Modules\WhatsApp\Actions\EditWhatsAppMessageAction;
 use App\Modules\WhatsApp\Actions\SendWhatsAppMessageAction;
+use App\Modules\WhatsApp\Http\Requests\EditWhatsAppMessageRequest;
 use App\Modules\WhatsApp\Http\Requests\SendWhatsAppMessageRequest;
 use App\Shared\Actions\WriteAuditLogAction;
 use Illuminate\Http\JsonResponse;
@@ -104,6 +106,44 @@ class ConversationWhatsAppMessageController
         return response()->json([
             'data' => (new MessageResource($message))->resolve(),
             'message' => 'Mensaje reenviado a la cola correctamente.',
+        ]);
+    }
+
+    public function update(
+        EditWhatsAppMessageRequest $request,
+        Conversation $conversation,
+        Message $message,
+        EditWhatsAppMessageAction $editWhatsAppMessageAction,
+        WriteAuditLogAction $writeAuditLogAction,
+    ): JsonResponse {
+        abort_unless($conversation->getKey() === $message->conversation_id, 404);
+        abort_unless($request->user()?->can('update', $conversation), 403);
+
+        // Si el usuario no es admin, solo puede editar sus propios mensajes
+        if (! $request->user()->isAdmin() && $message->user_id !== $request->user()->id) {
+            abort(403, 'Solo el autor del mensaje o un administrador puede editarlo.');
+        }
+
+        $updatedMessage = $editWhatsAppMessageAction->execute(
+            $message,
+            $request->validated('body'),
+            $request->user()
+        );
+
+        $writeAuditLogAction->execute(
+            event: 'whatsapp.message_edited',
+            user: $request->user(),
+            request: $request,
+            auditable: $updatedMessage,
+            metadata: [
+                'conversation_id' => $conversation->getKey(),
+                'message_id' => $message->getKey(),
+            ],
+        );
+
+        return response()->json([
+            'data' => (new MessageResource($updatedMessage))->resolve(),
+            'message' => 'Mensaje editado y actualizado en WhatsApp correctamente.',
         ]);
     }
 }

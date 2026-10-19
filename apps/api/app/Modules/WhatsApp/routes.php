@@ -11,6 +11,8 @@ Route::get('whatsapp/accounts', [WhatsAppAccountController::class, 'index']);
 Route::get('whatsapp/accounts/current', [WhatsAppAccountController::class, 'show']);
 
 Route::post('conversations/{conversation}/messages/whatsapp', [ConversationWhatsAppMessageController::class, 'store']);
+Route::put('conversations/{conversation}/messages/{message}/whatsapp', [ConversationWhatsAppMessageController::class, 'update']);
+Route::put('conversations/{conversation}/messages/{message}', [ConversationWhatsAppMessageController::class, 'update']);
 Route::post('conversations/{conversation}/messages/{message}/whatsapp-retry', [ConversationWhatsAppMessageController::class, 'retry']);
 
 // Gestión y Conexión de Canales — Exclusivo Administradores

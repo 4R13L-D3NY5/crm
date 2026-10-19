@@ -5,6 +5,7 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Contacts\Models\Contact;
 use App\Modules\Conversations\Events\TicketMessageCreatedEvent;
+use App\Modules\Conversations\Events\TicketMessageUpdatedEvent;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
@@ -39,6 +40,7 @@ class BaileysWebhookController extends Controller
             'connected' => $this->handleConnected($account, $request),
             'disconnected' => $this->handleDisconnected($account, $request),
             'message' => $this->handleMessage($account, $request),
+            'message_edited' => $this->handleMessageEdited($account, $request),
             default => Log::info("Baileys unhandled event: {$event}"),
         };
 
@@ -272,5 +274,40 @@ class BaileysWebhookController extends Controller
                 }
             }
         }
+    }
+
+    protected function handleMessageEdited(WhatsAppAccount $account, Request $request): void
+    {
+        $targetMessageId = $request->input('target_message_id');
+        $newBody = $request->input('body');
+
+        if (blank($targetMessageId) || blank($newBody)) {
+            return;
+        }
+
+        $mapping = WhatsAppMessageMapping::where('provider_message_id', $targetMessageId)
+            ->where('whatsapp_account_id', $account->id)
+            ->first();
+
+        if (! $mapping || ! $mapping->message_id) {
+            Log::info("Baileys message_edited: target provider message {$targetMessageId} not mapped.");
+            return;
+        }
+
+        $message = Message::find($mapping->message_id);
+        if (! $message) {
+            return;
+        }
+
+        $message->update([
+            'original_body' => $message->original_body ?: $message->body,
+            'body' => $newBody,
+            'is_edited' => true,
+            'edited_at' => now(),
+        ]);
+
+        event(new TicketMessageUpdatedEvent($message));
+
+        Log::info("Baileys message edited for account {$account->id}, message {$message->id}");
     }
 }
