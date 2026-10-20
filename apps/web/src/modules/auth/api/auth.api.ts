@@ -1,14 +1,11 @@
 import axios from 'axios'
 
-import { http } from '@/shared/api/http'
+import { http, resolveAppOrigin } from '@/shared/api/http'
 
 import type { AuthUser, LoginPayload, Organization } from '../types/auth.types'
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8010/api'
-const appOrigin = apiBaseUrl.replace(/\/api\/?$/, '')
-
 export async function getCsrfCookie(): Promise<void> {
+  const appOrigin = resolveAppOrigin()
   await axios.get(`${appOrigin}/sanctum/csrf-cookie`, {
     withCredentials: true,
     timeout: 5000,
