@@ -1029,7 +1029,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { http } from '@/shared/api/http'
+import { http, resolveAppOrigin } from '@/shared/api/http'
 import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickMessages'
 import { getNotes } from '@/modules/notes/api/notes.api'
@@ -1567,7 +1567,7 @@ function resolveMediaUrl(url?: string | null): string {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url
   }
-  const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8010/api').replace(/\/api\/?$/, '')
+  const apiBase = resolveAppOrigin()
   return `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`
 }
 

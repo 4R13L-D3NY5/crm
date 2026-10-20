@@ -1,8 +1,23 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8010/api'
-const appOrigin = apiBaseUrl.replace(/\/api\/?$/, '')
+export function resolveApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_BASE_URL
+  if (typeof window !== 'undefined') {
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    if (!isLocalhost) {
+      return '/api'
+    }
+  }
+  return envUrl || 'http://localhost:8010/api'
+}
+
+export function resolveAppOrigin(): string {
+  return resolveApiBaseUrl().replace(/\/api\/?$/, '')
+}
+
+const apiBaseUrl = resolveApiBaseUrl()
+const appOrigin = resolveAppOrigin()
 
 function getXsrfCookie(): string | null {
   const cookie = document.cookie
