@@ -37,7 +37,7 @@ class EditWhatsAppMessageAction
                 }
 
                 $mapping = WhatsAppMessageMapping::where('message_id', $message->id)->first();
-                $contactPhone = $conversation->contact?->phone;
+                $contactPhone = $mapping?->from_phone ?: $conversation->contact?->phone;
 
                 if ($mapping && $contactPhone) {
                     $baileysClient = app(BaileysWhatsAppClient::class);

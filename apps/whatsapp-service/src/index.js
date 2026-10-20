@@ -224,6 +224,27 @@ async function initSession(sessionId) {
     }
   });
 
+  // Mapa de nombres de contactos sincronizados desde WhatsApp
+  const contactsMap = {};
+
+  sock.ev.on('contacts.upsert', (contacts) => {
+    if (!Array.isArray(contacts)) return;
+    for (const c of contacts) {
+      if (c.id) {
+        contactsMap[c.id] = c.name || c.notify || c.verifiedName || contactsMap[c.id];
+      }
+    }
+  });
+
+  sock.ev.on('contacts.update', (updates) => {
+    if (!Array.isArray(updates)) return;
+    for (const u of updates) {
+      if (u.id) {
+        contactsMap[u.id] = u.name || u.notify || u.verifiedName || contactsMap[u.id];
+      }
+    }
+  });
+
   // Listener para mensajes entrantes de WhatsApp
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (!Array.isArray(messages)) return;
@@ -376,7 +397,7 @@ async function initSession(sessionId) {
           account_id: sessionId,
           provider_message_id: msg.key.id,
           from_phone: cleanPhone,
-          from_name: msg.pushName || cleanPhone,
+          from_name: msg.pushName || contactsMap[remoteJid] || (msg.key.participant ? contactsMap[msg.key.participant] : null) || cleanPhone,
           from_me: isFromMe,
           body: effectiveBody,
           timestamp: msg.messageTimestamp,
