@@ -169,6 +169,10 @@ class BaileysWebhookController extends Controller
             ]
         );
 
+        if (! $isFromMe && filled($fromName) && ($contact->first_name === $cleanPhone || blank($contact->first_name))) {
+            $contact->update(['first_name' => $fromName]);
+        }
+
         // 2. Conversación activa
         $conversation = Conversation::where('organization_id', $account->organization_id)
             ->where('contact_id', $contact->id)
