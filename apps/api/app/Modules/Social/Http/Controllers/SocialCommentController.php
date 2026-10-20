@@ -416,13 +416,24 @@ class SocialCommentController extends Controller
             ], 422);
         }
 
-        $account = WhatsAppAccount::where('organization_id', $organization->id)
-            ->where('session_type', 'facebook')
-            ->first();
+        // Resolver la cuenta exacta vinculada a la conversación (Multi-Fanpage)
+        $account = null;
+        if ($conversation->whatsapp_account_id) {
+            $account = WhatsAppAccount::where('organization_id', $organization->id)
+                ->where('id', $conversation->whatsapp_account_id)
+                ->first();
+        }
+
+        if (!$account) {
+            $account = WhatsAppAccount::where('organization_id', $organization->id)
+                ->where('session_type', 'facebook')
+                ->where('is_active', true)
+                ->first();
+        }
 
         if (!$account || !$account->access_token) {
             return response()->json([
-                'message' => 'No hay una cuenta de Facebook activa configurada.',
+                'message' => 'No hay una cuenta de Facebook activa configurada para este canal.',
             ], 422);
         }
 
@@ -443,10 +454,11 @@ class SocialCommentController extends Controller
         }
 
         $token = $account->access_token;
+        $pageTarget = $account->phone_number_id ?: 'me';
         $client = new \GuzzleHttp\Client(['timeout' => 15]);
 
         try {
-            $response = $client->post('https://graph.facebook.com/v21.0/me/messages', [
+            $response = $client->post("https://graph.facebook.com/v21.0/{$pageTarget}/messages", [
                 'headers' => [
                     'Authorization' => "Bearer {$token}",
                     'Content-Type' => 'application/json',
@@ -510,9 +522,18 @@ class SocialCommentController extends Controller
             ], 422);
         }
 
-        $account = WhatsAppAccount::where('organization_id', $organization->id)
-            ->where('session_type', 'tiktok')
-            ->first();
+        $account = null;
+        if ($conversation->whatsapp_account_id) {
+            $account = WhatsAppAccount::where('organization_id', $organization->id)
+                ->where('id', $conversation->whatsapp_account_id)
+                ->first();
+        }
+
+        if (!$account) {
+            $account = WhatsAppAccount::where('organization_id', $organization->id)
+                ->where('session_type', 'tiktok')
+                ->first();
+        }
 
         // Si la cuenta tiene credenciales de TikTok activas, realizar llamada externa
         if ($account && $account->access_token && str_starts_with($account->access_token, 'act.')) {

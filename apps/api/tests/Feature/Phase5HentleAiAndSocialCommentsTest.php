@@ -243,4 +243,80 @@ class Phase5HentleAiAndSocialCommentsTest extends TestCase
             'is_active' => true,
         ]);
     }
+
+    public function test_operator_with_assigned_channels_only_sees_their_channels(): void
+    {
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $juanPablo = User::factory()->create(['name' => 'Juan Pablo']);
+        $juanPablo->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'agent']);
+        $juanPablo->update(['current_organization_id' => $organization->id]);
+
+        // Canal 1: Fanpage La Paz
+        $pageLaPaz = \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Fanpage La Paz',
+            'session_type' => 'facebook',
+            'phone_number_id' => 'page_lp_100',
+            'access_token' => 'token_lp',
+            'verify_token' => 'token_lp_verify',
+            'is_active' => true,
+        ]);
+
+        // Canal 2: Escuela De Postgrado (sin operadores asignados)
+        $pagePostgrado = \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'Escuela De Postgrado',
+            'session_type' => 'facebook',
+            'phone_number_id' => 'page_pg_200',
+            'access_token' => 'token_pg',
+            'verify_token' => 'token_pg_verify',
+            'is_active' => true,
+        ]);
+
+        // Asignar Juan Pablo exclusivamente a Fanpage La Paz
+        $pageLaPaz->authorizedUsers()->attach($juanPablo->id, [
+            'id' => (string) Str::ulid(),
+            'can_view' => true,
+            'can_reply' => true,
+        ]);
+
+        // Contactos y Conversaciones en cada canal
+        $contactLp = \App\Modules\Contacts\Models\Contact::create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Estudiante La Paz',
+            'status' => 'active',
+        ]);
+        $convLp = \App\Modules\Conversations\Models\Conversation::create([
+            'organization_id' => $organization->id,
+            'contact_id' => $contactLp->id,
+            'whatsapp_account_id' => $pageLaPaz->id,
+            'channel' => 'facebook',
+            'status' => 'pending',
+            'last_message_at' => now(),
+        ]);
+
+        $contactPg = \App\Modules\Contacts\Models\Contact::create([
+            'organization_id' => $organization->id,
+            'first_name' => 'Pedro Antonio Chura (Postgrado)',
+            'status' => 'active',
+        ]);
+        $convPg = \App\Modules\Conversations\Models\Conversation::create([
+            'organization_id' => $organization->id,
+            'contact_id' => $contactPg->id,
+            'whatsapp_account_id' => $pagePostgrado->id,
+            'channel' => 'facebook',
+            'status' => 'pending',
+            'last_message_at' => now(),
+        ]);
+
+        $query = new \App\Modules\Conversations\Queries\ListConversationsQuery();
+        $results = $query->execute($juanPablo, []);
+
+        $ids = collect($results->items())->pluck('id')->all();
+
+        // Juan Pablo debe ver la conversación de La Paz
+        $this->assertContains($convLp->id, $ids);
+        // Juan Pablo NO debe ver la conversación de Postgrado
+        $this->assertNotContains($convPg->id, $ids);
+    }
 }
