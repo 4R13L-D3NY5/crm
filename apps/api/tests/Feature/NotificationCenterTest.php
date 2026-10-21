@@ -13,6 +13,8 @@ use App\Modules\Contacts\Models\Contact;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\Parameters\Models\TimeAlertRule;
+use App\Modules\Social\Models\SocialComment;
+use App\Modules\WhatsApp\Models\WhatsAppAccount;
 use Carbon\Carbon;
 
 class NotificationCenterTest extends TestCase
@@ -367,5 +369,60 @@ class NotificationCenterTest extends TestCase
         $res->assertJsonPath('counts.waiting_advisor', 1);
         $res->assertJsonPath('notifications.0.type', 'waiting_advisor');
         $res->assertJsonPath('notifications.0.title', 'Sin respuesta del Asesor: Elena');
+    }
+
+    public function test_notifications_include_multichannel_metadata_and_post_provenance(): void
+    {
+        $org = Organization::create(['name' => 'Org Multi', 'slug' => 'org-multi-' . uniqid()]);
+        $user = User::factory()->create(['current_organization_id' => $org->id]);
+        $org->users()->attach($user->id, ['id' => (string) Str::ulid(), 'role' => 'agent']);
+
+        $account = WhatsAppAccount::create([
+            'organization_id' => $org->id,
+            'name' => 'Escuela De Postgrado Unitepc',
+            'session_type' => 'facebook',
+            'phone_number_id' => '10293847',
+            'verify_token' => 'verify_token_sample',
+            'is_active' => true,
+        ]);
+
+        $contact = Contact::create([
+            'organization_id' => $org->id,
+            'first_name' => 'Dominique',
+            'last_name' => 'Cruz',
+        ]);
+
+        $conv = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'channel' => 'facebook',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+            'unread_count' => 2,
+            'last_message_at' => Carbon::now()->subMinutes(5),
+        ]);
+
+        SocialComment::create([
+            'organization_id' => $org->id,
+            'conversation_id' => $conv->id,
+            'contact_id' => $contact->id,
+            'platform' => 'facebook',
+            'post_id' => '1029384756',
+            'comment_id' => 'comment_abc',
+            'author_name' => 'Dominique Cruz',
+            'comment_text' => 'Me interesa la maestria en derecho',
+        ]);
+
+        $res = $this->actingAs($user)->getJson('/api/notifications');
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('unread_count', 1);
+
+        $notification = collect($res->json('notifications'))->firstWhere('type', 'unread');
+        $this->assertNotNull($notification, 'Debe existir una notificación de tipo unread');
+        $this->assertEquals('facebook', $notification['data']['channel'] ?? null);
+        $this->assertEquals('Escuela De Postgrado Unitepc', $notification['data']['channel_name'] ?? null);
+        $this->assertTrue($notification['data']['is_from_post'] ?? false);
+        $this->assertEquals('1029384756', $notification['data']['post_id'] ?? null);
     }
 }

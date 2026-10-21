@@ -508,3 +508,138 @@ a {
   text-rendering: optimizeLegibility;
   font-feature-settings: 'liga';
 }
+
+
+// ========================================================
+// TOAST DE NOTIFICACIONES OMNICANAL PREMIUM Y MINIMALISTA
+// ========================================================
+.xf-notification-popup-toast {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.65), 0 0 15px rgba(0, 0, 0, 0.3) !important;
+  color: #ffffff !important;
+  padding: 12px 14px !important;
+  min-width: 340px !important;
+  max-width: 440px !important;
+
+  .q-notification__icon {
+    font-size: 22px !important;
+  }
+
+  .q-notification__message {
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    color: #f8fafc !important;
+    line-height: 1.3 !important;
+  }
+
+  // Acentos por red social / canal
+  &.xf-toast--whatsapp {
+    border-left: 4px solid #10b981 !important;
+    .q-notification__icon { color: #34d399 !important; }
+  }
+  &.xf-toast--facebook {
+    border-left: 4px solid #3b82f6 !important;
+    .q-notification__icon { color: #60a5fa !important; }
+  }
+  &.xf-toast--instagram {
+    border-left: 4px solid #ec4899 !important;
+    .q-notification__icon { color: #f472b6 !important; }
+  }
+  &.xf-toast--tiktok {
+    border-left: 4px solid #06b6d4 !important;
+    .q-notification__icon { color: #22d3ee !important; }
+  }
+  &.xf-toast--sla-advisor {
+    border-left: 4px solid #f59e0b !important;
+    .q-notification__icon { color: #fbbf24 !important; }
+  }
+  &.xf-toast--sla-client {
+    border-left: 4px solid #06b6d4 !important;
+    .q-notification__icon { color: #38bdf8 !important; }
+  }
+  &.xf-toast--unread {
+    border-left: 4px solid #10b981 !important;
+    .q-notification__icon { color: #34d399 !important; }
+  }
+
+  // Fila de Pills / Badges
+  .xf-toast-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    margin-bottom: 5px;
+  }
+
+  .xf-toast-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 6px;
+    line-height: 1.3;
+
+    &--whatsapp {
+      background: rgba(16, 185, 129, 0.16);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+    &--facebook {
+      background: rgba(59, 130, 246, 0.16);
+      color: #60a5fa;
+      border: 1px solid rgba(96, 165, 250, 0.35);
+    }
+    &--instagram {
+      background: rgba(236, 72, 153, 0.16);
+      color: #f472b6;
+      border: 1px solid rgba(244, 114, 182, 0.35);
+    }
+    &--tiktok {
+      background: rgba(6, 182, 212, 0.16);
+      color: #22d3ee;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+    }
+    &--post {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fde047;
+      border: 1px solid rgba(250, 204, 21, 0.4);
+    }
+    &--direct {
+      background: rgba(148, 163, 184, 0.14);
+      color: #cbd5e1;
+      border: 1px solid rgba(203, 213, 225, 0.25);
+    }
+  }
+
+  .xf-toast-detail {
+    font-size: 11.5px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  .xf-toast-assignee {
+    color: #e2e8f0;
+    font-weight: 500;
+  }
+
+  .xf-toast-action-btn {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    border-radius: 8px !important;
+    font-size: 11.5px !important;
+    letter-spacing: 0.3px !important;
+    transition: all 0.2s ease !important;
+
+    &:hover {
+      background: rgba(16, 185, 129, 0.28) !important;
+      border-color: #34d399 !important;
+      color: #ffffff !important;
+    }
+  }
+}

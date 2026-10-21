@@ -197,6 +197,28 @@
                   </span>
                 </div>
 
+                <!-- Proveniencia: Red Social / Fanpage y Publicación -->
+                <div
+                  v-if="item.data?.channel || item.data?.channel_name || item.data?.is_from_post"
+                  class="row items-center q-gutter-x-xs q-mt-xs"
+                >
+                  <SocialChannelBadge
+                    v-if="item.data?.channel"
+                    :channel="item.data?.channel"
+                    :account-name="item.data?.channel_name"
+                    :phone-number="item.data?.channel_number"
+                    size="xs"
+                    :show-tooltip="false"
+                  />
+                  <div
+                    v-if="item.data?.is_from_post || item.data?.post_id"
+                    class="xf-notif-post-tag row items-center q-gutter-x-xs"
+                  >
+                    <q-icon name="sym_r_campaign" size="12px" color="amber-5" />
+                    <span>{{ item.data?.post_id ? `Post #${String(item.data.post_id).slice(-8)}` : 'Publicación' }}</span>
+                  </div>
+                </div>
+
                 <div class="text-caption text-muted notif-message-preview q-mt-xs">
                   {{ item.message }}
                 </div>
@@ -248,6 +270,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationsStore } from '../stores/useNotificationsStore'
 import type { AppNotificationItem } from '../api/notifications.api'
+import SocialChannelBadge from '@/shared/components/SocialChannelBadge.vue'
 
 const router = useRouter()
 const store = useNotificationsStore()
@@ -430,6 +453,19 @@ onUnmounted(() => {
     border-left: 3px solid #10b981;
     background: rgba(16, 185, 129, 0.03);
   }
+}
+
+.xf-notif-post-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  line-height: 1.2;
 }
 
 .notif-message-preview {

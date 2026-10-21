@@ -850,24 +850,28 @@ const isQrSession = computed(() => {
 })
 
 function confirmDelete() {
-  $q.dialog({
-    title: '¿Eliminar canal?',
-    message: `¿Estás seguro de que deseas eliminar "${props.account.name}"? El canal se desvinculará del CRM y quedará disponible para volver a vincularse si lo requieres.`,
-    persistent: true,
-    dark: true,
-    ok: {
-      label: 'Eliminar',
-      color: 'negative',
-      flat: false,
-    },
-    cancel: {
-      label: 'Cancelar',
-      color: 'grey-4',
-      flat: true,
-    },
-  }).onOk(() => {
+  if (typeof $q?.dialog === 'function') {
+    $q.dialog({
+      title: '¿Eliminar canal?',
+      message: `¿Estás seguro de que deseas eliminar "${props.account.name}"? El canal se desvinculará del CRM y quedará disponible para volver a vincularse si lo requieres.`,
+      persistent: true,
+      dark: true,
+      ok: {
+        label: 'Eliminar',
+        color: 'negative',
+        flat: false,
+      },
+      cancel: {
+        label: 'Cancelar',
+        color: 'grey-4',
+        flat: true,
+      },
+    }).onOk(() => {
+      emit('delete', props.account.id)
+    })
+  } else if (window.confirm(`¿Estás seguro de que deseas eliminar "${props.account.name}"? El canal se desvinculará del CRM.`)) {
     emit('delete', props.account.id)
-  })
+  }
 }
 
 const channelDisplayIdentifier = computed(() => {

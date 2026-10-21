@@ -1,4 +1,4 @@
-import { Dark, Notify, Quasar } from 'quasar'
+import { Dark, Dialog, Notify, Quasar } from 'quasar'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { createApp } from 'vue'
 import iconSet from 'quasar/icon-set/svg-material-symbols-rounded'
@@ -36,6 +36,7 @@ app.use(Quasar, {
   plugins: {
     Notify,
     Dark,
+    Dialog,
   },
   iconSet,
   config: {

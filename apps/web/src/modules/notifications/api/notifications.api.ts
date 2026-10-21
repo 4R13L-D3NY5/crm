@@ -6,7 +6,21 @@ export interface AppNotificationItem {
   title: string
   message: string
   action_url: string | null
-  data: Record<string, any> | null
+  data: {
+    conversation_id?: string
+    unread_count?: number
+    contact_phone?: string
+    contact_name?: string
+    assignee_name?: string
+    channel?: string
+    channel_name?: string
+    channel_number?: string
+    is_from_post?: boolean
+    post_id?: string
+    post_url?: string
+    origin_label?: string
+    [key: string]: any
+  } | null
   is_read: boolean
   read_at: string | null
   created_at: string

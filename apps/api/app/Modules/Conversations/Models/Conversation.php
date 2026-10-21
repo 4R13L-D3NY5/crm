@@ -135,6 +135,11 @@ class Conversation extends Model
         return $this->belongsTo(\App\Modules\WhatsApp\Models\WhatsAppAccount::class, 'whatsapp_account_id');
     }
 
+    public function socialComment(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Modules\Social\Models\SocialComment::class, 'conversation_id');
+    }
+
     // Scopes de filtrado Whaticket
     public function scopePending(Builder $query): Builder
     {

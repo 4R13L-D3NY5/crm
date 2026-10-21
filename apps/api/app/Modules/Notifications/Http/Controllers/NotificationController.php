@@ -75,14 +75,23 @@ class NotificationController extends Controller
         $user = $request->user();
         $notif = $this->notificationService->createNotification(
             organizationId: $user->current_organization_id,
-            title: 'Mensaje de WhatsApp: Postulante UNITEPC (Prueba)',
-            message: '¡Hola! Quisiera consultar los requisitos y fechas de admisión para Medicina en Cochabamba.',
+            title: 'Mensaje no leído: Pedro Antonio Chura (Prueba)',
+            message: 'Tiene 1 mensaje(s) nuevo(s) sin abrir. Canal: Escuela De Postgrado Unitepc • 📌 Publicación #10293847. Asignado a: Sin asignar.',
             type: 'unread',
             userId: $user->id,
             actionUrl: '/app/conversations',
             data: [
                 'is_test' => true,
-                'phone' => '+591 70012345',
+                'channel' => 'facebook',
+                'channel_name' => 'Escuela De Postgrado Unitepc',
+                'channel_number' => 'Fanpage Oficial',
+                'is_from_post' => true,
+                'post_id' => '10293847',
+                'post_url' => 'https://facebook.com/10293847',
+                'origin_label' => 'Publicación #10293847',
+                'contact_name' => 'Pedro Antonio Chura',
+                'assignee_name' => 'Sin asignar',
+                'phone' => '+591 79326793',
             ]
         );
 
@@ -95,6 +104,7 @@ class NotificationController extends Controller
                 'title' => $notif->title,
                 'message' => $notif->message,
                 'action_url' => $notif->action_url,
+                'data' => $notif->data,
                 'is_read' => false,
                 'created_at_human' => 'Ahora mismo',
             ],

@@ -66,34 +66,84 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   function showPopupToast(item: AppNotificationItem) {
+    const channel = item.data?.channel || 'system'
+    const channelName = item.data?.channel_name || (channel === 'facebook' ? 'Facebook Messenger' : (channel === 'whatsapp' ? 'WhatsApp' : ''))
+    const isFromPost = Boolean(item.data?.is_from_post && item.data?.post_id)
+    const postId = item.data?.post_id
+    const assigneeName = item.data?.assignee_name || 'Sin asignar'
+    const unreadCount = item.data?.unread_count || 1
+
     let icon = 'sym_r_notifications'
-    let color = 'primary'
+    let accentClass = 'xf-toast--system'
 
     if (item.type === 'unread' || item.type === 'chat') {
-      icon = 'sym_r_mark_chat_unread'
-      color = 'amber-9'
+      if (channel === 'whatsapp') {
+        icon = 'sym_r_chat'
+        accentClass = 'xf-toast--whatsapp'
+      } else if (channel === 'facebook') {
+        icon = 'sym_r_forum'
+        accentClass = 'xf-toast--facebook'
+      } else if (channel === 'instagram') {
+        icon = 'sym_r_photo_camera'
+        accentClass = 'xf-toast--instagram'
+      } else if (channel === 'tiktok') {
+        icon = 'sym_r_music_note'
+        accentClass = 'xf-toast--tiktok'
+      } else {
+        icon = 'sym_r_mark_chat_unread'
+        accentClass = 'xf-toast--unread'
+      }
     } else if (item.type === 'waiting_advisor') {
       icon = 'sym_r_hourglass_top'
-      color = 'warning'
+      accentClass = 'xf-toast--sla-advisor'
     } else if (item.type === 'waiting_client') {
       icon = 'sym_r_hourglass_empty'
-      color = 'cyan-8'
+      accentClass = 'xf-toast--sla-client'
     }
+
+    // Construcción elegante y minimalista del HTML interno
+    let metaPillsHtml = ''
+    if (channelName) {
+      let iconPrefix = '●'
+      if (channel === 'whatsapp') iconPrefix = '● WhatsApp • '
+      else if (channel === 'facebook') iconPrefix = '● Facebook • '
+      else if (channel === 'instagram') iconPrefix = '● Instagram • '
+      else if (channel === 'tiktok') iconPrefix = '● TikTok • '
+
+      metaPillsHtml += `<span class="xf-toast-pill xf-toast-pill--${channel}">${iconPrefix}${channelName}</span>`
+    }
+
+    if (isFromPost) {
+      metaPillsHtml += `<span class="xf-toast-pill xf-toast-pill--post">📌 Post #${postId}</span>`
+    } else if (channelName) {
+      metaPillsHtml += `<span class="xf-toast-pill xf-toast-pill--direct">📩 Chat directo</span>`
+    }
+
+    const captionHtml = `
+      <div class="xf-toast-inner">
+        ${metaPillsHtml ? `<div class="xf-toast-pills-row">${metaPillsHtml}</div>` : ''}
+        <div class="xf-toast-detail">
+          <span>${unreadCount} nuevo(s) sin abrir</span> • <span class="xf-toast-assignee">Asignado: ${assigneeName}</span>
+        </div>
+      </div>
+    `
 
     Notify.create({
       message: item.title,
-      caption: item.message,
+      caption: captionHtml,
+      html: true,
       icon,
-      color,
+      color: 'dark',
+      textColor: 'white',
       position: 'top-right',
-      timeout: 7000,
+      timeout: 8000,
       progress: true,
-      classes: 'xf-notification-popup-toast',
+      classes: `xf-notification-popup-toast ${accentClass}`,
       actions: [
         {
-          label: 'Abrir',
+          label: 'ABRIR CHAT',
           color: 'white',
-          class: 'text-bold q-px-sm',
+          class: 'xf-toast-action-btn text-bold q-px-sm',
           handler: () => {
             if (item.action_url) {
               router.push(item.action_url)
@@ -103,10 +153,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
         },
         {
           icon: 'sym_r_close',
-          color: 'white',
+          color: 'grey-4',
           round: true,
           dense: true,
-          size: 'sm',
+          size: 'xs',
+          class: 'q-ml-xs',
         },
       ],
     })

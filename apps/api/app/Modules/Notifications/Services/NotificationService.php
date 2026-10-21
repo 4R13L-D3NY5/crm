@@ -56,25 +56,26 @@ class NotificationService
         // 2. Traer conversaciones abiertas o pendientes para calcular alertas operativas en tiempo real
         $convQuery = Conversation::where('organization_id', $orgId)
             ->whereIn('status', ['open', 'pending'])
-            ->with(['contact', 'assignedToUser', 'latestExternalMessage', 'latestMessage']);
+            ->with(['contact', 'assignedToUser', 'latestExternalMessage', 'latestMessage', 'whatsappAccount', 'socialComment']);
 
         // Si el usuario es operador/agente (no admin), limitar alertas a sus conversaciones o de sus canales asignados
         if (!$user->isAdmin()) {
-            $convQuery->where(function ($q) use ($user) {
+            $hasExplicitChannels = $user->whatsappAccounts()->wherePivot('can_view', true)->exists();
+
+            $convQuery->where(function ($q) use ($user, $hasExplicitChannels) {
                 $q->where('assigned_to_user_id', $user->id)
-                  ->orWhere(function ($unassigned) use ($user) {
-                      $unassigned->whereNull('assigned_to_user_id')
-                          ->where(function ($channelQ) use ($user) {
-                              $channelQ->whereHas('whatsappAccount.authorizedUsers', function ($uq) use ($user) {
-                                  $uq->where('users.id', $user->id)
-                                     ->where('whatsapp_account_users.can_view', true);
-                              })
-                              ->orWhere(function ($unrestricted) {
-                                  $unrestricted->whereNotNull('whatsapp_account_id')
-                                               ->whereDoesntHave('whatsappAccount.authorizedUsers');
-                              })
-                              ->orWhereNull('whatsapp_account_id');
-                          });
+                  ->orWhere(function ($channelQ) use ($user, $hasExplicitChannels) {
+                      $channelQ->whereHas('whatsappAccount.authorizedUsers', function ($uq) use ($user) {
+                          $uq->where('users.id', $user->id)
+                             ->where('whatsapp_account_users.can_view', true);
+                      });
+
+                      if (!$hasExplicitChannels) {
+                          $channelQ->orWhere(function ($unrestricted) {
+                              $unrestricted->whereNotNull('whatsapp_account_id')
+                                           ->whereDoesntHave('whatsappAccount.authorizedUsers');
+                          })->orWhereNull('whatsapp_account_id');
+                      }
                   });
             });
         }
@@ -104,18 +105,57 @@ class NotificationService
             $notifyUser = $matchedRule?->notify_user_inactivity ?? true;
             $notifyClient = $matchedRule?->notify_client_inactivity ?? true;
 
+            // Metadata de Canal y Línea receptora
+            $channel = $conv->channel ?? $conv->whatsappAccount?->session_type ?? 'whatsapp';
+            $channelName = $conv->whatsappAccount?->name
+                ?? data_get($conv->metadata, 'page_name')
+                ?? data_get($conv->metadata, 'account_name')
+                ?? data_get($conv->metadata, 'fanpage_name')
+                ?? match ($channel) {
+                    'facebook' => 'Facebook Messenger',
+                    'instagram' => 'Instagram Direct',
+                    'tiktok' => 'TikTok',
+                    default => 'WhatsApp Línea Principal',
+                };
+            $channelNumber = $conv->whatsappAccount?->display_phone_number ?? $conv->whatsappAccount?->phone_number_id;
+
+            // Detección de Publicación / Post (Origen Social o Anuncio)
+            $postId = $conv->socialComment?->post_id;
+            if (!$postId && $conv->contact?->notes) {
+                if (preg_match('/Post #?([a-zA-Z0-9_-]+)/i', $conv->contact->notes, $matches)) {
+                    $postId = $matches[1];
+                }
+            }
+            if (!$postId && filled(data_get($conv->contact?->custom_fields, 'post_id'))) {
+                $postId = (string) data_get($conv->contact->custom_fields, 'post_id');
+            }
+
+            $isFromPost = filled($postId);
+            $originLabel = $isFromPost ? "Publicación #{$postId}" : "Mensaje directo";
+            $postUrl = $postId ? "https://facebook.com/{$postId}" : null;
+
             // A. Alerta de "No Leídos"
             if ($conv->unread_count > 0) {
+                $originSnippet = $isFromPost ? " • 📌 {$originLabel}" : "";
                 $operationalAlerts->push([
                     'id' => "conv_unread_{$conv->id}",
                     'type' => 'unread',
                     'title' => "Mensaje no leído: {$contactName}",
-                    'message' => "Tiene {$conv->unread_count} mensaje(s) nuevo(s) sin abrir. Asignado a: {$assigneeName}.",
+                    'message' => "Tiene {$conv->unread_count} mensaje(s) nuevo(s) sin abrir. Canal: {$channelName}{$originSnippet}. Asignado a: {$assigneeName}.",
                     'action_url' => "/app/conversations?id={$conv->id}",
                     'data' => [
                         'conversation_id' => $conv->id,
                         'unread_count' => $conv->unread_count,
                         'contact_phone' => $conv->contact?->phone,
+                        'contact_name' => $contactName,
+                        'channel' => $channel,
+                        'channel_name' => $channelName,
+                        'channel_number' => $channelNumber,
+                        'is_from_post' => $isFromPost,
+                        'post_id' => $postId,
+                        'post_url' => $postUrl,
+                        'origin_label' => $originLabel,
+                        'assignee_name' => $assigneeName,
                     ],
                     'is_read' => false,
                     'read_at' => null,
@@ -139,6 +179,14 @@ class NotificationService
                             'conversation_id' => $conv->id,
                             'elapsed_minutes' => $elapsedMinutes,
                             'threshold' => $advisorTimeoutMinutes,
+                            'channel' => $channel,
+                            'channel_name' => $channelName,
+                            'channel_number' => $channelNumber,
+                            'is_from_post' => $isFromPost,
+                            'post_id' => $postId,
+                            'post_url' => $postUrl,
+                            'origin_label' => $originLabel,
+                            'assignee_name' => $assigneeName,
                         ],
                         'is_read' => false,
                         'read_at' => null,
@@ -163,6 +211,14 @@ class NotificationService
                             'conversation_id' => $conv->id,
                             'elapsed_minutes' => $elapsedMinutes,
                             'threshold' => $clientTimeoutMinutes,
+                            'channel' => $channel,
+                            'channel_name' => $channelName,
+                            'channel_number' => $channelNumber,
+                            'is_from_post' => $isFromPost,
+                            'post_id' => $postId,
+                            'post_url' => $postUrl,
+                            'origin_label' => $originLabel,
+                            'assignee_name' => $assigneeName,
                         ],
                         'is_read' => false,
                         'read_at' => null,
