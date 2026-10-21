@@ -77,6 +77,36 @@ class BusinessHoursConfig extends Model
             ->withTimestamps();
     }
 
+    public function channels(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Modules\WhatsApp\Models\WhatsAppAccount::class,
+            'business_hours_channels',
+            'business_hours_config_id',
+            'whatsapp_account_id'
+        )->withTimestamps();
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Category::class,
+            'business_hours_categories',
+            'business_hours_config_id',
+            'category_id'
+        )->withTimestamps();
+    }
+
+    public function queues(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Modules\Queues\Models\Queue::class,
+            'business_hours_queues',
+            'business_hours_config_id',
+            'queue_id'
+        )->withTimestamps();
+    }
+
     /**
      * Días y horarios predeterminados: Lunes a Viernes 07:45 - 18:30, Sábados 08:15 - 12:30.
      */

@@ -8,7 +8,7 @@ class CreateNoteRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->isAdmin();
+        return $this->user() !== null;
     }
 
     public function rules(): array

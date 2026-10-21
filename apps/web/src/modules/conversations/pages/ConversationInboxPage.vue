@@ -27,11 +27,36 @@
         @back="handleBackToList"
         @accept="handleAcceptTicket"
         @transfer="isTransferModalOpen = true"
+        @release="handleReleaseTicket"
         @close="handleCloseTicket"
         @reopen="handleReopenTicket"
         @toggle-profile="isProfileOpen = !isProfileOpen"
         @send-message="handleSendMessage"
       />
+    </div>
+
+    <!-- Estado de carga al seleccionar una conversación -->
+    <div
+      v-else-if="selectedConversationId && activeConversationQuery.isLoading.value"
+      class="inbox-center-area inbox-center-empty"
+    >
+      <div class="column items-center justify-center text-center q-pa-xl text-grey-5">
+        <q-spinner-dots size="48px" color="teal-4" />
+        <div class="text-caption text-grey-4 q-mt-md font-sans">Cargando conversación...</div>
+      </div>
+    </div>
+
+    <!-- Estado de error al seleccionar una conversación -->
+    <div
+      v-else-if="selectedConversationId && activeConversationQuery.isError.value"
+      class="inbox-center-area inbox-center-empty"
+    >
+      <div class="column items-center justify-center text-center q-pa-xl text-grey-5">
+        <q-icon name="sym_r_error" size="44px" color="negative" class="q-mb-sm" />
+        <div class="text-subtitle1 text-white">No se pudo cargar la conversación</div>
+        <div class="text-caption text-grey-4 q-mt-xs">Es posible que el ticket no exista o haya sido archivado.</div>
+        <q-btn flat color="teal-4" label="Volver a la bandeja" class="q-mt-md" @click="handleBackToList" />
+      </div>
     </div>
 
     <!-- Empty Selection State (solo desktop si no hay conversación activa seleccionada) -->
@@ -53,6 +78,7 @@
       :conversation="selectedConversation"
       @close="isProfileOpen = false"
       @transfer="isTransferModalOpen = true"
+      @release="handleReleaseTicket"
       @resolve="handleCloseTicket"
       @reopen="handleReopenTicket"
     />
@@ -73,6 +99,7 @@
           :is-mobile="true"
           @close="isProfileOpen = false"
           @transfer="isTransferModalOpen = true"
+          @release="handleReleaseTicket"
           @resolve="handleCloseTicket"
           @reopen="handleReopenTicket"
         />
@@ -101,6 +128,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 import { markConversationAsRead } from '../api/conversations.api'
@@ -118,6 +146,8 @@ import InboxContactSidebar from '../components/InboxContactSidebar.vue'
 import TicketTransferDialog from '../components/TicketTransferDialog.vue'
 import ConversationFormDialog from './ConversationFormDialog.vue'
 
+const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 const notify = useAppNotify()
 const formOptions = useConversationFormOptions()
@@ -128,14 +158,15 @@ const isMobile = computed(() => $q.screen.width < 900)
 // Estados y Filtros
 const activeTab = ref<'attending' | 'pending' | 'closed'>('attending')
 const searchQuery = ref('')
-const selectedConversationId = ref<string | null>(null)
+const selectedConversationId = ref<string | null>((route.query.id as string) || null)
 const isProfileOpen = ref(!$q.screen.lt.md)
 const isTransferModalOpen = ref(false)
 const isNewTicketModalOpen = ref(false)
 
-// Query de lista de conversaciones con refetch continuo para tiempo real
+// Query de lista de conversaciones con refetch continuo para tiempo real (per_page: 100 para no limitar a 20)
 const conversationsQuery = useConversations(computed(() => ({
   search: searchQuery.value || undefined,
+  per_page: 100,
 })))
 
 const allConversations = computed<Conversation[]>(() => {
@@ -180,19 +211,56 @@ const isActionPending = computed(() => {
   )
 })
 
+// Sincronización bidireccional de ?id= en la URL con selectedConversationId
+watch(
+  () => route.query.id,
+  (newId) => {
+    const stringId = typeof newId === 'string' && newId.trim() !== '' ? newId.trim() : null
+    if (stringId !== selectedConversationId.value) {
+      selectedConversationId.value = stringId
+    }
+  },
+  { immediate: true },
+)
+
+// Si el usuario entra sin id y no tiene tickets en Atendiendo pero sí en En espera, alternar automáticamente a 'pending'
+const hasAutoSwitchedToPending = ref(false)
+watch(
+  [allConversations, attendingCount, pendingCount],
+  ([all, attending, pending]) => {
+    if (!route.query.id && !hasAutoSwitchedToPending.value && all.length > 0) {
+      if (attending === 0 && pending > 0 && activeTab.value === 'attending') {
+        activeTab.value = 'pending'
+        hasAutoSwitchedToPending.value = true
+      }
+    }
+  },
+  { immediate: true },
+)
+
 function onTabChange(tab: 'attending' | 'pending' | 'closed') {
   activeTab.value = tab
-  // Si la conversación seleccionada no coincide con el nuevo tab, reset
+  // Si la conversación seleccionada no coincide con el nuevo tab, limpiar selección
   if (selectedConversation.value) {
     const expected = tab === 'attending' ? 'open' : tab === 'pending' ? 'pending' : 'closed'
     if (selectedConversation.value.status !== expected) {
       selectedConversationId.value = null
+      if (route.query.id) {
+        const query = { ...route.query }
+        delete query.id
+        router.replace({ query })
+      }
     }
   }
 }
 
 function handleBackToList() {
   selectedConversationId.value = null
+  if (route.query.id) {
+    const query = { ...route.query }
+    delete query.id
+    router.replace({ query })
+  }
   if (isMobile.value) {
     isProfileOpen.value = false
   }
@@ -200,6 +268,9 @@ function handleBackToList() {
 
 function selectConversation(conv: Conversation) {
   selectedConversationId.value = conv.id
+  if (route.query.id !== conv.id) {
+    router.replace({ query: { ...route.query, id: conv.id } })
+  }
   if (conv.unread_count && conv.unread_count > 0) {
     conv.unread_count = 0
     markConversationAsRead(conv.id).catch(() => {})
@@ -255,11 +326,46 @@ async function handleTransferTicket(payload: TransferTicketPayload) {
   }
 }
 
+async function handleReleaseTicket() {
+  if (!selectedConversationId.value) return
+  $q.dialog({
+    title: 'Liberar Chat para Relevo',
+    message: '¿Deseas liberar este chat? Se desasignará de tu nombre y pasará a la bandeja Sin Asignar / Pendientes para que el nuevo operador o equipo de turno pueda continuar la atención.',
+    cancel: {
+      label: 'Cancelar',
+      flat: true,
+      color: 'grey-4',
+      noCaps: true,
+    },
+    ok: {
+      label: 'Sí, liberar chat',
+      color: 'amber-9',
+      unelevated: true,
+      noCaps: true,
+    },
+    dark: true,
+  }).onOk(async () => {
+    try {
+      await mutations.releaseMutation.mutateAsync({
+        id: selectedConversationId.value!,
+        payload: { reason: 'Liberado voluntariamente para cambio de turno' },
+      })
+      notify.success({ message: 'Chat liberado a la bandeja general exitosamente.' })
+      activeTab.value = 'pending'
+    } catch {
+      notify.error({ message: 'Error al liberar el chat.' })
+    }
+  })
+}
+
 async function handleTicketSubmit(payload: CreateConversationPayload) {
   try {
     const created = await mutations.createMutation.mutateAsync(payload)
     isNewTicketModalOpen.value = false
     selectedConversationId.value = created.id
+    if (route.query.id !== created.id) {
+      router.replace({ query: { ...route.query, id: created.id } })
+    }
     notify.success({ message: 'Conversación creada exitosamente.' })
   } catch {
     notify.error({ message: 'Error al crear conversación.' })
@@ -336,21 +442,34 @@ async function handleSendMessage({
   }
 }
 
-// Auto-seleccionar el primer ticket solo en desktop si no hay ninguno seleccionado
+// Auto-seleccionar el primer ticket solo en desktop si no hay ninguno seleccionado ni query id
 watch(
   filteredConversations,
   (list) => {
-    if (!isMobile.value && !selectedConversationId.value && list.length > 0) {
+    if (!isMobile.value && !selectedConversationId.value && !route.query.id && list.length > 0) {
       selectedConversationId.value = list[0].id
+      router.replace({ query: { ...route.query, id: list[0].id } })
     }
   },
   { immediate: true },
 )
 
+// Cuando carga la conversación seleccionada, sincronizar pestaña y marcar leída
 watch(
   selectedConversation,
   (conv) => {
-    if (conv && conv.unread_count && conv.unread_count > 0) {
+    if (!conv) return
+
+    // Sincronizar automáticamente el tab con el estado real del ticket si no coincide
+    if (conv.status === 'open' && activeTab.value !== 'attending') {
+      activeTab.value = 'attending'
+    } else if (conv.status === 'pending' && activeTab.value !== 'pending') {
+      activeTab.value = 'pending'
+    } else if (conv.status === 'closed' && activeTab.value !== 'closed') {
+      activeTab.value = 'closed'
+    }
+
+    if (conv.unread_count && conv.unread_count > 0) {
       conv.unread_count = 0
       markConversationAsRead(conv.id).catch(() => {})
     }

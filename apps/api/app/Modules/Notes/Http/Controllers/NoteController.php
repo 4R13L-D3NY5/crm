@@ -166,13 +166,15 @@ class NoteController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
-        if (! $request->user()?->isAdmin()) {
+        $user = $request->user();
+        $note = Note::where('organization_id', $user->current_organization_id)->findOrFail($id);
+
+        if (! $user->isAdmin() && $note->user_id !== $user->id) {
             return response()->json([
-                'message' => 'Solo los administradores pueden eliminar notas del sistema.',
+                'message' => 'Solo los administradores o el autor de la nota pueden eliminarla.',
             ], 403);
         }
 
-        $note = Note::where('organization_id', $request->user()->current_organization_id)->findOrFail($id);
         $note->delete();
 
         return response()->json([
@@ -182,13 +184,15 @@ class NoteController extends Controller
 
     public function togglePin(Request $request, string $id): JsonResponse
     {
-        if (! $request->user()?->isAdmin()) {
+        $user = $request->user();
+        $note = Note::where('organization_id', $user->current_organization_id)->findOrFail($id);
+
+        if (! $user->isAdmin() && $note->user_id !== $user->id) {
             return response()->json([
-                'message' => 'Solo los administradores pueden fijar o desfijar notas.',
+                'message' => 'Solo los administradores o el autor de la nota pueden fijar o desfijar notas.',
             ], 403);
         }
 
-        $note = Note::where('organization_id', $request->user()->current_organization_id)->findOrFail($id);
         $note->is_pinned = !$note->is_pinned;
         $note->save();
 
@@ -203,13 +207,15 @@ class NoteController extends Controller
 
     public function toggleArchive(Request $request, string $id): JsonResponse
     {
-        if (! $request->user()?->isAdmin()) {
+        $user = $request->user();
+        $note = Note::where('organization_id', $user->current_organization_id)->findOrFail($id);
+
+        if (! $user->isAdmin() && $note->user_id !== $user->id) {
             return response()->json([
-                'message' => 'Solo los administradores pueden archivar o desarchivar notas.',
+                'message' => 'Solo los administradores o el autor de la nota pueden archivar o desarchivar notas.',
             ], 403);
         }
 
-        $note = Note::where('organization_id', $request->user()->current_organization_id)->findOrFail($id);
         $note->is_archived = !$note->is_archived;
         $note->save();
 

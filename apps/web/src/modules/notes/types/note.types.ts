@@ -7,6 +7,7 @@ export interface Note {
     name: string
     email: string
   }
+  author_name?: string
   title: string | null
   content: string
   color: string
@@ -75,4 +76,17 @@ export interface RefineAiResult {
   refined_content: string
   action: 'spellcheck' | 'summarize' | 'tone_formal' | 'tone_persuasive' | 'custom'
   provider: string
+}
+
+export interface SimilarNoteItem {
+  note: Note
+  similarity_percent: number
+  similarity_reason: string
+  source: 'ia' | 'semantic_analysis'
+}
+
+export interface SimilarNotesResponse {
+  data: SimilarNoteItem[]
+  target_note?: Note
+  total: number
 }

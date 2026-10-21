@@ -299,6 +299,19 @@
               <q-item-section>Notas & Base de Conocimiento</q-item-section>
             </q-item>
 
+            <!-- 5.1 Base de Conocimiento IA -->
+            <q-item
+              clickable
+              to="/app/wabot"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_psychology" size="18px" color="teal-4" />
+              </q-item-section>
+              <q-item-section>Base de Conocimiento IA</q-item-section>
+            </q-item>
+
             <!-- 6. Audiencia & Contactos -->
             <q-item
               clickable

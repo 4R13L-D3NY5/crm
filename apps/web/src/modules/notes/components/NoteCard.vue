@@ -115,11 +115,34 @@
 
     <!-- Card Footer: Autor y Acciones -->
     <div class="xf-keep-card__footer row items-center justify-between no-wrap q-pt-xs">
-      <div class="text-caption text-grey-5 ellipsis font-mono" style="font-size: 0.72rem">
-        {{ note.user?.name || 'Administración' }}
+      <!-- Autor de la nota -->
+      <div class="row items-center q-gutter-x-xs ellipsis cursor-pointer" style="max-width: 58%;">
+        <q-avatar size="20px" color="teal-9" text-color="teal-2" class="text-weight-bold" style="font-size: 10px;">
+          {{ authorInitials }}
+        </q-avatar>
+        <div class="text-caption text-grey-4 ellipsis font-mono" style="font-size: 0.74rem">
+          {{ note.user?.name || note.author_name || 'Administración' }}
+        </div>
+        <q-tooltip class="bg-dark text-white font-mono text-caption">
+          Registrado por: {{ note.user?.name || note.author_name || 'Usuario' }}
+          {{ note.user?.email ? '(' + note.user.email + ')' : '' }}
+          {{ formattedCreatedAt ? '• ' + formattedCreatedAt : '' }}
+        </q-tooltip>
       </div>
 
       <div class="row items-center no-wrap q-gutter-x-none">
+        <!-- Botón: Buscar notas similares con IA -->
+        <q-btn
+          flat
+          round
+          dense
+          size="sm"
+          color="amber-4"
+          icon="sym_r_auto_awesome"
+          @click.stop="emit('find-similar', note)"
+        >
+          <q-tooltip>Encontrar notas similares con IA</q-tooltip>
+        </q-btn>
         <q-btn
           flat
           round
@@ -190,7 +213,25 @@ const emit = defineEmits<{
   delete: [id: string]
   'toggle-pin': [id: string]
   'toggle-archive': [id: string]
+  'find-similar': [note: Note]
 }>()
+
+const authorInitials = computed(() => {
+  const name = props.note.user?.name || props.note.author_name || 'Admin'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+})
+
+const formattedCreatedAt = computed(() => {
+  if (!props.note.created_at) return ''
+  try {
+    const d = new Date(props.note.created_at)
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return ''
+  }
+})
 
 const $q = useQuasar()
 

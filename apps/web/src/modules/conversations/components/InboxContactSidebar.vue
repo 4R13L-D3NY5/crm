@@ -480,6 +480,18 @@
         />
 
         <q-btn
+          v-if="conversation.status !== 'closed' && (conversation.assignee || conversation.assigned_to_user_id)"
+          outline
+          dense
+          no-caps
+          color="amber-4"
+          icon="sym_r_lock_open"
+          label="Liberar chat (Relevo / Guardia)"
+          class="full-width q-py-xs"
+          @click="emit('release')"
+        />
+
+        <q-btn
           v-if="conversation.status !== 'closed'"
           flat
           dense
@@ -525,6 +537,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'transfer'): void
+  (e: 'release'): void
   (e: 'resolve'): void
   (e: 'reopen'): void
 }>()

@@ -112,36 +112,118 @@ class NoteManagementTest extends TestCase
         ]);
     }
 
-    public function test_agent_cannot_create_update_or_delete_note(): void
+    public function test_agent_can_create_and_manage_own_notes_but_cannot_modify_others_notes(): void
     {
         $this->actingAs($this->agentUser);
 
-        // Intento de creación por un agente -> 403 Forbidden
-        $response = $this->postJson('/api/notes', [
-            'title' => 'Nota de prueba por agente',
-            'content' => 'Contenido de la nota',
+        // 1. Creación por un agente -> 201 Created con autor asignado
+        $createResponse = $this->postJson('/api/notes', [
+            'title' => 'Nota creada por Asesor',
+            'content' => 'Respuestas rápidas para dudas de postulantes.',
+            'visibility' => 'all',
         ]);
-        $response->assertStatus(403);
+        $createResponse->assertStatus(201)
+            ->assertJsonPath('data.title', 'Nota creada por Asesor')
+            ->assertJsonPath('data.user_id', $this->agentUser->id)
+            ->assertJsonPath('data.user.name', 'Agent Keeper');
 
-        // Nota existente creada por admin
-        $note = Note::create([
+        $agentNoteId = $createResponse->json('data.id');
+
+        // 2. Agente actualiza su propia nota -> 200 OK
+        $updateOwnResponse = $this->putJson("/api/notes/{$agentNoteId}", [
+            'title' => 'Nota de Asesor Actualizada',
+            'content' => 'Contenido modificado por el autor.',
+        ]);
+        $updateOwnResponse->assertStatus(200)
+            ->assertJsonPath('data.title', 'Nota de Asesor Actualizada');
+
+        // 3. Nota existente creada por el administrador
+        $adminNote = Note::create([
             'organization_id' => $this->organization->id,
             'user_id' => $this->adminUser->id,
             'title' => 'Nota de Admin',
-            'content' => 'Contenido oficial',
+            'content' => 'Contenido oficial de directivos',
             'visibility' => 'all',
         ]);
 
-        // Intento de actualización por agente -> 403 Forbidden
-        $updateResponse = $this->putJson("/api/notes/{$note->id}", [
-            'title' => 'Intento de edición',
+        // 4. Intento de actualización de nota de otro usuario por agente -> 403 Forbidden
+        $updateResponse = $this->putJson("/api/notes/{$adminNote->id}", [
+            'title' => 'Intento no autorizado',
             'content' => 'Modificado',
         ]);
         $updateResponse->assertStatus(403);
 
-        // Intento de eliminación por agente -> 403 Forbidden
-        $deleteResponse = $this->deleteJson("/api/notes/{$note->id}");
+        // 5. Intento de eliminación de nota de otro usuario por agente -> 403 Forbidden
+        $deleteResponse = $this->deleteJson("/api/notes/{$adminNote->id}");
         $deleteResponse->assertStatus(403);
+
+        // 6. Agente elimina su propia nota -> 200 OK
+        $deleteOwnResponse = $this->deleteJson("/api/notes/{$agentNoteId}");
+        $deleteOwnResponse->assertStatus(200);
+        $this->assertSoftDeleted('notes', ['id' => $agentNoteId]);
+    }
+
+    public function test_finding_similar_notes_endpoint(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $note1 = Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Requisitos de Admisión para Medicina',
+            'content' => 'Para postular se requiere fotocopia legalizada del título de bachiller, certificado de nacimiento y carnet de identidad.',
+            'visibility' => 'all',
+        ]);
+
+        $note2 = Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->agentUser->id,
+            'title' => 'Documentos de Matrícula e Inscripción',
+            'content' => 'Presentar fotocopia del título de bachiller y carnet de identidad vigente en ventanilla de admisión.',
+            'visibility' => 'all',
+        ]);
+
+        $note3 = Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Inventario de computadoras y red',
+            'content' => 'Servidores y switches ubicados en el rack del piso 3 con cables ethernet cat6.',
+            'visibility' => 'all',
+        ]);
+
+        // Buscar notas similares a la Nota 1
+        $response = $this->getJson("/api/notes/{$note1->id}/similar");
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'note' => ['id', 'title', 'content', 'user_id', 'user'],
+                        'similarity_percent',
+                        'similarity_reason',
+                        'source',
+                    ],
+                ],
+                'target_note',
+                'total',
+            ]);
+
+        $similarNotes = $response->json('data');
+        $this->assertNotEmpty($similarNotes);
+        // La nota 2 debe tener mayor similitud que la nota 3
+        $firstMatch = $similarNotes[0];
+        $this->assertEquals($note2->id, $firstMatch['note']['id']);
+        $this->assertGreaterThanOrEqual(25, $firstMatch['similarity_percent']);
+        $this->assertNotEmpty($firstMatch['similarity_reason']);
+        $this->assertEquals('Agent Keeper', $firstMatch['note']['user']['name']);
+
+        // Probar también búsqueda sobre borrador de texto
+        $draftResponse = $this->postJson('/api/notes/similar', [
+            'title' => 'Requisitos para extranjeros',
+            'content' => 'Trámite de postulación y presentación de título de bachiller con carnet legalizado.',
+        ]);
+        $draftResponse->assertStatus(200)
+            ->assertJsonStructure(['data', 'total']);
+        $this->assertNotEmpty($draftResponse->json('data'));
     }
 
     public function test_note_visibility_rules_for_agents(): void

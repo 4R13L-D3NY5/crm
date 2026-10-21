@@ -2,13 +2,26 @@
 
 namespace App\Modules\Notes\Http\Requests;
 
+use App\Modules\Notes\Models\Note;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateNoteRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->isAdmin();
+        $user = $this->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $noteId = $this->route('id');
+        $note = Note::where('organization_id', $user->current_organization_id)->find($noteId);
+
+        return $note && $note->user_id === $user->id;
     }
 
     public function rules(): array

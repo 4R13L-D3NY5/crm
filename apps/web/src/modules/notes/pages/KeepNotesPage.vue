@@ -20,7 +20,6 @@
 
       <div class="col-12 col-sm-auto row items-center q-gutter-x-sm">
         <q-btn
-          v-if="isAdmin"
           unelevated
           color="primary"
           icon="sym_r_add"
@@ -28,11 +27,6 @@
           class="q-px-md text-weight-bold"
           @click="openCreateDialog"
         />
-
-        <div v-else class="text-caption text-grey-5 bg-dark q-px-sm q-py-xs rounded-borders">
-          <q-icon name="sym_r_visibility" size="14px" class="q-mr-xs text-teal-3" />
-          Modo Consulta (Asesor)
-        </div>
       </div>
     </header>
 
@@ -163,11 +157,12 @@
             v-for="note in pinnedNotes"
             :key="note.id"
             :note="note"
-            :can-edit="isAdmin"
+            :can-edit="canEditNote(note)"
             @edit="openEditDialog"
             @delete="confirmDelete"
             @toggle-pin="handleTogglePin"
             @toggle-archive="handleToggleArchive"
+            @find-similar="openSimilarDialog"
           />
         </div>
       </section>
@@ -185,11 +180,12 @@
             v-for="note in otherNotes"
             :key="note.id"
             :note="note"
-            :can-edit="isAdmin"
+            :can-edit="canEditNote(note)"
             @edit="openEditDialog"
             @delete="confirmDelete"
             @toggle-pin="handleTogglePin"
             @toggle-archive="handleToggleArchive"
+            @find-similar="openSimilarDialog"
           />
         </div>
       </section>
@@ -213,7 +209,7 @@
         }}
       </p>
       <q-btn
-        v-if="isAdmin && !searchQuery && !selectedCategory && !selectedStatus && activeTab !== 'archived'"
+        v-if="!searchQuery && !selectedCategory && !selectedStatus && activeTab !== 'archived'"
         unelevated
         color="primary"
         icon="sym_r_add"
@@ -229,6 +225,13 @@
       :note="selectedNote"
       @saved="onNoteSaved"
     />
+
+    <!-- Modal de Detección de Notas Similares con IA -->
+    <SimilarNotesDialog
+      v-model="isSimilarDialogOpen"
+      :note="similarDialogNote"
+      @select-note="openEditDialog"
+    />
   </q-page>
 </template>
 
@@ -242,6 +245,7 @@ import { useNotes } from '../composables/useNotes'
 import type { Note } from '../types/note.types'
 import NoteCard from '../components/NoteCard.vue'
 import NoteEditDialog from '../components/NoteEditDialog.vue'
+import SimilarNotesDialog from '../components/SimilarNotesDialog.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -250,6 +254,20 @@ const { notes, isLoading, fetchNotes, togglePin, toggleArchive, removeNote } = u
 const isAdmin = computed(() => {
   return authStore.currentRole === 'admin' || authStore.currentRole === 'owner'
 })
+
+function canEditNote(note: Note): boolean {
+  if (isAdmin.value) return true
+  const uid = authStore.user?.id
+  return Boolean(uid && (note.user_id === uid || note.user?.id === uid))
+}
+
+const isSimilarDialogOpen = ref(false)
+const similarDialogNote = ref<Note | null>(null)
+
+function openSimilarDialog(note: Note) {
+  similarDialogNote.value = note
+  isSimilarDialogOpen.value = true
+}
 
 const activeTab = ref<'active' | 'pinned' | 'archived'>('active')
 const searchQuery = ref('')

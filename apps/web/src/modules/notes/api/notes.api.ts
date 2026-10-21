@@ -1,5 +1,11 @@
 import { http } from '@/shared/api/http'
-import type { AnalyzeResult, Note, NotePayload, RefineAiResult } from '../types/note.types'
+import type {
+  AnalyzeResult,
+  Note,
+  NotePayload,
+  RefineAiResult,
+  SimilarNotesResponse,
+} from '../types/note.types'
 
 export interface NoteFilterParams {
   search?: string
@@ -56,4 +62,21 @@ export async function refineNoteAi(payload: {
 }): Promise<RefineAiResult> {
   const response = await http.post<{ data: RefineAiResult }>('/notes/ai/refine', payload)
   return response.data.data
+}
+
+export async function getSimilarNotes(noteId: string, limit = 5): Promise<SimilarNotesResponse> {
+  const response = await http.get<SimilarNotesResponse>(`/notes/${noteId}/similar`, {
+    params: { limit },
+  })
+  return response.data
+}
+
+export async function searchSimilarDraft(payload: {
+  content: string
+  title?: string
+  exclude_id?: string
+  limit?: number
+}): Promise<SimilarNotesResponse> {
+  const response = await http.post<SimilarNotesResponse>('/notes/similar', payload)
+  return response.data
 }

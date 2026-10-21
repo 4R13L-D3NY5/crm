@@ -90,7 +90,10 @@
               <q-badge v-if="cfg.is_default" color="blue-9" class="text-caption font-mono" style="font-size: 0.65rem">
                 Principal
               </q-badge>
-              <q-badge v-if="cfg.scope_type === 'operator'" color="purple-9" class="text-caption" style="font-size: 0.65rem">
+              <q-badge v-if="(cfg.channels || []).length > 0" color="teal-9" text-color="teal-2" class="text-caption" style="font-size: 0.65rem">
+                {{ (cfg.channels || []).length }} can.
+              </q-badge>
+              <q-badge v-if="(cfg.users || []).length > 0" color="purple-9" text-color="purple-2" class="text-caption" style="font-size: 0.65rem">
                 {{ (cfg.users || []).length }} op.
               </q-badge>
               <q-badge v-if="cfg.validity_type === 'date_range'" color="amber-9" class="text-caption" style="font-size: 0.65rem">
@@ -169,45 +172,8 @@
           </div>
         </div>
 
-        <!-- Selector de Operadores (si el ámbito es por operador) -->
-        <div v-if="form.scope_type === 'operator'" class="q-mb-md bg-dark-subtle q-pa-md rounded-borders">
-          <div class="text-caption text-purple-3 text-bold q-mb-xs">
-            SELECCIONA LOS OPERADORES A LOS QUE SE APLICA ESTE HORARIO DIFERENCIADO:
-          </div>
-          <q-select
-            v-model="form.user_ids"
-            :options="operatorsList"
-            option-value="id"
-            option-label="name"
-            emit-value
-            map-options
-            multiple
-            use-chips
-            outlined
-            dark
-            dense
-            placeholder="Selecciona uno o más operadores (ej: Yerko, Anet, Juan Pablo...)"
-            hint="Los chats asignados a estos operadores se regirán bajo este horario específico"
-          >
-            <template #prepend>
-              <q-icon name="sym_r_group" color="purple-4" size="18px" />
-            </template>
-            <template #option="{ itemProps, opt, selected, toggleOption }">
-              <q-item v-bind="itemProps" dense dark class="cursor-pointer" @click="toggleOption(opt)">
-                <q-item-section side>
-                  <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label class="text-white text-bold">{{ opt.name }}</q-item-label>
-                  <q-item-label caption class="text-grey-4">{{ opt.email }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </template>
-          </q-select>
-        </div>
-
         <!-- Checkbox Horario Predeterminado (si es general) -->
-        <div v-if="form.scope_type === 'general'" class="q-mb-md">
+        <div v-if="form.scope_type === 'general'" class="q-mb-sm">
           <q-checkbox
             v-model="form.is_default"
             label="Marcar como Horario General Predeterminado de la Universidad"
@@ -215,6 +181,202 @@
             color="primary"
             dense
           />
+        </div>
+
+        <!-- 🎯 Asignación de Canales, Operadores y Enrutamiento para este Horario / Turno -->
+        <div class="q-mb-md bg-dark-subtle q-pa-md rounded-borders" style="border: 1px solid rgba(255, 255, 255, 0.08);">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="row items-center q-gutter-x-sm">
+              <q-avatar size="28px" color="teal-9" text-color="teal-2">
+                <q-icon name="sym_r_hub" size="18px" />
+              </q-avatar>
+              <div>
+                <div class="text-subtitle2 text-bold text-white">Cobertura & Asignación del Turno</div>
+                <div class="text-caption text-grey-4">
+                  Define los canales y operadores asignados a este horario de atención
+                </div>
+              </div>
+            </div>
+
+            <div class="row items-center q-gutter-x-xs">
+              <q-badge color="teal-9" text-color="teal-2" class="text-caption">
+                {{ form.channel_ids.length }} canales seleccionados
+              </q-badge>
+              <q-badge color="purple-9" text-color="purple-2" class="text-caption">
+                {{ form.user_ids.length }} operadores asignados
+              </q-badge>
+            </div>
+          </div>
+
+          <div class="row q-col-gutter-md">
+            <!-- 1. Canales Asignados -->
+            <div class="col-12 col-md-6">
+              <div class="row items-center justify-between q-mb-xs">
+                <span class="text-caption text-teal-3 text-bold">📱 CANALES ASIGNADOS A ESTE HORARIO:</span>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-btn flat dense no-caps size="xs" color="teal-3" label="Todos" @click="selectAllChannels" />
+                  <span class="text-grey-6">•</span>
+                  <q-btn flat dense no-caps size="xs" color="grey-4" label="Limpiar" @click="clearChannels" />
+                </div>
+              </div>
+              <q-select
+                v-model="form.channel_ids"
+                :options="channelsList"
+                option-value="id"
+                option-label="name"
+                emit-value
+                map-options
+                multiple
+                use-chips
+                outlined
+                dark
+                dense
+                placeholder="Selecciona uno o más canales (WhatsApp La Paz, Cochabamba, Redes...)"
+                hint="Los mensajes de estos canales serán atendidos bajo este horario"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_cell_tower" color="teal-4" size="18px" />
+                </template>
+                <template #option="{ itemProps, opt, selected, toggleOption }">
+                  <q-item v-bind="itemProps" dense dark class="cursor-pointer" @click="toggleOption(opt)">
+                    <q-item-section side>
+                      <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                    </q-item-section>
+                    <q-item-section avatar style="min-width: 28px;">
+                      <q-icon
+                        :name="getChannelIcon(opt)"
+                        :color="getChannelIconColor(opt)"
+                        size="18px"
+                      />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white text-bold">{{ opt.name }}</q-item-label>
+                      <q-item-label caption class="text-grey-4">{{ opt.phone_number || opt.session_type || 'Canal' }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+
+            <!-- 2. Operadores Asignados -->
+            <div class="col-12 col-md-6">
+              <div class="row items-center justify-between q-mb-xs">
+                <span class="text-caption text-purple-3 text-bold">👥 OPERADORES EN TURNO / GUARDIA:</span>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-btn flat dense no-caps size="xs" color="purple-3" label="Todos" @click="selectAllOperators" />
+                  <span class="text-grey-6">•</span>
+                  <q-btn flat dense no-caps size="xs" color="grey-4" label="Limpiar" @click="clearOperators" />
+                </div>
+              </div>
+              <q-select
+                v-model="form.user_ids"
+                :options="operatorsList"
+                option-value="id"
+                option-label="name"
+                emit-value
+                map-options
+                multiple
+                use-chips
+                outlined
+                dark
+                dense
+                placeholder="Selecciona los operadores de este turno (Yerko, Anet, Juan Pablo...)"
+                hint="Operadores que tendrán visibilidad y responderán los canales en este horario"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_group" color="purple-4" size="18px" />
+                </template>
+                <template #option="{ itemProps, opt, selected, toggleOption }">
+                  <q-item v-bind="itemProps" dense dark class="cursor-pointer" @click="toggleOption(opt)">
+                    <q-item-section side>
+                      <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                    </q-item-section>
+                    <q-item-section avatar style="min-width: 28px;">
+                      <q-avatar size="24px" color="purple-9" text-color="white" class="text-bold text-caption">
+                        {{ (opt.name || 'U').charAt(0).toUpperCase() }}
+                      </q-avatar>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white text-bold">{{ opt.name }}</q-item-label>
+                      <q-item-label caption class="text-grey-4">{{ opt.email }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+
+            <!-- 3. Categorías (Opcional) -->
+            <div class="col-12 col-md-6 q-mt-xs">
+              <div class="text-caption text-cyan-3 text-bold q-mb-xs">
+                🏷️ CATEGORÍAS ASOCIADAS (OPCIONAL):
+              </div>
+              <q-select
+                v-model="form.category_ids"
+                :options="categoriesList"
+                option-value="id"
+                option-label="name"
+                emit-value
+                map-options
+                multiple
+                use-chips
+                outlined
+                dark
+                dense
+                placeholder="Todas las categorías (o filtra ej: Admisiones, Becas...)"
+                hint="Dejar vacío para atender todas las temáticas de consulta"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_category" color="cyan-4" size="18px" />
+                </template>
+                <template #option="{ itemProps, opt, selected, toggleOption }">
+                  <q-item v-bind="itemProps" dense dark class="cursor-pointer" @click="toggleOption(opt)">
+                    <q-item-section side>
+                      <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white">{{ opt.name }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+
+            <!-- 4. Filas / Departamentos (Opcional) -->
+            <div class="col-12 col-md-6 q-mt-xs">
+              <div class="text-caption text-amber-3 text-bold q-mb-xs">
+                🏢 FILAS / DEPARTAMENTOS ASOCIADOS (OPCIONAL):
+              </div>
+              <q-select
+                v-model="form.queue_ids"
+                :options="queuesList"
+                option-value="id"
+                option-label="name"
+                emit-value
+                map-options
+                multiple
+                use-chips
+                outlined
+                dark
+                dense
+                placeholder="Todas las filas (o filtra ej: Plataforma Central, Admisiones...)"
+                hint="Dejar vacío para atender todas las colas de atención"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_view_carousel" color="amber-4" size="18px" />
+                </template>
+                <template #option="{ itemProps, opt, selected, toggleOption }">
+                  <q-item v-bind="itemProps" dense dark class="cursor-pointer" @click="toggleOption(opt)">
+                    <q-item-section side>
+                      <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-white">{{ opt.name }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+          </div>
         </div>
 
         <!-- Vigencia del Horario (Iniciar Ya vs Rango de Fechas) -->
@@ -575,6 +737,9 @@ const currentDayName = ref('Lunes')
 
 const configsList = ref<any[]>([])
 const operatorsList = ref<any[]>([])
+const channelsList = ref<any[]>([])
+const categoriesList = ref<any[]>([])
+const queuesList = ref<any[]>([])
 const selectedConfig = ref<any | null>(null)
 const isCreatingNew = ref(false)
 
@@ -685,6 +850,9 @@ const form = reactive({
   name: 'Horario General UNITEPC',
   scope_type: 'general' as 'general' | 'operator',
   user_ids: [] as string[],
+  channel_ids: [] as string[],
+  category_ids: [] as string[],
+  queue_ids: [] as string[],
   is_active: true,
   is_default: true,
   validity_type: 'immediate' as 'immediate' | 'date_range',
@@ -702,6 +870,9 @@ async function fetchConfigs() {
     const res = await http.get('/business-hours/configs')
     configsList.value = res.data.data || []
     operatorsList.value = res.data.operators || []
+    channelsList.value = res.data.channels || []
+    categoriesList.value = res.data.categories || []
+    queuesList.value = res.data.queues || []
 
     if (res.data.meta) {
       currentTime.value = res.data.meta.current_time || '08:30'
@@ -728,6 +899,9 @@ function selectConfig(cfg: any) {
   form.name = cfg.name
   form.scope_type = cfg.scope_type || 'general'
   form.user_ids = (cfg.users || []).map((u: any) => u.id)
+  form.channel_ids = (cfg.channels || []).map((c: any) => c.id)
+  form.category_ids = (cfg.categories || []).map((c: any) => c.id)
+  form.queue_ids = (cfg.queues || []).map((q: any) => q.id)
   form.is_active = cfg.is_active ?? true
   form.is_default = cfg.is_default ?? false
   form.validity_type = cfg.validity_type || 'immediate'
@@ -755,12 +929,15 @@ function openNewConfigForm() {
   selectedConfig.value = null
 
   form.id = ''
-  form.name = 'Nueva Campaña / Temporada'
+  form.name = 'Nuevo Turno / Guardia'
   form.scope_type = 'general'
   form.user_ids = []
+  form.channel_ids = channelsList.value.map((c: any) => c.id)
+  form.category_ids = []
+  form.queue_ids = []
   form.is_active = true
   form.is_default = false
-  form.validity_type = 'date_range'
+  form.validity_type = 'immediate'
   form.start_date = null
   form.end_date = null
   form.timezone = 'America/La_Paz'
@@ -838,6 +1015,38 @@ function resetDefaultMessage() {
   notify.info({ message: 'Mensaje restaurado al estándar institucional de UNITEPC.' })
 }
 
+function selectAllChannels() {
+  form.channel_ids = channelsList.value.map((c) => c.id)
+}
+
+function clearChannels() {
+  form.channel_ids = []
+}
+
+function selectAllOperators() {
+  form.user_ids = operatorsList.value.map((o) => o.id)
+}
+
+function clearOperators() {
+  form.user_ids = []
+}
+
+function getChannelIcon(channel: any): string {
+  const type = channel?.session_type || channel?.provider || ''
+  if (type === 'facebook') return 'sym_r_public'
+  if (type === 'instagram') return 'sym_r_photo_camera'
+  if (type === 'tiktok') return 'sym_r_play_circle'
+  return 'sym_r_chat'
+}
+
+function getChannelIconColor(channel: any): string {
+  const type = channel?.session_type || channel?.provider || ''
+  if (type === 'facebook') return 'indigo-4'
+  if (type === 'instagram') return 'pink-4'
+  if (type === 'tiktok') return 'cyan-4'
+  return 'teal-4'
+}
+
 async function saveCurrentConfig() {
   if (!form.name.trim()) {
     notify.warning({ message: 'Por favor ingresa un nombre para esta parametrización.' })
@@ -849,17 +1058,15 @@ async function saveCurrentConfig() {
     return
   }
 
-  if (form.scope_type === 'operator' && form.user_ids.length === 0) {
-    notify.warning({ message: 'Selecciona al menos un operador para este horario diferenciado.' })
-    return
-  }
-
   saving.value = true
   try {
     const payload = {
       name: form.name.trim(),
       scope_type: form.scope_type,
-      user_ids: form.scope_type === 'operator' ? form.user_ids : [],
+      user_ids: form.user_ids,
+      channel_ids: form.channel_ids,
+      category_ids: form.category_ids,
+      queue_ids: form.queue_ids,
       is_active: form.is_active,
       is_default: form.scope_type === 'general' ? form.is_default : false,
       validity_type: form.validity_type,

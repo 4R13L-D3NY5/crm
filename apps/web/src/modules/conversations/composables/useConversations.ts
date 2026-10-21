@@ -7,6 +7,7 @@ import {
   assignConversation,
   closeTicket,
   reopenTicket,
+  releaseTicket,
   createConversation,
   createInternalMessage,
   createWhatsAppMessage,
@@ -133,6 +134,12 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     onSuccess: invalidate,
   })
 
+  const releaseMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload?: { reason?: string } }) =>
+      releaseTicket(id, payload),
+    onSuccess: invalidate,
+  })
+
   const messageMutation = useMutation({
     mutationFn: ({
       id,
@@ -218,6 +225,7 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     createMutation,
     acceptMutation,
     transferMutation,
+    releaseMutation,
     closeMutation,
     reopenMutation,
     messageMutation,

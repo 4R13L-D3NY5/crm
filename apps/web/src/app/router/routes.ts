@@ -33,7 +33,7 @@ const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'quick-messages', name: 'quick-messages.index', component: QuickMessagesPage },
   { path: 'notes', name: 'notes.index', component: KeepNotesPage },
   { path: 'scheduled-messages', name: 'scheduled-messages.index', component: ScheduledMessagesPage, meta: { requiresAdmin: true } },
-  { path: 'wabot', name: 'wabot.index', component: WabotKnowledgePage, alias: ['ai/knowledge', 'ai', 'ai/config', 'ai-config'], meta: { requiresAdmin: true } },
+  { path: 'wabot', name: 'wabot.index', component: WabotKnowledgePage, alias: ['ai/knowledge', 'ai', 'ai/config', 'ai-config'] },
   { path: 'users', name: 'users.index', component: UsersManagementPage, meta: { requiresAdmin: true } },
   { path: 'departments', name: 'departments.index', component: DepartmentsPage, meta: { requiresAdmin: true } },
   { path: 'parameters', name: 'parameters.index', component: ParametersPage, meta: { requiresAdmin: true } },

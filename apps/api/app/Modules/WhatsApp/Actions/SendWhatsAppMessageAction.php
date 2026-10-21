@@ -57,11 +57,26 @@ class SendWhatsAppMessageAction
             'sent_at' => null,
         ]);
 
-        $conversation->forceFill([
+        $updateData = [
             'last_message_at' => now(),
             'status' => 'open',
             'unread_count' => 0,
-        ])->save();
+        ];
+
+        // Auto-asignación al primer operador que responde si el chat no tenía responsable
+        if (empty($conversation->assigned_to_user_id)) {
+            $updateData['assigned_to_user_id'] = $user->getKey();
+
+            \App\Modules\Conversations\Models\ConversationAssignment::query()->updateOrCreate(
+                ['conversation_id' => $conversation->getKey()],
+                [
+                    'assigned_to_user_id' => $user->getKey(),
+                    'assigned_by_user_id' => $user->getKey(),
+                ]
+            );
+        }
+
+        $conversation->forceFill($updateData)->save();
 
         DispatchDomainJob::dispatch(new SendWhatsAppMessageJob($message->getKey()));
 

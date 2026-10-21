@@ -174,4 +174,103 @@ class BusinessHoursManagementTest extends TestCase
         ]);
         $this->assertFalse($config->isWithinHours($mondayMorning)); // 2026-10-12 < 2026-11-01
     }
+
+    public function test_can_associate_channels_operators_categories_and_queues_to_schedule(): void
+    {
+        $this->actingAs($this->user);
+
+        // Crear canal de WhatsApp
+        $account = \App\Modules\WhatsApp\Models\WhatsAppAccount::create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Canal WhatsApp La Paz',
+            'phone_number_id' => '59179326793',
+            'verify_token' => 'token123',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+        ]);
+
+        // Crear categoría
+        $category = \App\Modules\Parameters\Models\Category::create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Admisiones Pregrado',
+            'color' => '#10B981',
+        ]);
+
+        // Crear queue / fila
+        $queue = \App\Modules\Queues\Models\Queue::create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Plataforma La Paz',
+            'color' => '#6366F1',
+        ]);
+
+        $payload = [
+            'name' => 'Turno Regular La Paz',
+            'scope_type' => 'operator',
+            'validity_type' => 'immediate',
+            'timezone' => 'America/La_Paz',
+            'schedule_days' => BusinessHoursConfig::defaultScheduleDays(),
+            'auto_reply_enabled' => true,
+            'auto_reply_message' => 'Fuera de turno La Paz.',
+            'is_active' => true,
+            'user_ids' => [$this->user->id],
+            'channel_ids' => [$account->id],
+            'category_ids' => [$category->id],
+            'queue_ids' => [$queue->id],
+        ];
+
+        $response = $this->postJson('/api/business-hours/configs', $payload);
+        $response->assertCreated();
+
+        $configId = $response->json('data.id');
+        $this->assertDatabaseHas('business_hours_channels', [
+            'business_hours_config_id' => $configId,
+            'whatsapp_account_id' => $account->id,
+        ]);
+        $this->assertDatabaseHas('business_hours_users', [
+            'business_hours_config_id' => $configId,
+            'user_id' => $this->user->id,
+        ]);
+        $this->assertDatabaseHas('business_hours_categories', [
+            'business_hours_config_id' => $configId,
+            'category_id' => $category->id,
+        ]);
+        $this->assertDatabaseHas('business_hours_queues', [
+            'business_hours_config_id' => $configId,
+            'queue_id' => $queue->id,
+        ]);
+    }
+
+    public function test_can_release_conversation_for_shift_handover(): void
+    {
+        $this->actingAs($this->user);
+
+        $contact = \App\Modules\Contacts\Models\Contact::create([
+            'organization_id' => $this->organization->id,
+            'first_name' => 'Carlos',
+            'last_name' => 'Mamani',
+            'phone' => '+59178912345',
+        ]);
+
+        $conversation = \App\Modules\Conversations\Models\Conversation::create([
+            'organization_id' => $this->organization->id,
+            'contact_id' => $contact->id,
+            'channel' => 'whatsapp',
+            'status' => 'open',
+            'assigned_to_user_id' => $this->user->id,
+        ]);
+
+        $response = $this->postJson("/api/conversations/{$conversation->id}/release", [
+            'reason' => 'Fin de turno viernes',
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($conversation->fresh()->assigned_to_user_id);
+        $this->assertEquals('pending', $conversation->fresh()->status);
+
+        // Verifica que se generó la nota interna de relevo
+        $this->assertDatabaseHas('messages', [
+            'conversation_id' => $conversation->id,
+            'is_internal' => true,
+        ]);
+    }
 }

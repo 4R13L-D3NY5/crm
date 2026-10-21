@@ -2,6 +2,7 @@
 
 namespace App\Modules\HentleAi\Models;
 
+use App\Models\User;
 use App\Modules\Tenancy\Models\Organization;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,6 +18,7 @@ class AiKnowledgeChunk extends Model
     protected $fillable = [
         'organization_id',
         'knowledge_base_id',
+        'user_id',
         'title',
         'content',
         'metadata',
@@ -34,5 +36,10 @@ class AiKnowledgeChunk extends Model
     public function knowledgeBase(): BelongsTo
     {
         return $this->belongsTo(AiKnowledgeBase::class, 'knowledge_base_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

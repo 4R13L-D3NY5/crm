@@ -270,11 +270,25 @@ class InstagramController extends Controller
             'delivery_status' => 'delivered',
         ]);
 
-        $conversation->update([
+        $convUpdate = [
             'last_message_at' => now(),
             'status' => 'open',
             'unread_count' => 0,
-        ]);
+        ];
+
+        if (empty($conversation->assigned_to_user_id)) {
+            $convUpdate['assigned_to_user_id'] = $request->user()->id;
+
+            \App\Modules\Conversations\Models\ConversationAssignment::query()->updateOrCreate(
+                ['conversation_id' => $conversation->id],
+                [
+                    'assigned_to_user_id' => $request->user()->id,
+                    'assigned_by_user_id' => $request->user()->id,
+                ]
+            );
+        }
+
+        $conversation->update($convUpdate);
 
         event(new TicketMessageCreatedEvent($message));
 

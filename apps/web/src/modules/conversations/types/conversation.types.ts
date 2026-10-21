@@ -85,6 +85,7 @@ export interface Conversation {
   }>
   contact: ConversationSummaryRelation | null
   company: ConversationSummaryRelation | null
+  assigned_to_user_id?: string | null
   assignee?: ConversationAssignee | null
   assignment?: ConversationAssignee | null
   latest_message?: ConversationMessage | null

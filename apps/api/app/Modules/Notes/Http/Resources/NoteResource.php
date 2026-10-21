@@ -18,11 +18,12 @@ class NoteResource extends JsonResource
             'id' => $this->id,
             'organization_id' => $this->organization_id,
             'user_id' => $this->user_id,
-            'user' => $this->whenLoaded('user', fn () => [
+            'user' => $this->user ? [
                 'id' => $this->user->id,
                 'name' => $this->user->name,
                 'email' => $this->user->email,
-            ]),
+            ] : null,
+            'author_name' => $this->user?->name ?? 'Usuario',
             'title' => $this->title,
             'content' => $this->content,
             'color' => $this->color ?? '#1e293b',

@@ -121,4 +121,49 @@ class TicketLifecycleController extends Controller
             'message' => 'Ticket reabierto exitosamente.',
         ]);
     }
+
+    /**
+     * Liberar chat (desasignar para cambio de turno o bolsa compartida)
+     */
+    public function release(Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $ticket = Conversation::where('organization_id', $organization->id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $reason = $validated['reason'] ?? 'Cambio de turno / relevo';
+        $operatorName = $request->user()->name ?? 'Operador';
+
+        $ticket->update([
+            'status' => 'pending',
+            'assigned_to_user_id' => null,
+        ]);
+
+        \App\Modules\Conversations\Models\ConversationAssignment::query()->updateOrCreate(
+            ['conversation_id' => $ticket->id],
+            [
+                'assigned_to_user_id' => null,
+                'assigned_by_user_id' => $request->user()->id,
+            ]
+        );
+
+        // Registrar nota interna automática para trazabilidad del relevo
+        Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $ticket->id,
+            'user_id' => $request->user()->id,
+            'direction' => 'outbound',
+            'is_internal' => true,
+            'body' => "🔓 Chat liberado por {$operatorName} ({$reason}). Disponible en la bandeja general para ser atendido por el equipo de turno.",
+            'sent_at' => Carbon::now(),
+        ]);
+
+        return response()->json([
+            'data' => $ticket->load(['assignedToUser', 'contact.tags', 'queue']),
+            'message' => 'Chat liberado exitosamente.',
+        ]);
+    }
 }

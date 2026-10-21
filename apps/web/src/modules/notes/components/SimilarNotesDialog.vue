@@ -1,0 +1,389 @@
+<template>
+  <q-dialog
+    v-model="isOpen"
+    transition-show="jump-down"
+    transition-hide="jump-up"
+  >
+    <q-card class="xf-similar-dialog column no-wrap">
+      <!-- Header -->
+      <q-card-section class="xf-similar-header row items-center justify-between q-py-sm q-px-md">
+        <div class="row items-center q-gutter-x-sm">
+          <q-avatar size="32px" color="amber-9" text-color="white">
+            <q-icon name="sym_r_auto_awesome" size="18px" />
+          </q-avatar>
+          <div>
+            <div class="text-subtitle1 text-weight-bold text-white row items-center q-gutter-x-xs">
+              <span>Notas Similares con IA</span>
+              <q-badge color="teal-8" text-color="white" class="text-caption text-bold font-mono">
+                IA & Semántica
+              </q-badge>
+            </div>
+            <div class="text-caption text-grey-4" style="font-size: 0.72rem">
+              Detección de afinidad temática y duplicados en la base de conocimiento
+            </div>
+          </div>
+        </div>
+
+        <q-btn flat round dense size="sm" color="grey-4" icon="sym_r_close" v-close-popup />
+      </q-card-section>
+
+      <q-separator dark />
+
+      <!-- Banner de la Nota de Referencia -->
+      <div v-if="targetNote || draftContent" class="q-px-md q-pt-md">
+        <div class="reference-note-card q-pa-sm rounded-borders">
+          <div class="text-caption text-weight-bold text-uppercase text-amber-4 font-mono letter-spacing-wide q-mb-xs">
+            Nota de Referencia Analizada:
+          </div>
+          <div class="text-body2 text-weight-bold text-white ellipsis">
+            {{ targetTitle || targetNote?.title || 'Borrador sin título' }}
+          </div>
+          <div class="text-caption text-grey-3 ellipsis-2-lines q-mt-xs">
+            {{ targetContent || targetNote?.content }}
+          </div>
+          <div v-if="targetAuthor" class="text-caption text-grey-5 q-mt-xs row items-center q-gutter-x-xs">
+            <q-icon name="sym_r_person" size="12px" color="teal-4" />
+            <span>Registrada por: <strong class="text-grey-3">{{ targetAuthor }}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contenido Principal: Loading / Lista / Vacío -->
+      <q-card-section class="col scroll q-pa-md">
+        <!-- Spinner mientras analiza -->
+        <div v-if="isLoading" class="column items-center justify-center q-py-xl text-center">
+          <q-spinner-orbit size="42px" color="amber-5" />
+          <div class="text-subtitle2 text-weight-bold text-white q-mt-md">
+            Analizando similitud temática con Inteligencia Artificial...
+          </div>
+          <div class="text-caption text-grey-4 q-mt-xs">
+            Evaluando conceptos, palabras clave y relaciones en la base de conocimiento
+          </div>
+        </div>
+
+        <!-- Lista de Resultados -->
+        <div v-else-if="similarList.length > 0" class="column q-gutter-y-md">
+          <div class="row items-center justify-between text-caption text-grey-4">
+            <span>Se encontraron <strong>{{ similarList.length }}</strong> notas afines:</span>
+            <span class="text-amber-4 text-weight-medium">Ordenadas por grado de coincidencia</span>
+          </div>
+
+          <div
+            v-for="item in similarList"
+            :key="item.note.id"
+            class="similar-card rounded-borders q-pa-md"
+            :style="{ borderLeftColor: getScoreColorHex(item.similarity_percent) }"
+          >
+            <!-- Header de la tarjeta similar -->
+            <div class="row items-start justify-between no-wrap q-mb-xs">
+              <div class="col ellipsis">
+                <div class="text-subtitle2 text-weight-bold text-white ellipsis">
+                  {{ item.note.title || 'Nota sin título' }}
+                </div>
+              </div>
+
+              <!-- Badge de Porcentaje -->
+              <q-badge
+                :color="getScoreBadgeColor(item.similarity_percent)"
+                class="text-weight-bold text-caption q-px-sm q-py-xs"
+              >
+                <q-icon name="sym_r_insights" size="12px" class="q-mr-xs" />
+                {{ item.similarity_percent }}% Similitud
+              </q-badge>
+            </div>
+
+            <!-- Razón de la IA / Explicación Semántica -->
+            <div class="ai-reason-box q-pa-xs q-px-sm rounded-borders q-my-xs">
+              <div class="text-caption text-amber-2 row items-center q-gutter-x-xs">
+                <q-icon name="sym_r_auto_awesome" size="14px" color="amber-4" />
+                <span>{{ item.similarity_reason }}</span>
+              </div>
+            </div>
+
+            <!-- Contenido de la nota similar -->
+            <div class="text-body2 text-grey-3 ellipsis-3-lines q-my-xs" style="font-size: 0.85rem">
+              {{ item.note.content }}
+            </div>
+
+            <!-- Chips de Categorías y Tags -->
+            <div v-if="hasEntities(item.note)" class="row items-center q-gutter-xs q-my-xs">
+              <q-chip
+                v-for="cat in item.note.categories"
+                :key="cat.id"
+                dense
+                size="sm"
+                class="q-mr-none"
+                :style="{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', borderColor: '#10b981' }"
+              >
+                <q-avatar size="14px" color="teal-9" text-color="white">
+                  <q-icon name="sym_r_school" size="10px" />
+                </q-avatar>
+                {{ cat.name }}
+              </q-chip>
+
+              <q-chip
+                v-for="tag in item.note.tags"
+                :key="tag.id"
+                dense
+                size="sm"
+                class="q-mr-none"
+                :style="{ backgroundColor: 'rgba(0, 168, 132, 0.15)', color: '#2dd4bf' }"
+              >
+                #{{ tag.name }}
+              </q-chip>
+            </div>
+
+            <!-- Footer de la nota similar: Autor y Acciones -->
+            <div class="row items-center justify-between q-mt-sm q-pt-xs border-top-subtle">
+              <div class="row items-center q-gutter-x-xs text-caption text-grey-4">
+                <q-avatar size="20px" color="teal-9" text-color="teal-2" class="text-weight-bold" style="font-size: 10px;">
+                  {{ getInitials(item.note.user?.name || item.note.author_name) }}
+                </q-avatar>
+                <span class="ellipsis" style="max-width: 180px">
+                  {{ item.note.user?.name || item.note.author_name || 'Usuario' }}
+                </span>
+                <span class="text-grey-6">•</span>
+                <span class="text-grey-5 font-mono text-caption" style="font-size: 0.72rem">
+                  {{ formatDate(item.note.created_at) }}
+                </span>
+              </div>
+
+              <div class="row items-center q-gutter-x-xs">
+                <q-btn
+                  flat
+                  round
+                  dense
+                  size="sm"
+                  color="grey-4"
+                  icon="sym_r_content_copy"
+                  @click="copyContent(item.note.content)"
+                >
+                  <q-tooltip>Copiar texto de esta nota</q-tooltip>
+                </q-btn>
+
+                <q-btn
+                  outline
+                  dense
+                  size="sm"
+                  color="teal-3"
+                  label="Abrir Nota"
+                  icon-right="sym_r_open_in_new"
+                  class="q-px-sm"
+                  no-caps
+                  @click="onSelectNote(item.note)"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado Vacío -->
+        <div v-else class="column items-center justify-center q-py-xl text-center">
+          <q-avatar size="56px" color="grey-9" text-color="amber-4" class="q-mb-md">
+            <q-icon name="sym_r_check_circle" size="32px" />
+          </q-avatar>
+          <div class="text-subtitle1 text-weight-bold text-white q-mb-xs">
+            ¡Esta nota es única en el sistema!
+          </div>
+          <p class="text-caption text-grey-4" style="max-width: 440px">
+            No se encontraron notas existentes con similitud semántica en la base de conocimiento. No hay riesgo de duplicidad de información.
+          </p>
+        </div>
+      </q-card-section>
+
+      <q-separator dark />
+
+      <!-- Footer Actions -->
+      <q-card-actions align="right" class="q-pa-sm q-px-md">
+        <q-btn
+          flat
+          label="Cerrar"
+          color="grey-4"
+          v-close-popup
+        />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { copyToClipboard, useQuasar } from 'quasar'
+import { getSimilarNotes, searchSimilarDraft } from '../api/notes.api'
+import type { Note, SimilarNoteItem } from '../types/note.types'
+
+const props = defineProps<{
+  modelValue: boolean
+  note?: Note | null
+  draftContent?: string
+  draftTitle?: string
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [val: boolean]
+  'select-note': [note: Note]
+}>()
+
+const $q = useQuasar()
+
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: (val: boolean) => emit('update:modelValue', val),
+})
+
+const isLoading = ref(false)
+const similarList = ref<SimilarNoteItem[]>([])
+const targetNote = ref<Note | null>(null)
+
+const targetTitle = computed(() => {
+  return props.draftTitle || targetNote.value?.title || ''
+})
+
+const targetContent = computed(() => {
+  return props.draftContent || targetNote.value?.content || ''
+})
+
+const targetAuthor = computed(() => {
+  return targetNote.value?.user?.name || targetNote.value?.author_name || null
+})
+
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val) {
+      loadSimilar()
+    }
+  }
+)
+
+async function loadSimilar() {
+  isLoading.value = true
+  similarList.value = []
+  targetNote.value = props.note || null
+
+  try {
+    if (props.note?.id) {
+      const res = await getSimilarNotes(props.note.id)
+      similarList.value = res.data || []
+      if (res.target_note) {
+        targetNote.value = res.target_note
+      }
+    } else if (props.draftContent && props.draftContent.trim().length >= 3) {
+      const res = await searchSimilarDraft({
+        content: props.draftContent,
+        title: props.draftTitle || undefined,
+      })
+      similarList.value = res.data || []
+    }
+  } catch (err: any) {
+    console.error('Error al cargar notas similares:', err)
+    $q.notify({
+      type: 'warning',
+      message: err?.response?.data?.message || 'No se pudieron consultar notas similares.',
+      position: 'bottom-right',
+    })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function getScoreBadgeColor(score: number): string {
+  if (score >= 75) return 'positive'
+  if (score >= 50) return 'amber-9'
+  return 'teal-8'
+}
+
+function getScoreColorHex(score: number): string {
+  if (score >= 75) return '#10b981'
+  if (score >= 50) return '#f59e0b'
+  return '#14b8a6'
+}
+
+function hasEntities(n: Note): boolean {
+  return Boolean(
+    (n.categories && n.categories.length > 0) ||
+    (n.tags && n.tags.length > 0)
+  )
+}
+
+function getInitials(name?: string | null): string {
+  if (!name) return 'U'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
+function formatDate(iso?: string): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return ''
+  }
+}
+
+async function copyContent(text: string) {
+  try {
+    await copyToClipboard(text)
+    $q.notify({
+      type: 'positive',
+      message: 'Texto de la nota copiado al portapapeles',
+      timeout: 1500,
+      position: 'bottom-right',
+    })
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: 'No se pudo copiar el texto',
+      position: 'bottom-right',
+    })
+  }
+}
+
+function onSelectNote(selected: Note) {
+  isOpen.value = false
+  emit('select-note', selected)
+}
+</script>
+
+<style scoped lang="scss">
+.xf-similar-dialog {
+  background: #0d131f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 720px;
+  max-width: 95vw;
+  max-height: 85vh;
+  border-radius: 12px;
+}
+
+.xf-similar-header {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.reference-note-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px dashed rgba(251, 191, 36, 0.3);
+}
+
+.similar-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left-width: 4px;
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    background: rgba(30, 41, 59, 0.95);
+    transform: translateY(-1px);
+  }
+}
+
+.ai-reason-box {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.border-top-subtle {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+</style>

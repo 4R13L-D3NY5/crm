@@ -57,6 +57,14 @@ export async function transferTicket(
   return response.data.data
 }
 
+export async function releaseTicket(
+  conversationId: string,
+  payload: { reason?: string } = {},
+): Promise<Conversation> {
+  const response = await http.post<{ data: Conversation }>(`/conversations/${conversationId}/release`, payload)
+  return response.data.data
+}
+
 export async function closeTicket(
   conversationId: string,
   payload: CloseTicketPayload = {},

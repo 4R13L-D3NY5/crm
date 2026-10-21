@@ -17,6 +17,7 @@ Route::get('conversations/sla-alerts', [TicketSlaAlertController::class, 'index'
 // Ciclo de vida y Actions de Tickets
 Route::post('conversations/{conversation}/accept', [TicketLifecycleController::class, 'accept'])->name('conversations.accept');
 Route::post('conversations/{conversation}/transfer', [TicketLifecycleController::class, 'transfer'])->name('conversations.transfer');
+Route::post('conversations/{conversation}/release', [TicketLifecycleController::class, 'release'])->name('conversations.release');
 Route::post('conversations/{conversation}/close', [TicketLifecycleController::class, 'close'])->name('conversations.close');
 Route::post('conversations/{conversation}/reopen', [TicketLifecycleController::class, 'reopen'])->name('conversations.reopen');
 

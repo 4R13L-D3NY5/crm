@@ -5,6 +5,9 @@ namespace App\Modules\Parameters\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Parameters\Models\BusinessHoursConfig;
+use App\Modules\Parameters\Models\Category;
+use App\Modules\Queues\Models\Queue;
+use App\Modules\WhatsApp\Models\WhatsAppAccount;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +22,12 @@ class BusinessHoursController extends Controller
         $orgId = $request->user()->current_organization_id;
 
         $configs = BusinessHoursConfig::where('organization_id', $orgId)
-            ->with(['users:id,name,email'])
+            ->with([
+                'users:id,name,email',
+                'channels:id,name,phone_number_id,display_phone_number,session_type,status',
+                'categories:id,name,color',
+                'queues:id,name,color',
+            ])
             ->orderByDesc('is_default')
             ->orderBy('created_at')
             ->get();
@@ -37,7 +45,19 @@ class BusinessHoursController extends Controller
                 'auto_reply_enabled' => true,
                 'auto_reply_message' => BusinessHoursConfig::defaultAutoReplyMessage(),
             ]);
-            $configs = collect([$default->load('users:id,name,email')]);
+
+            // Auto-vincular canales existentes al default
+            $allChannels = WhatsAppAccount::where('organization_id', $orgId)->pluck('id');
+            if ($allChannels->isNotEmpty()) {
+                $default->channels()->sync($allChannels);
+            }
+
+            $configs = collect([$default->load([
+                'users:id,name,email',
+                'channels:id,name,phone_number_id,display_phone_number,session_type,status',
+                'categories:id,name,color',
+                'queues:id,name,color',
+            ])]);
         }
 
         $now = Carbon::now('America/La_Paz');
@@ -48,9 +68,30 @@ class BusinessHoursController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Obtener lista de canales activos
+        $channels = WhatsAppAccount::where('organization_id', $orgId)
+            ->select('id', 'name', 'phone_number_id', 'display_phone_number', 'session_type', 'status')
+            ->orderBy('name')
+            ->get();
+
+        // Obtener lista de categorías
+        $categories = Category::where('organization_id', $orgId)
+            ->select('id', 'name', 'color')
+            ->orderBy('name')
+            ->get();
+
+        // Obtener lista de filas / departamentos
+        $queues = Queue::where('organization_id', $orgId)
+            ->select('id', 'name', 'color')
+            ->orderBy('name')
+            ->get();
+
         return response()->json([
             'data' => $configs,
             'operators' => $operators,
+            'channels' => $channels,
+            'categories' => $categories,
+            'queues' => $queues,
             'meta' => [
                 'current_day' => strtolower($now->format('l')),
                 'current_time' => $now->format('H:i'),
@@ -89,7 +130,12 @@ class BusinessHoursController extends Controller
             );
         }
 
-        $config->load('users:id,name,email');
+        $config->load([
+            'users:id,name,email',
+            'channels:id,name,phone_number_id,display_phone_number,session_type,status',
+            'categories:id,name,color',
+            'queues:id,name,color',
+        ]);
         $now = Carbon::now($config->timezone ?: 'America/La_Paz');
 
         return response()->json([
@@ -125,6 +171,12 @@ class BusinessHoursController extends Controller
             'auto_reply_message' => ['required', 'string', 'max:1500'],
             'user_ids' => ['nullable', 'array'],
             'user_ids.*' => ['string', 'exists:users,id'],
+            'channel_ids' => ['nullable', 'array'],
+            'channel_ids.*' => ['string', 'exists:whatsapp_accounts,id'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['string', 'exists:categories,id'],
+            'queue_ids' => ['nullable', 'array'],
+            'queue_ids.*' => ['string', 'exists:queues,id'],
         ]);
 
         if (!empty($validated['is_default'])) {
@@ -148,11 +200,26 @@ class BusinessHoursController extends Controller
             'auto_reply_message' => $validated['auto_reply_message'],
         ]);
 
-        if ($validated['scope_type'] === 'operator' && !empty($validated['user_ids'])) {
+        // Sincronizar relaciones
+        if (isset($validated['user_ids'])) {
             $config->users()->sync($validated['user_ids']);
         }
+        if (isset($validated['channel_ids'])) {
+            $config->channels()->sync($validated['channel_ids']);
+        }
+        if (isset($validated['category_ids'])) {
+            $config->categories()->sync($validated['category_ids']);
+        }
+        if (isset($validated['queue_ids'])) {
+            $config->queues()->sync($validated['queue_ids']);
+        }
 
-        $config->load('users:id,name,email');
+        $config->load([
+            'users:id,name,email',
+            'channels:id,name,phone_number_id,display_phone_number,session_type,status',
+            'categories:id,name,color',
+            'queues:id,name,color',
+        ]);
 
         return response()->json([
             'message' => 'Configuración de horario laboral creada exitosamente.',
@@ -183,6 +250,12 @@ class BusinessHoursController extends Controller
             'auto_reply_message' => ['required', 'string', 'max:1500'],
             'user_ids' => ['nullable', 'array'],
             'user_ids.*' => ['string', 'exists:users,id'],
+            'channel_ids' => ['nullable', 'array'],
+            'channel_ids.*' => ['string', 'exists:whatsapp_accounts,id'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['string', 'exists:categories,id'],
+            'queue_ids' => ['nullable', 'array'],
+            'queue_ids.*' => ['string', 'exists:queues,id'],
         ]);
 
         if (!empty($validated['is_default'])) {
@@ -208,13 +281,25 @@ class BusinessHoursController extends Controller
             'auto_reply_message' => $validated['auto_reply_message'],
         ]);
 
-        if (($validated['scope_type'] ?? $config->scope_type) === 'operator') {
-            $config->users()->sync($validated['user_ids'] ?? []);
-        } else {
-            $config->users()->detach();
+        if (isset($validated['user_ids'])) {
+            $config->users()->sync($validated['user_ids']);
+        }
+        if (isset($validated['channel_ids'])) {
+            $config->channels()->sync($validated['channel_ids']);
+        }
+        if (isset($validated['category_ids'])) {
+            $config->categories()->sync($validated['category_ids']);
+        }
+        if (isset($validated['queue_ids'])) {
+            $config->queues()->sync($validated['queue_ids']);
         }
 
-        $config->load('users:id,name,email');
+        $config->load([
+            'users:id,name,email',
+            'channels:id,name,phone_number_id,display_phone_number,session_type,status',
+            'categories:id,name,color',
+            'queues:id,name,color',
+        ]);
         $now = Carbon::now($config->timezone ?: 'America/La_Paz');
 
         return response()->json([

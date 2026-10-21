@@ -118,6 +118,22 @@
           </q-btn>
 
           <q-btn
+            v-if="conversation.status !== 'closed' && (conversation.assignee || conversation.assigned_to_user_id)"
+            flat
+            dense
+            size="sm"
+            color="amber-4"
+            icon="sym_r_lock_open"
+            :label="isMobile ? '' : 'Liberar'"
+            :round="isMobile"
+            class="q-px-xs"
+            :loading="isActionLoading"
+            @click="emit('release')"
+          >
+            <q-tooltip>Liberar chat para cambio de turno o bolsa compartida</q-tooltip>
+          </q-btn>
+
+          <q-btn
             v-if="conversation.status !== 'closed'"
             flat
             dense
@@ -1051,6 +1067,7 @@ const emit = defineEmits<{
   (e: 'back'): void
   (e: 'accept'): void
   (e: 'transfer'): void
+  (e: 'release'): void
   (e: 'close'): void
   (e: 'reopen'): void
   (e: 'toggle-profile'): void

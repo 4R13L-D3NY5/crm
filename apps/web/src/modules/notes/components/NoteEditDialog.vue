@@ -18,6 +18,9 @@
               {{ isEditing ? 'Editar Nota' : 'Nueva Nota de Conocimiento' }}
             </div>
             <div class="text-caption text-grey-4" style="font-size: 0.72rem">
+              <span v-if="props.note?.user?.name || props.note?.author_name" class="text-grey-3">
+                Registrado por: <strong class="text-teal-3">{{ props.note?.user?.name || props.note?.author_name }}</strong> • 
+              </span>
               Organiza micro-conocimiento, guías y respuestas para el equipo
             </div>
           </div>
@@ -147,6 +150,21 @@
               @click="scanEntities"
             >
               <q-tooltip>Detectar si el texto menciona Categorías, Estados de Lead o Etiquetas</q-tooltip>
+            </q-btn>
+
+            <!-- Botón Buscar Similares con IA -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="amber-4"
+              icon="sym_r_saved_search"
+              label="Buscar Similares"
+              class="q-px-sm"
+              :disable="!form.content.trim() || form.content.trim().length < 3"
+              @click="isSimilarDraftOpen = true"
+            >
+              <q-tooltip>Compara este borrador con la base de conocimiento para detectar notas afines o duplicadas</q-tooltip>
             </q-btn>
           </div>
 
@@ -476,6 +494,15 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Modal de Notas Similares con IA -->
+    <SimilarNotesDialog
+      v-model="isSimilarDraftOpen"
+      :note="props.note"
+      :draft-content="form.content"
+      :draft-title="form.title || undefined"
+      @select-note="onSelectSimilarNote"
+    />
   </q-dialog>
 </template>
 
@@ -486,6 +513,7 @@ import { http } from '@/shared/api/http'
 import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import { useNotes } from '../composables/useNotes'
 import type { AnalyzeResult, Note, NotePayload } from '../types/note.types'
+import SimilarNotesDialog from './SimilarNotesDialog.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -506,6 +534,25 @@ const isOpen = computed({
 })
 
 const isEditing = computed(() => !!props.note?.id)
+const isSimilarDraftOpen = ref(false)
+
+function onSelectSimilarNote(selected: Note) {
+  $q.dialog({
+    title: 'Nota Similar Seleccionada',
+    message: `¿Deseas reemplazar el borrador actual con el contenido de "${selected.title || 'Nota seleccionada'}"?`,
+    cancel: true,
+    persistent: true,
+    ok: {
+      color: 'primary',
+      label: 'Cargar Contenido',
+    },
+  }).onOk(() => {
+    form.content = selected.content
+    if (selected.title && !form.title) {
+      form.title = selected.title
+    }
+  })
+}
 
 const colorPalette = [
   { label: 'Pizarra Oscura (Default)', value: '#1e293b' },

@@ -8,8 +8,10 @@ Route::prefix('notes')->group(function (): void {
     Route::get('/', [NoteController::class, 'index'])->name('api.notes.index');
     Route::post('/', [NoteController::class, 'store'])->name('api.notes.store');
     Route::post('/analyze', [NoteController::class, 'analyze'])->name('api.notes.analyze');
+    Route::post('/similar', [NoteAiController::class, 'similarDraft'])->name('api.notes.similar-draft');
     Route::post('/ai/refine', [NoteAiController::class, 'refine'])->name('api.notes.ai.refine');
     Route::get('/{id}', [NoteController::class, 'show'])->name('api.notes.show');
+    Route::get('/{id}/similar', [NoteAiController::class, 'similar'])->name('api.notes.similar');
     Route::put('/{id}', [NoteController::class, 'update'])->name('api.notes.update');
     Route::delete('/{id}', [NoteController::class, 'destroy'])->name('api.notes.destroy');
     Route::patch('/{id}/pin', [NoteController::class, 'togglePin'])->name('api.notes.pin');

@@ -24,6 +24,7 @@
 
       <div class="col-12 col-md-auto row items-center q-gutter-sm">
         <q-btn
+          v-if="isAdmin"
           outline
           icon="sym_r_tune"
           label="Configurar Motor IA"
@@ -80,6 +81,7 @@
             </div>
           </div>
           <q-btn
+            v-if="isAdmin"
             flat
             dense
             color="primary"
@@ -104,8 +106,25 @@
             </div>
             <p class="text-caption text-grey-4 q-mt-sm">{{ art.content }}</p>
             <div class="row items-center justify-between text-caption text-grey-5 q-mt-md">
-              <span>Chunks: {{ art.chunks_count }} fragmentos indexados</span>
-              <q-btn flat round dense icon="sym_r_delete" color="negative" size="sm" @click="deleteArticle(art.id)" />
+              <div class="row items-center q-gutter-x-xs ellipsis" style="max-width: 80%">
+                <q-avatar size="20px" color="teal-9" text-color="teal-2" class="text-weight-bold" style="font-size: 10px">
+                  {{ getInitials(art.user?.name) }}
+                </q-avatar>
+                <span>Registrado por: <strong class="text-grey-3">{{ art.user?.name || 'Administración' }}</strong></span>
+                <span v-if="art.created_at" class="text-grey-6 font-mono">• {{ formatDate(art.created_at) }}</span>
+              </div>
+              <q-btn
+                v-if="canDeleteArticle(art)"
+                flat
+                round
+                dense
+                icon="sym_r_delete"
+                color="negative"
+                size="sm"
+                @click="deleteArticle(art.id)"
+              >
+                <q-tooltip>Eliminar artículo</q-tooltip>
+              </q-btn>
             </div>
           </q-card-section>
         </q-card>
@@ -425,6 +444,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useAuthStore } from '@/modules/auth/stores/auth.store'
+import { http } from '@/shared/api/http'
 import {
   type AiConfigData,
   type AiTestResult,
@@ -436,6 +457,8 @@ import {
 
 const $q = useQuasar()
 const route = useRoute()
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.isAdmin || authStore.currentRole === 'admin' || authStore.currentRole === 'owner')
 
 const activeTab = ref<'chat' | 'booking'>('chat')
 const isConfigModalOpen = ref(false)
@@ -510,7 +533,14 @@ interface ArticleItem {
   id: string
   title: string
   content: string
-  chunks_count: number
+  chunks_count?: number
+  user_id?: string
+  user?: {
+    id: string
+    name: string
+    email: string
+  }
+  created_at?: string
 }
 
 const articles = ref<ArticleItem[]>([
@@ -534,7 +564,7 @@ const newArticle = reactive({
 })
 
 onMounted(async () => {
-  await loadAiConfig()
+  await Promise.all([loadAiConfig(), loadArticles()])
   if (route.path.includes('config') || route.query.config === 'true') {
     openConfigModal()
   }
@@ -650,34 +680,95 @@ async function submitAiConfig() {
   }
 }
 
-function saveArticle() {
-  if (!newArticle.title.trim() || !newArticle.content.trim()) return
-
-  articles.value.unshift({
-    id: Date.now().toString(),
-    title: newArticle.title,
-    content: newArticle.content,
-    chunks_count: 1,
-  })
-
-  isArticleModalOpen.value = false
-  newArticle.title = ''
-  newArticle.content = ''
-
-  $q.notify({
-    type: 'positive',
-    message: 'Artículo vectorizado y agregado a la base de conocimiento.',
-    position: 'bottom-right',
-  })
+async function loadArticles() {
+  try {
+    const res = await http.get('/ai/knowledge-chunks')
+    if (res.data?.data && Array.isArray(res.data.data)) {
+      articles.value = res.data.data
+    }
+  } catch (err) {
+    console.warn('Error cargando fragmentos de conocimiento:', err)
+  }
 }
 
-function deleteArticle(id: string) {
-  articles.value = articles.value.filter((a) => a.id !== id)
-  $q.notify({
-    type: 'warning',
-    message: 'Artículo eliminado.',
-    position: 'bottom-right',
-  })
+async function saveArticle() {
+  if (!newArticle.title.trim() || !newArticle.content.trim()) return
+
+  try {
+    const res = await http.post('/ai/knowledge-chunks', {
+      title: newArticle.title.trim(),
+      content: newArticle.content.trim(),
+    })
+    const saved = res.data?.data
+    if (saved) {
+      articles.value.unshift(saved)
+    } else {
+      articles.value.unshift({
+        id: Date.now().toString(),
+        title: newArticle.title,
+        content: newArticle.content,
+        user: { id: authStore.user?.id || '', name: authStore.user?.name || 'Usuario', email: authStore.user?.email || '' },
+        created_at: new Date().toISOString(),
+      })
+    }
+
+    isArticleModalOpen.value = false
+    newArticle.title = ''
+    newArticle.content = ''
+
+    $q.notify({
+      type: 'positive',
+      message: 'Artículo registrado y vectorizado en la base de conocimiento.',
+      position: 'bottom-right',
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al guardar el artículo.',
+      position: 'bottom-right',
+    })
+  }
+}
+
+async function deleteArticle(id: string) {
+  try {
+    await http.delete(`/ai/knowledge-chunks/${id}`)
+    articles.value = articles.value.filter((a) => a.id !== id)
+    $q.notify({
+      type: 'warning',
+      message: 'Artículo eliminado de la base de conocimiento.',
+      position: 'bottom-right',
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al eliminar artículo.',
+      position: 'bottom-right',
+    })
+  }
+}
+
+function canDeleteArticle(art: ArticleItem): boolean {
+  if (isAdmin.value) return true
+  const uid = authStore.user?.id
+  return Boolean(uid && (art.user_id === uid || art.user?.id === uid))
+}
+
+function getInitials(name?: string | null): string {
+  if (!name) return 'U'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
+function formatDate(iso?: string): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
+  } catch {
+    return ''
+  }
 }
 </script>
 

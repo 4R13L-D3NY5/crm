@@ -5,13 +5,65 @@ namespace App\Modules\Notes\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\HentleAi\Services\HentleAiCopilotService;
 use App\Modules\Notes\Http\Requests\RefineNoteAiRequest;
+use App\Modules\Notes\Http\Resources\NoteResource;
+use App\Modules\Notes\Models\Note;
+use App\Modules\Notes\Services\NoteSimilarityService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class NoteAiController extends Controller
 {
     public function __construct(
         protected HentleAiCopilotService $aiCopilotService,
+        protected NoteSimilarityService $similarityService,
     ) {}
+
+    public function similar(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        $organizationId = $user->current_organization_id;
+
+        $note = Note::query()
+            ->where('notes.organization_id', $organizationId)
+            ->visibleToUser($user, $organizationId)
+            ->with(['user', 'categories', 'customStatuses', 'tags'])
+            ->findOrFail($id);
+
+        $limit = max(1, min(10, (int) $request->query('limit', 5)));
+        $similarNotes = $this->similarityService->findSimilarForNote($note, $user, $limit);
+
+        return response()->json([
+            'data' => $similarNotes,
+            'target_note' => (new NoteResource($note))->resolve(),
+            'total' => count($similarNotes),
+        ]);
+    }
+
+    public function similarDraft(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'content' => ['required', 'string', 'min:3'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'exclude_id' => ['nullable', 'string'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:10'],
+        ]);
+
+        $limit = (int) ($validated['limit'] ?? 5);
+        $similarNotes = $this->similarityService->findSimilarForDraft(
+            content: $validated['content'],
+            title: $validated['title'] ?? null,
+            user: $user,
+            excludeId: $validated['exclude_id'] ?? null,
+            limit: $limit
+        );
+
+        return response()->json([
+            'data' => $similarNotes,
+            'total' => count($similarNotes),
+        ]);
+    }
 
     public function refine(RefineNoteAiRequest $request): JsonResponse
     {
