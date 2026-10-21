@@ -31,4 +31,5 @@ Route::post('conversations/{conversation}/voice-notes/synthesize', [VoiceTranscr
 // Rutas base
 Route::put('conversations/{conversation}/assignment', [ConversationAssignmentController::class, 'update']);
 Route::put('conversations/{conversation}/status', [ConversationStatusController::class, 'update']);
+Route::post('conversations/{conversation}/read', [ConversationController::class, 'markAsRead'])->name('conversations.read');
 Route::apiResource('conversations', ConversationController::class)->only(['index', 'store', 'show']);

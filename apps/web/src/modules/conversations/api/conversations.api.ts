@@ -70,6 +70,15 @@ export async function reopenTicket(conversationId: string): Promise<Conversation
   return response.data.data
 }
 
+export async function markConversationAsRead(
+  conversationId: string,
+): Promise<{ success: boolean; unread_count: number }> {
+  const response = await http.post<{ success: boolean; unread_count: number }>(
+    `/conversations/${conversationId}/read`,
+  )
+  return response.data
+}
+
 // Mensajes
 export async function createInternalMessage(
   conversationId: string,

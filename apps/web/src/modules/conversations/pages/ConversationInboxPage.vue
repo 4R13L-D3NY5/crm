@@ -103,6 +103,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { markConversationAsRead } from '../api/conversations.api'
 import {
   useConversation,
   useConversationFormOptions,
@@ -199,6 +200,10 @@ function handleBackToList() {
 
 function selectConversation(conv: Conversation) {
   selectedConversationId.value = conv.id
+  if (conv.unread_count && conv.unread_count > 0) {
+    conv.unread_count = 0
+    markConversationAsRead(conv.id).catch(() => {})
+  }
   if (isMobile.value) {
     isProfileOpen.value = false
   }
@@ -316,6 +321,15 @@ async function handleSendMessage({
         })
       }
     }
+
+    // Al responder el asesor, limpiar indicador no leído de inmediato
+    if (selectedConversation.value) {
+      selectedConversation.value.unread_count = 0
+    }
+    const currentTicket = allConversations.value.find(c => c.id === selectedConversationId.value)
+    if (currentTicket) {
+      currentTicket.unread_count = 0
+    }
   } catch (err: any) {
     const errorMsg = err?.response?.data?.message || 'Error al enviar el mensaje.'
     notify.error({ message: errorMsg })
@@ -328,6 +342,17 @@ watch(
   (list) => {
     if (!isMobile.value && !selectedConversationId.value && list.length > 0) {
       selectedConversationId.value = list[0].id
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  selectedConversation,
+  (conv) => {
+    if (conv && conv.unread_count && conv.unread_count > 0) {
+      conv.unread_count = 0
+      markConversationAsRead(conv.id).catch(() => {})
     }
   },
   { immediate: true },

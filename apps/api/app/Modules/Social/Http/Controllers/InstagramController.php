@@ -273,6 +273,7 @@ class InstagramController extends Controller
         $conversation->update([
             'last_message_at' => now(),
             'status' => 'open',
+            'unread_count' => 0,
         ]);
 
         event(new TicketMessageCreatedEvent($message));

@@ -61,6 +61,12 @@ class ConversationController
         $request = request();
         $this->authorize($request, 'view', $conversation);
 
+        // Al abrir la conversación, los mensajes no leídos se marcan como leídos automáticamente
+        if ($conversation->unread_count > 0) {
+            $conversation->update(['unread_count' => 0]);
+            $conversation->unread_count = 0;
+        }
+
         return response()->json([
             'data' => (new ConversationResource($conversation->load([
                 'contact.tags',
@@ -72,6 +78,22 @@ class ConversationController
                 'customStatus',
                 'categories',
             ])))->resolve(),
+        ]);
+    }
+
+    public function markAsRead(Conversation $conversation): JsonResponse
+    {
+        $request = request();
+        $this->authorize($request, 'view', $conversation);
+
+        if ($conversation->unread_count > 0) {
+            $conversation->update(['unread_count' => 0]);
+            $conversation->unread_count = 0;
+        }
+
+        return response()->json([
+            'success' => true,
+            'unread_count' => 0,
         ]);
     }
 

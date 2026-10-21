@@ -224,24 +224,42 @@ async function initSession(sessionId) {
     }
   });
 
-  // Mapa de nombres de contactos sincronizados desde WhatsApp
+  // Mapa de nombres de contactos y mapeo bidireccional LID <-> Teléfono
   const contactsMap = {};
+  const lidToPhoneMap = {};
+  const phoneToLidMap = {};
+
+  function registerContactMapping(c) {
+    if (!c) return;
+    if (c.id) {
+      contactsMap[c.id] = c.name || c.notify || c.verifiedName || contactsMap[c.id];
+    }
+    // Mapear si el contacto contiene tanto @lid como @s.whatsapp.net
+    if (c.lid && c.id && c.id.endsWith('@s.whatsapp.net')) {
+      const phone = '+' + c.id.split('@')[0].split(':')[0];
+      const lidClean = c.lid.split('@')[0].split(':')[0];
+      lidToPhoneMap[lidClean] = phone;
+      phoneToLidMap[phone] = lidClean;
+    }
+    if (c.phoneNumber && c.id && c.id.endsWith('@lid')) {
+      const phone = '+' + c.phoneNumber.replace(/[^0-9]/g, '');
+      const lidClean = c.id.split('@')[0].split(':')[0];
+      lidToPhoneMap[lidClean] = phone;
+      phoneToLidMap[phone] = lidClean;
+    }
+  }
 
   sock.ev.on('contacts.upsert', (contacts) => {
     if (!Array.isArray(contacts)) return;
     for (const c of contacts) {
-      if (c.id) {
-        contactsMap[c.id] = c.name || c.notify || c.verifiedName || contactsMap[c.id];
-      }
+      registerContactMapping(c);
     }
   });
 
   sock.ev.on('contacts.update', (updates) => {
     if (!Array.isArray(updates)) return;
     for (const u of updates) {
-      if (u.id) {
-        contactsMap[u.id] = u.name || u.notify || u.verifiedName || contactsMap[u.id];
-      }
+      registerContactMapping(u);
     }
   });
 
@@ -271,20 +289,34 @@ async function initSession(sessionId) {
 
       // Normalizar número de teléfono emisor / interlocutor
       let cleanPhone = '';
+      let lid = null;
+
       if (remoteJid.endsWith('@s.whatsapp.net')) {
         cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(remoteJid) : remoteJid).split('@')[0].split(':')[0];
-      } else if (msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
-        cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(msg.key.participant) : msg.key.participant).split('@')[0].split(':')[0];
-      } else if (remoteJid.endsWith('@lid') || (msg.key.participant && msg.key.participant.endsWith('@lid'))) {
-        const rawId = (msg.key.participant || remoteJid).split('@')[0].split(':')[0];
-        cleanPhone = `+${rawId}`;
+      } else if (remoteJid.endsWith('@lid')) {
+        lid = remoteJid.split('@')[0].split(':')[0];
+        // En mensajes entrantes (!isFromMe), participant puede traer el teléfono real @s.whatsapp.net
+        if (!isFromMe && msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
+          cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(msg.key.participant) : msg.key.participant).split('@')[0].split(':')[0];
+          lidToPhoneMap[lid] = cleanPhone;
+          phoneToLidMap[cleanPhone] = lid;
+        } else if (lidToPhoneMap[lid]) {
+          cleanPhone = lidToPhoneMap[lid];
+        } else {
+          cleanPhone = `+${lid}`;
+        }
       } else {
         cleanPhone = `+${remoteJid.split('@')[0].split(':')[0]}`;
       }
 
       // Evitar procesar mensajes enviados a uno mismo ("Mensajes guardados / Notas propias")
       const myUserPhone = sock.user?.id ? sock.user.id.split(':')[0].split('@')[0] : '';
-      if (myUserPhone && cleanPhone.replace(/[^0-9]/g, '') === myUserPhone.replace(/[^0-9]/g, '')) {
+      const myUserLid = sock.user?.lid ? sock.user.lid.split(':')[0].split('@')[0] : '';
+      const cleanPhoneDigits = cleanPhone.replace(/[^0-9]/g, '');
+      if (
+        (myUserPhone && cleanPhoneDigits === myUserPhone.replace(/[^0-9]/g, '')) ||
+        (myUserLid && (cleanPhoneDigits === myUserLid.replace(/[^0-9]/g, '') || lid === myUserLid))
+      ) {
         continue;
       }
 
@@ -397,6 +429,8 @@ async function initSession(sessionId) {
           account_id: sessionId,
           provider_message_id: msg.key.id,
           from_phone: cleanPhone,
+          remote_jid: remoteJid,
+          lid: lid,
           from_name: msg.pushName || contactsMap[remoteJid] || (msg.key.participant ? contactsMap[msg.key.participant] : null) || cleanPhone,
           from_me: isFromMe,
           body: effectiveBody,

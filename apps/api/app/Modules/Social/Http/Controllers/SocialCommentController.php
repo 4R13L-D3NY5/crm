@@ -76,18 +76,38 @@ class SocialCommentController extends Controller
             // A. Mensajería Directa (Facebook Messenger / Instagram DM)
             if ($messaging = data_get($entry, 'messaging.0')) {
                 $senderId = (string) data_get($messaging, 'sender.id');
+                $recipientId = (string) data_get($messaging, 'recipient.id');
+                $isEcho = (bool) data_get($messaging, 'message.is_echo', false);
                 $messageText = (string) data_get($messaging, 'message.text', 'Mensaje multimedia recibido');
                 $platform = $account?->session_type ?? 'facebook';
 
-                $contact = Contact::firstOrCreate(
-                    ['organization_id' => $orgId, 'first_name' => "Usuario {$platform} ({$senderId})"],
-                    ['status' => 'active', 'notes' => "Lead capturado vía {$platform} ID {$senderId}"]
-                );
+                $isOutbound = $isEcho
+                    || ($senderId === (string) $pageId)
+                    || ($account && $senderId === (string) $account->phone_number_id)
+                    || ($account && $senderId === (string) $account->business_account_id);
 
-                if ($platform === 'instagram') {
-                    $cf = $contact->custom_fields ?? [];
-                    if (empty($cf['instagram_id'])) {
-                        $cf['instagram_id'] = $senderId;
+                // Si es mensaje saliente de la Fanpage, el interlocutor cliente es el recipientId
+                $customerSocialId = $isOutbound ? $recipientId : $senderId;
+
+                $contact = Contact::where('organization_id', $orgId)
+                    ->where(function ($q) use ($customerSocialId, $platform) {
+                        $q->whereJsonContains("custom_fields->{$platform}_id", $customerSocialId)
+                          ->orWhere('first_name', "Usuario {$platform} ({$customerSocialId})");
+                    })
+                    ->first();
+
+                if (!$contact) {
+                    $contact = Contact::create([
+                        'organization_id' => $orgId,
+                        'first_name' => "Usuario {$platform} ({$customerSocialId})",
+                        'status' => 'active',
+                        'notes' => "Lead capturado vía {$platform} ID {$customerSocialId}",
+                        'custom_fields' => ["{$platform}_id" => $customerSocialId],
+                    ]);
+                } else {
+                    $cf = (array) ($contact->custom_fields ?? []);
+                    if (empty($cf["{$platform}_id"])) {
+                        $cf["{$platform}_id"] = $customerSocialId;
                         $contact->update(['custom_fields' => $cf]);
                     }
                 }
@@ -96,32 +116,41 @@ class SocialCommentController extends Controller
                     [
                         'organization_id' => $orgId,
                         'contact_id' => $contact->id,
-                        'status' => 'pending',
+                        'channel' => $platform,
                     ],
                     [
-                        'channel' => $platform,
                         'whatsapp_account_id' => $account?->id,
+                        'status' => 'pending',
                         'unread_count' => 0,
                         'last_message_at' => Carbon::now(),
                     ]
                 );
 
-                $conversation->increment('unread_count');
-                $conversation->update(['last_message_at' => Carbon::now()]);
+                if ($isOutbound) {
+                    $conversation->update([
+                        'status' => 'open',
+                        'last_message_at' => Carbon::now(),
+                        'unread_count' => 0,
+                    ]);
+                } else {
+                    $conversation->increment('unread_count');
+                    $conversation->update(['last_message_at' => Carbon::now()]);
+                }
 
                 $msg = Message::create([
                     'organization_id' => $orgId,
                     'conversation_id' => $conversation->id,
-                    'direction' => 'inbound',
+                    'direction' => $isOutbound ? 'outbound' : 'inbound',
                     'body' => $messageText,
                     'sent_at' => Carbon::now(),
+                    'delivery_status' => $isOutbound ? 'delivered' : 'read',
                 ]);
 
                 event(new TicketMessageCreatedEvent($msg));
 
                 return response()->json([
                     'status' => 'ok',
-                    'message' => "Mensaje de {$platform} procesado y enviado a la bandeja omnicanal.",
+                    'message' => "Mensaje de {$platform} (" . ($isOutbound ? 'saliente espejo' : 'entrante') . ") procesado y enviado a la bandeja omnicanal.",
                 ], 200);
             }
 
@@ -227,7 +256,7 @@ class SocialCommentController extends Controller
 
         $client = new \GuzzleHttp\Client();
         try {
-            $response = $client->get("https://graph.facebook.com/v21.0/{$pageId}/conversations?fields=id,updated_time,messages{message,from,created_time}&access_token={$token}");
+            $response = $client->get("https://graph.facebook.com/v21.0/{$pageId}/conversations?fields=id,updated_time,participants{id,name,email},messages{id,message,from,created_time}&access_token={$token}");
             $data = json_decode($response->getBody()->getContents(), true);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al conectar con la API de Facebook: ' . $e->getMessage()], 502);
@@ -235,63 +264,105 @@ class SocialCommentController extends Controller
 
         $createdCount = 0;
         foreach (data_get($data, 'data', []) as $conversationData) {
-            foreach (data_get($conversationData, 'messages.data', []) as $msgData) {
+            $participants = data_get($conversationData, 'participants.data', []);
+            $customerParticipant = collect($participants)->first(function ($p) use ($pageId, $account) {
+                $pId = (string) data_get($p, 'id');
+                return $pId !== (string) $pageId && $pId !== (string) $account->business_account_id;
+            });
+
+            $customerSocialId = (string) data_get($customerParticipant, 'id');
+            $customerName = (string) data_get($customerParticipant, 'name', 'Usuario Facebook');
+
+            $messagesList = data_get($conversationData, 'messages.data', []);
+
+            // Fallback: si participants vino vacío, deducir del primer mensaje que no sea de la página
+            if (!$customerSocialId && !empty($messagesList)) {
+                foreach ($messagesList as $m) {
+                    $mSenderId = (string) data_get($m, 'from.id');
+                    if ($mSenderId !== (string) $pageId && $mSenderId !== (string) $account->business_account_id) {
+                        $customerSocialId = $mSenderId;
+                        $customerName = (string) data_get($m, 'from.name', 'Usuario Facebook');
+                        break;
+                    }
+                }
+            }
+
+            if (!$customerSocialId) {
+                continue;
+            }
+
+            $contact = Contact::where('organization_id', $organization->id)
+                ->where(function ($q) use ($customerSocialId, $customerName) {
+                    $q->whereJsonContains('custom_fields->facebook_id', $customerSocialId)
+                      ->orWhere('first_name', $customerName);
+                })
+                ->first();
+
+            if (!$contact) {
+                $contact = Contact::create([
+                    'organization_id' => $organization->id,
+                    'first_name' => $customerName,
+                    'status' => 'active',
+                    'notes' => "Lead de Facebook Messenger ID #{$customerSocialId}",
+                    'custom_fields' => ['facebook_id' => $customerSocialId],
+                ]);
+            } else {
+                $fields = (array) ($contact->custom_fields ?? []);
+                if (empty($fields['facebook_id'])) {
+                    $fields['facebook_id'] = $customerSocialId;
+                    $contact->update(['custom_fields' => $fields]);
+                }
+            }
+
+            $conversation = Conversation::where('organization_id', $organization->id)
+                ->where('contact_id', $contact->id)
+                ->where('channel', 'facebook')
+                ->latest('last_message_at')
+                ->first();
+
+            if (!$conversation) {
+                $conversation = Conversation::create([
+                    'organization_id' => $organization->id,
+                    'contact_id' => $contact->id,
+                    'channel' => 'facebook',
+                    'status' => 'pending',
+                    'whatsapp_account_id' => $account->id,
+                    'unread_count' => 0,
+                    'last_message_at' => now(),
+                ]);
+            }
+
+            foreach ($messagesList as $msgData) {
                 $senderId = (string) data_get($msgData, 'from.id');
-                $senderName = (string) data_get($msgData, 'from.name', 'Usuario Facebook');
                 $text = (string) data_get($msgData, 'message');
                 $sentAt = Carbon::parse(data_get($msgData, 'created_time', now()));
 
-                // Omitir mensajes enviados por la propia página
-                if ($senderId === (string) $pageId || $senderId === (string) $account->business_account_id) {
+                if (trim($text) === '') {
                     continue;
                 }
 
-                $contact = Contact::firstOrCreate(
-                    ['organization_id' => $organization->id, 'first_name' => $senderName],
-                    [
-                        'status' => 'active',
-                        'notes' => "Lead de Facebook Messenger ID #{$senderId}",
-                        'custom_fields' => ['facebook_id' => $senderId],
-                    ]
-                );
-                if (!data_get($contact->custom_fields, 'facebook_id')) {
-                    $fields = (array) ($contact->custom_fields ?? []);
-                    $fields['facebook_id'] = $senderId;
-                    $contact->update(['custom_fields' => $fields]);
-                }
-
-                $conversation = Conversation::where('organization_id', $organization->id)
-                    ->where('contact_id', $contact->id)
-                    ->where('channel', 'facebook')
-                    ->latest('last_message_at')
-                    ->first();
-
-                if (!$conversation) {
-                    $conversation = Conversation::create([
-                        'organization_id' => $organization->id,
-                        'contact_id' => $contact->id,
-                        'channel' => 'facebook',
-                        'status' => 'pending',
-                        'whatsapp_account_id' => $account->id,
-                        'unread_count' => 0,
-                        'last_message_at' => $sentAt,
-                    ]);
-                }
+                $isOutbound = ($senderId === (string) $pageId || $senderId === (string) $account->business_account_id);
 
                 $exists = Message::where('conversation_id', $conversation->id)
                     ->where('body', $text)
-                    ->where('direction', 'inbound')
+                    ->where('sent_at', $sentAt)
                     ->exists();
 
                 if (!$exists) {
                     $msg = Message::create([
                         'organization_id' => $organization->id,
                         'conversation_id' => $conversation->id,
-                        'direction' => 'inbound',
+                        'direction' => $isOutbound ? 'outbound' : 'inbound',
                         'body' => $text,
                         'sent_at' => $sentAt,
+                        'delivery_status' => $isOutbound ? 'delivered' : 'read',
                     ]);
-                    $conversation->increment('unread_count');
+
+                    if (!$isOutbound) {
+                        $conversation->increment('unread_count');
+                    } else {
+                        $conversation->update(['unread_count' => 0]);
+                    }
                     $conversation->update(['last_message_at' => $sentAt]);
                     event(new TicketMessageCreatedEvent($msg));
                     $createdCount++;
@@ -491,6 +562,7 @@ class SocialCommentController extends Controller
         $conversation->update([
             'last_message_at' => now(),
             'status' => 'open',
+            'unread_count' => 0,
         ]);
 
         event(new TicketMessageCreatedEvent($message));
@@ -568,6 +640,7 @@ class SocialCommentController extends Controller
         $conversation->update([
             'last_message_at' => now(),
             'status' => 'open',
+            'unread_count' => 0,
         ]);
 
         event(new TicketMessageCreatedEvent($message));

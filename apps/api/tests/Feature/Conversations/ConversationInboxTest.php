@@ -183,6 +183,45 @@ class ConversationInboxTest extends TestCase
         $this->assertContains($convLP->id, $adminIds);
     }
 
+    public function test_viewing_conversation_or_sending_outbound_resets_unread_count(): void
+    {
+        [$user, $organization] = $this->createMembership();
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone' => '+59172227760',
+        ]);
+
+        $conv = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->id,
+            'status' => 'open',
+            'unread_count' => 3,
+        ]);
+
+        // Al consultar /api/conversations/{id}, unread_count se reinicia a 0
+        $showRes = $this->actingAs($user)->getJson("/api/conversations/{$conv->id}");
+        $showRes->assertOk();
+
+        $this->assertDatabaseHas('conversations', [
+            'id' => $conv->id,
+            'unread_count' => 0,
+        ]);
+
+        // Simular que llegan mensajes nuevos (unread_count = 2)
+        $conv->update(['unread_count' => 2]);
+
+        // Al llamar a /read se reinicia a 0
+        $readRes = $this->actingAs($user)->postJson("/api/conversations/{$conv->id}/read");
+        $readRes->assertOk();
+        $readRes->assertJsonPath('unread_count', 0);
+
+        $this->assertDatabaseHas('conversations', [
+            'id' => $conv->id,
+            'unread_count' => 0,
+        ]);
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();

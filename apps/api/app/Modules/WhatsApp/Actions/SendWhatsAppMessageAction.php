@@ -60,6 +60,7 @@ class SendWhatsAppMessageAction
         $conversation->forceFill([
             'last_message_at' => now(),
             'status' => 'open',
+            'unread_count' => 0,
         ])->save();
 
         DispatchDomainJob::dispatch(new SendWhatsAppMessageJob($message->getKey()));

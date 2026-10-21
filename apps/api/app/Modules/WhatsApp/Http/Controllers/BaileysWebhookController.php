@@ -156,26 +156,88 @@ class BaileysWebhookController extends Controller
             }
         }
 
-        // 1. Contacto
-        $defaultName = $isFromMe ? $cleanPhone : (filled($fromName) ? $fromName : $cleanPhone);
-        $contact = Contact::firstOrCreate(
-            [
-                'organization_id' => $account->organization_id,
-                'phone' => filled($cleanPhone) ? $cleanPhone : null,
-            ],
-            [
-                'first_name' => $defaultName,
-                'status' => 'active',
-            ]
-        );
+        // 1. Contacto: Resolución inteligente por Teléfono y WhatsApp LID
+        $lid = $request->input('lid');
+        $remoteJid = $request->input('remote_jid');
+        $cleanPhoneDigits = preg_replace('/[^0-9]/', '', $cleanPhone);
+        $isLidPhone = strlen($cleanPhoneDigits) >= 14 && !str_starts_with($cleanPhoneDigits, '591');
 
-        if (! $isFromMe && filled($fromName) && ($contact->first_name === $cleanPhone || blank($contact->first_name))) {
-            $contact->update(['first_name' => $fromName]);
+        if (!$lid && $isLidPhone) {
+            $lid = $cleanPhoneDigits;
         }
 
-        // 2. Conversación activa
+        $contact = null;
+
+        // A. Buscar por teléfono regular (si no es puramente un LID de 14+ dígitos)
+        if (filled($cleanPhone) && !$isLidPhone) {
+            $contact = Contact::where('organization_id', $account->organization_id)
+                ->where('phone', $cleanPhone)
+                ->first();
+        }
+
+        // B. Si no se encontró o el teléfono entrante es un LID, buscar por custom_fields->whatsapp_lid o teléfono LID
+        if (!$contact && filled($lid)) {
+            $contact = Contact::where('organization_id', $account->organization_id)
+                ->where(function ($q) use ($lid) {
+                    $q->whereJsonContains('custom_fields->whatsapp_lid', $lid)
+                      ->orWhere('phone', "+{$lid}")
+                      ->orWhere('phone', $lid);
+                })
+                ->first();
+        }
+
+        $defaultName = $isFromMe ? $cleanPhone : (filled($fromName) ? $fromName : $cleanPhone);
+
+        if (!$contact) {
+            $cf = [];
+            if ($lid) {
+                $cf['whatsapp_lid'] = $lid;
+            }
+            $contact = Contact::create([
+                'organization_id' => $account->organization_id,
+                'phone' => filled($cleanPhone) ? $cleanPhone : null,
+                'first_name' => $defaultName,
+                'status' => 'active',
+                'custom_fields' => !empty($cf) ? $cf : null,
+            ]);
+        } else {
+            // Si el contacto ya existía pero ahora conocemos su teléfono real o su LID
+            $cf = (array) ($contact->custom_fields ?? []);
+            $shouldUpdate = false;
+            $updates = [];
+
+            if ($lid && empty($cf['whatsapp_lid'])) {
+                $cf['whatsapp_lid'] = $lid;
+                $updates['custom_fields'] = $cf;
+                $shouldUpdate = true;
+            }
+
+            // Si el contacto tenía guardado el LID como teléfono y ahora recibimos el teléfono real
+            if (!$isLidPhone && filled($cleanPhone) && (empty($contact->phone) || strlen(preg_replace('/[^0-9]/', '', (string)$contact->phone)) >= 14)) {
+                $updates['phone'] = $cleanPhone;
+                $shouldUpdate = true;
+            }
+
+            if (!$isFromMe && filled($fromName) && ($contact->first_name === $cleanPhone || blank($contact->first_name))) {
+                $updates['first_name'] = $fromName;
+                $shouldUpdate = true;
+            }
+
+            if ($shouldUpdate) {
+                $contact->update($updates);
+            }
+        }
+
+        // 2. Conversación activa (unificar si existe una conversación con el contacto o su gemelo LID)
         $conversation = Conversation::where('organization_id', $account->organization_id)
-            ->where('contact_id', $contact->id)
+            ->where(function ($q) use ($contact, $lid) {
+                $q->where('contact_id', $contact->id);
+                if ($lid) {
+                    $q->orWhereHas('contact', function ($cq) use ($lid) {
+                        $cq->where('phone', "+{$lid}")->orWhere('phone', $lid);
+                    });
+                }
+            })
             ->where('channel', 'whatsapp')
             ->whereIn('status', ['pending', 'open'])
             ->latest('last_message_at')
@@ -197,9 +259,11 @@ class BaileysWebhookController extends Controller
 
         if ($isFromMe) {
             // Sincronización espejo de mensaje enviado fuera del CRM (WhatsApp Web o Móvil Android/iOS)
+            // Al responder el asesor fuera del CRM, se resetea automáticamente unread_count a 0
             $conversation->update([
                 'status' => 'open',
                 'last_message_at' => Carbon::now(),
+                'unread_count' => 0,
             ]);
         } else {
             $conversation->increment('unread_count');
@@ -208,10 +272,11 @@ class BaileysWebhookController extends Controller
 
         // 3. Crear mensaje (inbound u outbound espejo)
         $direction = $isFromMe ? 'outbound' : 'inbound';
+        $assignedUserId = $conversation->assigned_to_user_id ?? $conversation->assigned_user_id ?? null;
         $msg = Message::create([
             'organization_id' => $account->organization_id,
             'conversation_id' => $conversation->id,
-            'user_id' => $isFromMe ? $conversation->assigned_user_id : null,
+            'user_id' => $isFromMe ? $assignedUserId : null,
             'direction' => $direction,
             'message_type' => $mediaType ?: 'text',
             'message_status' => 'delivered',
