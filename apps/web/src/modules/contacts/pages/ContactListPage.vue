@@ -116,6 +116,20 @@
         </q-btn-dropdown>
 
         <q-btn
+          unelevated
+          dense
+          no-caps
+          color="teal-8"
+          text-color="teal-1"
+          icon="sym_r_sync_saved_locally"
+          label="Cotejar & Matricular"
+          class="q-px-md text-bold"
+          @click="isReconcileOpen = true"
+        >
+          <q-tooltip>Cruzar reportes externos de inscritos con el CRM y actualizar estados masivamente</q-tooltip>
+        </q-btn>
+
+        <q-btn
           outline
           dense
           no-caps
@@ -295,6 +309,10 @@
       @import="handleBatchImport"
     />
 
+    <ContactReconciliationModal
+      v-model="isReconcileOpen"
+    />
+
     <!-- Modal de Envío Masivo de Mensajes WhatsApp -->
     <ContactBulkMessageModal
       v-model="isBulkMessageOpen"
@@ -328,6 +346,7 @@ import ContactGridCard from '../components/ContactGridCard.vue'
 import ContactDetailDrawer from '../components/ContactDetailDrawer.vue'
 import ContactFormDialog from '../components/ContactFormDialog.vue'
 import ContactImportModal from '../components/ContactImportModal.vue'
+import ContactReconciliationModal from '../components/ContactReconciliationModal.vue'
 import ContactBulkMessageModal from '../components/ContactBulkMessageModal.vue'
 
 import {
@@ -350,6 +369,7 @@ const viewMode = ref<'table' | 'grid'>('table')
 const isDrawerOpen = ref(false)
 const isFormOpen = ref(false)
 const isImportOpen = ref(false)
+const isReconcileOpen = ref(false)
 const isConfirmDeleteOpen = ref(false)
 const isBulkMessageOpen = ref(false)
 const isExporting = ref(false)
