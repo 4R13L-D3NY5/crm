@@ -87,19 +87,19 @@
         <!-- Acciones del Ticket -->
         <div class="row items-center q-gutter-x-xs no-wrap flex-shrink-0">
           <q-btn
-            v-if="conversation.status === 'pending'"
+            v-if="conversation.status === 'pending' || !conversation.assigned_to_user_id || !conversation.assignee"
             unelevated
             dense
             size="sm"
             color="positive"
             icon="sym_r_check_circle"
-            :label="isMobile ? '' : 'Aceptar'"
+            :label="isMobile ? '' : (conversation.status === 'pending' ? 'Aceptar' : 'Tomar Ticket')"
             :round="isMobile"
             class="q-px-xs"
             :loading="isActionLoading"
             @click="emit('accept')"
           >
-            <q-tooltip>Aceptar ticket</q-tooltip>
+            <q-tooltip>{{ conversation.status === 'pending' ? 'Aceptar ticket' : 'Asignarme este ticket como propio' }}</q-tooltip>
           </q-btn>
 
           <q-btn

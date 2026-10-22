@@ -113,27 +113,38 @@ class GetDashboardReportQuery
 
         $conversationEvents = Conversation::query()
             ->where('organization_id', $organizationId)
-            ->with(['contact', 'company'])
+            ->with(['contact', 'company', 'latestMessage'])
             ->orderByDesc('last_message_at')
             ->orderByDesc('updated_at')
-            ->limit(5)
+            ->limit(6)
             ->get()
             ->map(static function (Conversation $conversation): array {
-                $subject = $conversation->subject ?: 'Conversacion sin asunto';
-                $relatedName = $conversation->contact?->name
-                    ?: $conversation->company?->name
-                    ?: 'Sin contacto asociado';
+                $contactName = $conversation->contact?->name
+                    ?: $conversation->contact?->phone
+                    ?: ($conversation->subject ?: 'Contacto ' . ucfirst($conversation->channel));
+
+                $channelName = ucfirst($conversation->channel);
+                $statusLabel = match ($conversation->status) {
+                    'open' => 'Atendiendo',
+                    'pending' => 'En espera',
+                    'closed' => 'Cerrado',
+                    default => ucfirst($conversation->status),
+                };
+
+                $snippet = $conversation->latestMessage?->body;
+                $description = $snippet
+                    ? \Illuminate\Support\Str::limit($snippet, 70)
+                    : "Conversación {$statusLabel} en {$channelName}";
 
                 return [
                     'type' => 'conversation',
-                    'title' => $subject,
-                    'description' => sprintf(
-                        'Conversacion %s en %s.',
-                        $conversation->status,
-                        ucfirst($conversation->channel)
-                    ),
-                    'meta' => $relatedName,
-                    'href' => "/app/conversations?conversation={$conversation->getKey()}",
+                    'title' => $contactName,
+                    'description' => $description,
+                    'meta' => $contactName,
+                    'status' => $conversation->status,
+                    'status_label' => $statusLabel,
+                    'channel' => $conversation->channel,
+                    'href' => "/app/conversations?id={$conversation->getKey()}",
                     'occurred_at' => ($conversation->last_message_at ?? $conversation->updated_at)->toIso8601String(),
                 ];
             });

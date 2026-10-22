@@ -112,9 +112,20 @@
                   </div>
 
                   <div class="dashboard-activity-item__content">
-                    <div class="row items-center justify-between">
-                      <span class="dashboard-activity-item__title">{{ item.title }}</span>
-                      <span class="dashboard-activity-item__time">{{ formatDate(item.occurred_at) }}</span>
+                    <div class="row items-center justify-between no-wrap">
+                      <div class="row items-center q-gutter-x-xs no-wrap ellipsis col">
+                        <span class="dashboard-activity-item__title ellipsis">{{ item.title }}</span>
+                        <q-badge
+                          v-if="item.status_label"
+                          :color="item.status === 'open' ? 'teal-9' : 'amber-10'"
+                          :text-color="item.status === 'open' ? 'teal-2' : 'amber-2'"
+                          rounded
+                          class="q-px-xs text-caption"
+                        >
+                          {{ item.status_label }}
+                        </q-badge>
+                      </div>
+                      <span class="dashboard-activity-item__time flex-shrink-0 q-ml-sm">{{ formatDate(item.occurred_at) }}</span>
                     </div>
                     <p class="dashboard-activity-item__desc">{{ item.description }}</p>
                   </div>

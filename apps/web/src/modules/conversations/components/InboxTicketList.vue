@@ -161,6 +161,13 @@
               >
                 👤 {{ item.assignee.name }}
               </span>
+              <span
+                v-else
+                class="ticket-unassigned-chip ellipsis"
+                title="Sin operador asignado (en espera de atención)"
+              >
+                ⚠️ Sin asignar
+              </span>
               <span v-if="item.unread_count && item.unread_count > 0" class="unread-badge">
                 {{ item.unread_count }}
               </span>
@@ -429,6 +436,17 @@ function getChannelIcon(channel?: string) {
   background: rgba(16, 185, 129, 0.12);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  max-width: 90px;
+  white-space: nowrap;
+}
+
+.ticket-unassigned-chip {
+  font-size: 0.68rem;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 4px;
   padding: 1px 5px;
   max-width: 90px;

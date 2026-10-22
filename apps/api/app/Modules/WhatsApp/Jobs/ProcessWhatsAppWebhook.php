@@ -149,7 +149,7 @@ class ProcessWhatsAppWebhook implements ShouldQueue
                 'created_by_user_id' => null,
                 'channel' => 'whatsapp',
                 'whatsapp_account_id' => $account->getKey(),
-                'status' => 'open',
+                'status' => 'pending',
                 'subject' => 'WhatsApp: '.$profileName,
                 'last_message_at' => $sentAt,
             ]);
@@ -171,7 +171,7 @@ class ProcessWhatsAppWebhook implements ShouldQueue
         $conversation->increment('unread_count');
         $conversation->forceFill([
             'last_message_at' => $sentAt,
-            'status' => 'open',
+            'status' => $conversation->assigned_to_user_id ? 'open' : 'pending',
         ])->save();
 
         WhatsAppMessageMapping::query()->create([

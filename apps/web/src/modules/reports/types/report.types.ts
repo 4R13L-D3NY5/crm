@@ -32,6 +32,9 @@ export interface RecentActivityItem {
   meta: string
   href: string
   occurred_at: string
+  status?: string
+  status_label?: string
+  channel?: string
 }
 
 export interface DashboardReport {

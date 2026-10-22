@@ -173,26 +173,24 @@ const allConversations = computed<Conversation[]>(() => {
   return conversationsQuery.data.value?.data ?? []
 })
 
-// Contadores de tickets
+// Contadores de tickets (Alineados con la regla Whaticket: sin operador asignado siempre es 'En espera')
 const attendingCount = computed(() => {
-  return allConversations.value.filter(c => c.status === 'open').length
+  return allConversations.value.filter(c => c.status === 'open' && (c.assigned_to_user_id || c.assignee)).length
 })
 
 const pendingCount = computed(() => {
-  return allConversations.value.filter(c => c.status === 'pending').length
+  return allConversations.value.filter(c => c.status === 'pending' || (c.status === 'open' && !c.assigned_to_user_id && !c.assignee)).length
 })
 
 // Filtrar según el tab activo
 const filteredConversations = computed(() => {
-  const targetStatus = activeTab.value === 'attending'
-    ? 'open'
-    : activeTab.value === 'pending'
-      ? 'pending'
-      : 'closed'
-
-  return allConversations.value.filter(c => {
-    return c.status === targetStatus
-  })
+  if (activeTab.value === 'attending') {
+    return allConversations.value.filter(c => c.status === 'open' && (c.assigned_to_user_id || c.assignee))
+  }
+  if (activeTab.value === 'pending') {
+    return allConversations.value.filter(c => c.status === 'pending' || (c.status === 'open' && !c.assigned_to_user_id && !c.assignee))
+  }
+  return allConversations.value.filter(c => c.status === 'closed')
 })
 
 // Query de la conversación activa
@@ -242,8 +240,15 @@ function onTabChange(tab: 'attending' | 'pending' | 'closed') {
   activeTab.value = tab
   // Si la conversación seleccionada no coincide con el nuevo tab, limpiar selección
   if (selectedConversation.value) {
-    const expected = tab === 'attending' ? 'open' : tab === 'pending' ? 'pending' : 'closed'
-    if (selectedConversation.value.status !== expected) {
+    const isAttending = selectedConversation.value.status === 'open' && (selectedConversation.value.assigned_to_user_id || selectedConversation.value.assignee)
+    const isPending = selectedConversation.value.status === 'pending' || (selectedConversation.value.status === 'open' && !selectedConversation.value.assigned_to_user_id && !selectedConversation.value.assignee)
+    const isClosed = selectedConversation.value.status === 'closed'
+
+    const matches = (tab === 'attending' && isAttending) ||
+                    (tab === 'pending' && isPending) ||
+                    (tab === 'closed' && isClosed)
+
+    if (!matches) {
       selectedConversationId.value = null
       if (route.query.id) {
         const query = { ...route.query }
@@ -461,11 +466,15 @@ watch(
     if (!conv) return
 
     // Sincronizar automáticamente el tab con el estado real del ticket si no coincide
-    if (conv.status === 'open' && activeTab.value !== 'attending') {
+    const isAttending = conv.status === 'open' && (conv.assigned_to_user_id || conv.assignee)
+    const isPending = conv.status === 'pending' || (conv.status === 'open' && !conv.assigned_to_user_id && !conv.assignee)
+    const isClosed = conv.status === 'closed'
+
+    if (isAttending && activeTab.value !== 'attending') {
       activeTab.value = 'attending'
-    } else if (conv.status === 'pending' && activeTab.value !== 'pending') {
+    } else if (isPending && activeTab.value !== 'pending') {
       activeTab.value = 'pending'
-    } else if (conv.status === 'closed' && activeTab.value !== 'closed') {
+    } else if (isClosed && activeTab.value !== 'closed') {
       activeTab.value = 'closed'
     }
 

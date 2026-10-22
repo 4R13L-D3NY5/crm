@@ -112,7 +112,7 @@ class SyncSocialMessagesCommand extends Command
                     'channel' => 'facebook',
                 ],
                 [
-                    'status' => 'open',
+                    'status' => 'pending',
                     'whatsapp_account_id' => $account->id,
                     'unread_count' => 0,
                     'last_message_at' => now(),
