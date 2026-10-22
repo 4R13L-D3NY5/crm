@@ -1336,6 +1336,7 @@ function handleFileSelected(event: Event) {
     setPendingFile(file, 'document')
   }
   target.value = ''
+  composerInputRef.value?.focus()
 }
 
 function clearPendingFile() {

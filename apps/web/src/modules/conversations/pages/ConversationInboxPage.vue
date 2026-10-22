@@ -418,7 +418,7 @@ async function handleSendMessage({
     } else {
       if (file) {
         const formData = new FormData()
-        if (body) formData.append('body', body)
+        formData.append('body', body || '')
         formData.append('file', file)
         if (media_type) formData.append('media_type', media_type)
         await mutations.whatsappMessageMutation.mutateAsync({

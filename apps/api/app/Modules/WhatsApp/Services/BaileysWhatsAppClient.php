@@ -52,20 +52,32 @@ class BaileysWhatsAppClient implements WhatsAppClient
 
         $cleanPhone = preg_replace('/[^0-9]/', '', $to);
 
-        $resolvedUrl = $mediaUrl;
+        $payload = [
+            'to' => $cleanPhone,
+            'media_type' => $mediaType,
+            'caption' => $caption,
+        ];
+
+        // Si el archivo reside localmente en el almacenamiento del CRM (storage público),
+        // enviamos directamente el base64 a Baileys para evitar bucles de red HTTP internos y bloqueos
         if (str_starts_with($mediaUrl, '/storage/')) {
-            $resolvedUrl = 'http://api:8010' . $mediaUrl;
+            $storageRelativePath = substr($mediaUrl, strlen('/storage/'));
+            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($storageRelativePath)) {
+                $fileBytes = \Illuminate\Support\Facades\Storage::disk('public')->get($storageRelativePath);
+                $mimeType = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($storageRelativePath) ?: 'image/jpeg';
+                $payload['media_base64'] = base64_encode($fileBytes);
+                $payload['mime_type'] = $mimeType;
+            } else {
+                $payload['media_url'] = 'http://api:8010' . $mediaUrl;
+            }
+        } else {
+            $payload['media_url'] = $mediaUrl;
         }
 
         $response = Http::baseUrl($baseUrl)
             ->timeout(30)
             ->acceptJson()
-            ->post("/sessions/{$account->id}/send-media", [
-                'to' => $cleanPhone,
-                'media_url' => $resolvedUrl,
-                'media_type' => $mediaType,
-                'caption' => $caption,
-            ]);
+            ->post("/sessions/{$account->id}/send-media", $payload);
 
         if ($response->failed()) {
             Log::error('Baileys send media failed', [

@@ -346,6 +346,66 @@ class SendWhatsAppMessageTest extends TestCase
         $forbiddenResponse->assertForbidden();
     }
 
+    public function test_user_can_send_outbound_media_image_only_without_body_to_baileys(): void
+    {
+        Storage::fake('public');
+        [$user, $organization] = $this->createMembership();
+
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => 'baileys_outbound_img_only',
+            'session_type' => 'qr_baileys',
+            'access_token' => null,
+            'is_active' => true,
+            'status' => 'CONNECTED',
+        ]);
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone' => '59179326793',
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->getKey(),
+            'channel' => 'whatsapp',
+            'status' => 'open',
+        ]);
+
+        Http::fake([
+            'http://whatsapp-service:3000/sessions/*/send-media' => Http::response([
+                'success' => true,
+                'messageId' => 'baileys_outbound_img_only_999',
+            ], 200),
+        ]);
+
+        $file = UploadedFile::fake()->create('foto_producto.jpg', 120, 'image/jpeg');
+
+        // Enviar SOLO la imagen, sin campo 'body'
+        $response = $this->actingAs($user)->post("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'file' => $file,
+            'media_type' => 'image',
+        ]);
+
+        $response->assertCreated();
+
+        $message = Message::query()->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertSame('image', $message->message_type);
+        $this->assertSame('image', $message->media_type);
+        $this->assertSame('[Imagen]', $message->body);
+        $this->assertNotNull($message->media_url);
+        $this->assertSame('sent', $message->message_status, (string) $message->error_message);
+
+        // Verificar que el payload a Baileys contenga media_base64 directamente
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return str_contains($request->url(), '/send-media') &&
+                   filled($request['media_base64']) &&
+                   $request['media_type'] === 'image';
+        });
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();
