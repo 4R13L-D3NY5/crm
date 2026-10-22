@@ -28,22 +28,21 @@ class ConversationPolicy
             return true;
         }
 
+        if ($conversation->assignment && $conversation->assignment->assigned_to_user_id === $user->id) {
+            return true;
+        }
+
         // Si la conversación no tiene canal asignado
         if (!$conversation->whatsapp_account_id) {
-            return true;
+            return false;
         }
 
         $account = $conversation->whatsappAccount;
         if (!$account) {
-            return true;
+            return false;
         }
 
-        // Si el canal no tiene asignaciones específicas, es visible para todos los operadores
-        if (!$account->authorizedUsers()->exists()) {
-            return true;
-        }
-
-        // Si el canal tiene operadores específicos, verificar permiso de visualización
+        // Solo operadores autorizados en este canal con can_view pueden visualizarlo
         return $account->authorizedUsers()
             ->where('users.id', $user->id)
             ->wherePivot('can_view', true)

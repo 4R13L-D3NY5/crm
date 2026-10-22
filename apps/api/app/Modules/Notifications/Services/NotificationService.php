@@ -58,25 +58,23 @@ class NotificationService
             ->whereIn('status', ['open', 'pending'])
             ->with(['contact', 'assignedToUser', 'latestExternalMessage', 'latestMessage', 'whatsappAccount', 'socialComment']);
 
-        // Si el usuario es operador/agente (no admin), limitar alertas a sus conversaciones o de sus canales asignados
+        // Si el usuario es operador/agente (no admin), aislar estrictamente las alertas operativas:
+        // 1. Alertas de chats asignados directamente a él (como titular).
+        // 2. Alertas de chats SIN ASIGNAR (pendientes de atención), ÚNICAMENTE de los canales donde esté explícitamente autorizado.
+        // NUNCA mostrar alertas de otros operadores ni de canales no autorizados.
         if (!$user->isAdmin()) {
-            $hasExplicitChannels = $user->whatsappAccounts()->wherePivot('can_view', true)->exists();
-
-            $convQuery->where(function ($q) use ($user, $hasExplicitChannels) {
-                $q->where('assigned_to_user_id', $user->id)
-                  ->orWhere(function ($channelQ) use ($user, $hasExplicitChannels) {
-                      $channelQ->whereHas('whatsappAccount.authorizedUsers', function ($uq) use ($user) {
-                          $uq->where('users.id', $user->id)
-                             ->where('whatsapp_account_users.can_view', true);
-                      });
-
-                      if (!$hasExplicitChannels) {
-                          $channelQ->orWhere(function ($unrestricted) {
-                              $unrestricted->whereNotNull('whatsapp_account_id')
-                                           ->whereDoesntHave('whatsappAccount.authorizedUsers');
-                          })->orWhereNull('whatsapp_account_id');
-                      }
-                  });
+            $convQuery->where(function ($q) use ($user) {
+                $q->where(function ($assignedQ) use ($user) {
+                    $assignedQ->where('assigned_to_user_id', $user->id)
+                        ->orWhereHas('assignment', fn ($as) => $as->where('assigned_to_user_id', $user->id));
+                })->orWhere(function ($unassignedQ) use ($user) {
+                    $unassignedQ->whereNull('assigned_to_user_id')
+                        ->whereDoesntHave('assignment')
+                        ->whereHas('whatsappAccount.authorizedUsers', function ($uq) use ($user) {
+                            $uq->where('users.id', $user->id)
+                               ->where('whatsapp_account_users.can_view', true);
+                        });
+                });
             });
         }
 
@@ -317,10 +315,27 @@ class NotificationService
      */
     public function markAllAsRead(User $user): int
     {
-        // 1. Limpiar contadores no leídos en conversaciones de la organización
-        Conversation::where('organization_id', $user->current_organization_id)
-            ->where('unread_count', '>', 0)
-            ->update(['unread_count' => 0]);
+        // 1. Limpiar contadores no leídos en conversaciones permitidas para el usuario
+        $convUpdateQuery = Conversation::where('organization_id', $user->current_organization_id)
+            ->where('unread_count', '>', 0);
+
+        if (!$user->isAdmin()) {
+            $convUpdateQuery->where(function ($q) use ($user) {
+                $q->where(function ($assignedQ) use ($user) {
+                    $assignedQ->where('assigned_to_user_id', $user->id)
+                        ->orWhereHas('assignment', fn ($as) => $as->where('assigned_to_user_id', $user->id));
+                })->orWhere(function ($unassignedQ) use ($user) {
+                    $unassignedQ->whereNull('assigned_to_user_id')
+                        ->whereDoesntHave('assignment')
+                        ->whereHas('whatsappAccount.authorizedUsers', function ($uq) use ($user) {
+                            $uq->where('users.id', $user->id)
+                               ->where('whatsapp_account_users.can_view', true);
+                        });
+                });
+            });
+        }
+
+        $convUpdateQuery->update(['unread_count' => 0]);
 
         // 2. Marcar en base de datos
         return AppNotification::query()
