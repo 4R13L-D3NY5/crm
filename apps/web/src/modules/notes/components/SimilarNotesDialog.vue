@@ -8,18 +8,18 @@
       <!-- Header -->
       <q-card-section class="xf-similar-header row items-center justify-between q-py-sm q-px-md">
         <div class="row items-center q-gutter-x-sm">
-          <q-avatar size="32px" color="amber-9" text-color="white">
-            <q-icon name="sym_r_auto_awesome" size="18px" />
+          <q-avatar size="32px" :color="currentMode === 'ai' ? 'purple-9' : 'teal-9'" text-color="white">
+            <q-icon :name="currentMode === 'ai' ? 'sym_r_auto_awesome' : 'sym_r_find_in_page'" size="18px" />
           </q-avatar>
           <div>
             <div class="text-subtitle1 text-weight-bold text-white row items-center q-gutter-x-xs">
-              <span>Notas Similares con IA</span>
-              <q-badge color="teal-8" text-color="white" class="text-caption text-bold font-mono">
-                IA & Semántica
+              <span>{{ currentMode === 'ai' ? 'Notas Similares con IA' : 'Notas Similares (Léxica & Términos)' }}</span>
+              <q-badge :color="currentMode === 'ai' ? 'purple-8' : 'teal-8'" text-color="white" class="text-caption text-bold font-mono">
+                {{ currentMode === 'ai' ? 'Copiloto IA' : 'Algorítmico' }}
               </q-badge>
             </div>
             <div class="text-caption text-grey-4" style="font-size: 0.72rem">
-              Detección de afinidad temática y duplicados en la base de conocimiento
+              {{ currentMode === 'ai' ? 'Inferencia temática y semántica en la base de conocimiento' : 'Coincidencia de términos clave, títulos y categorías' }}
             </div>
           </div>
         </div>
@@ -28,6 +28,29 @@
       </q-card-section>
 
       <q-separator dark />
+
+      <!-- Selector de Modo de Similitud -->
+      <div class="row items-center justify-between q-px-md q-py-xs bg-slate-900 border-subtle">
+        <q-btn-toggle
+          v-model="currentMode"
+          dense
+          no-caps
+          rounded
+          unelevated
+          toggle-color="primary"
+          color="dark"
+          text-color="grey-4"
+          :options="[
+            { label: 'Buscar Similar (Léxico)', value: 'algorithmic', icon: 'sym_r_find_in_page' },
+            { label: 'Buscar con IA (Semántico)', value: 'ai', icon: 'sym_r_auto_awesome' },
+          ]"
+          @update:model-value="onModeChange"
+        />
+        <div class="text-caption text-grey-4">
+          <span v-if="currentMode === 'ai'" class="text-purple-3 font-mono text-caption">🧠 Razonamiento temático e intenciones</span>
+          <span v-else class="text-teal-3 font-mono text-caption">⚡ Coincidencia directa de palabras clave</span>
+        </div>
+      </div>
 
       <!-- Banner de la Nota de Referencia -->
       <div v-if="targetNote || draftContent" class="q-px-md q-pt-md">
@@ -162,6 +185,20 @@
                 </q-btn>
 
                 <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  color="teal-3"
+                  icon="sym_r_filter_alt"
+                  label="Filtrar"
+                  class="q-px-xs"
+                  no-caps
+                  @click="onFilterBoard(item.note)"
+                >
+                  <q-tooltip>Filtrar esta nota en el tablero principal</q-tooltip>
+                </q-btn>
+
+                <q-btn
                   outline
                   dense
                   size="sm"
@@ -217,11 +254,13 @@ const props = defineProps<{
   note?: Note | null
   draftContent?: string
   draftTitle?: string
+  similarityMode?: 'auto' | 'ai' | 'algorithmic'
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [val: boolean]
   'select-note': [note: Note]
+  'filter-board': [keyword: string]
 }>()
 
 const $q = useQuasar()
@@ -230,6 +269,22 @@ const isOpen = computed({
   get: () => props.modelValue,
   set: (val: boolean) => emit('update:modelValue', val),
 })
+
+const currentMode = ref<'algorithmic' | 'ai'>('ai')
+
+watch(
+  () => props.similarityMode,
+  (mode) => {
+    if (mode === 'algorithmic' || mode === 'ai') {
+      currentMode.value = mode
+    }
+  },
+  { immediate: true }
+)
+
+function onModeChange() {
+  loadSimilar()
+}
 
 const isLoading = ref(false)
 const similarList = ref<SimilarNoteItem[]>([])
@@ -251,6 +306,9 @@ watch(
   () => props.modelValue,
   (val) => {
     if (val) {
+      if (props.similarityMode === 'algorithmic' || props.similarityMode === 'ai') {
+        currentMode.value = props.similarityMode
+      }
       loadSimilar()
     }
   }
@@ -263,15 +321,17 @@ async function loadSimilar() {
 
   try {
     if (props.note?.id) {
-      const res = await getSimilarNotes(props.note.id)
+      const res = await getSimilarNotes(props.note.id, 6, currentMode.value)
       similarList.value = res.data || []
       if (res.target_note) {
         targetNote.value = res.target_note
       }
-    } else if (props.draftContent && props.draftContent.trim().length >= 3) {
+    } else if (props.draftContent && props.draftContent.trim().length >= 2) {
       const res = await searchSimilarDraft({
         content: props.draftContent,
         title: props.draftTitle || undefined,
+        limit: 8,
+        mode: currentMode.value,
       })
       similarList.value = res.data || []
     }
@@ -285,6 +345,11 @@ async function loadSimilar() {
   } finally {
     isLoading.value = false
   }
+}
+
+function onFilterBoard(note: Note) {
+  emit('filter-board', note.shortcut ? `#${note.shortcut}` : note.title || '')
+  isOpen.value = false
 }
 
 function getScoreBadgeColor(score: number): string {

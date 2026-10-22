@@ -442,4 +442,160 @@ class NoteManagementTest extends TestCase
 
         $this->assertSoftDeleted('notes', ['id' => $noteId]);
     }
+
+    public function test_user_can_preview_keep_zip_file(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // Crear archivo ZIP temporal con nota JSON
+        $zipPath = tempnam(sys_get_temp_dir(), 'keep_test_') . '.zip';
+        $zip = new \ZipArchive();
+        $zip->open($zipPath, \ZipArchive::CREATE);
+        $keepJson = json_encode([
+            'title' => 'Ingeniería de Sonido Cochabamba',
+            'textContent' => 'Costos de la carrera en Cochabamba: 1200 Bs.',
+            'color' => 'TEAL',
+            'isPinned' => true,
+        ]);
+        $zip->addFromString('Takeout/Keep/nota1.json', $keepJson);
+        $zip->close();
+
+        $uploadedFile = new \Illuminate\Http\UploadedFile(
+            $zipPath,
+            'takeout.zip',
+            'application/zip',
+            null,
+            true
+        );
+
+        $response = $this->post('/api/notes/preview-keep', [
+            'file' => $uploadedFile,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.total_detected', 1)
+            ->assertJsonPath('data.notes.0.title', 'Ingeniería de Sonido Cochabamba');
+
+        @unlink($zipPath);
+    }
+
+    public function test_user_can_import_batch_notes(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $response = $this->postJson('/api/notes/import-batch', [
+            'notes' => [
+                [
+                    'title' => 'Nota Lote 1',
+                    'content' => 'Contenido de prueba lote 1',
+                    'shortcut' => 'lote1',
+                    'color' => '#14b8a6',
+                    'is_pinned' => true,
+                ],
+                [
+                    'title' => 'Nota Lote 2',
+                    'content' => 'Contenido de prueba lote 2',
+                    'shortcut' => 'lote2',
+                    'color' => '#3b82f6',
+                    'is_pinned' => false,
+                ],
+            ],
+            'index_ai' => true,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.imported_count', 2);
+
+        $this->assertDatabaseHas('notes', [
+            'title' => 'Nota Lote 1',
+            'shortcut' => 'lote1',
+            'organization_id' => $this->organization->id,
+        ]);
+    }
+
+    public function test_user_can_upload_document_note(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent(
+            'reglamento_becas.txt',
+            "Reglamento Oficial de Becas UNITEPC\n1. Beca a la Excelencia\n2. Beca Socioeconómica"
+        );
+
+        $response = $this->post('/api/notes/upload-document', [
+            'file' => $file,
+            'title' => 'Reglamento Oficial de Becas',
+            'shortcut' => 'becas_oficial',
+            'index_ai' => true,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.title', 'Reglamento Oficial de Becas')
+            ->assertJsonPath('data.shortcut', 'becas_oficial');
+
+        $this->assertDatabaseHas('notes', [
+            'title' => 'Reglamento Oficial de Becas',
+            'shortcut' => 'becas_oficial',
+            'organization_id' => $this->organization->id,
+        ]);
+    }
+
+    public function test_permissive_search_matches_non_correlative_words_in_notes(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Carrera de Medicina Humana',
+            'content' => 'Para la sede de Cochabamba el costo de arancel mensual es 1200 Bs con beca.',
+            'shortcut' => 'med_cbba',
+            'color' => '#1e293b',
+            'visibility' => 'all',
+        ]);
+
+        // 1. En búsqueda tradicional correlativa, palabras salteadas NO coinciden
+        $resStandard = $this->getJson('/api/notes?search=medicina+cochabamba+arancel');
+        $resStandard->assertStatus(200);
+        $this->assertCount(0, $resStandard->json('data'));
+
+        // 2. En búsqueda permisiva, palabras no correlativas SÍ coinciden
+        $resPermissive = $this->getJson('/api/notes?search=medicina+cochabamba+arancel&permissive=true');
+        $resPermissive->assertStatus(200);
+        $this->assertCount(1, $resPermissive->json('data'));
+        $this->assertSame('Carrera de Medicina Humana', $resPermissive->json('data.0.title'));
+    }
+
+    public function test_similarity_draft_supports_algorithmic_and_ai_modes(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Requisitos de Admisión para Extranjeros',
+            'content' => 'Documentación necesaria: pasaporte vigente, título de bachiller legalizado y visa de estudiante.',
+            'shortcut' => 'admision_ext',
+            'color' => '#14b8a6',
+            'visibility' => 'all',
+        ]);
+
+        // Modo algorítmico explícito
+        $algoRes = $this->postJson('/api/notes/similar', [
+            'content' => 'Requisitos y documentos para estudiantes extranjeros pasaporte bachiller',
+            'mode' => 'algorithmic',
+        ]);
+
+        $algoRes->assertStatus(200);
+        $this->assertGreaterThanOrEqual(1, count($algoRes->json('data')));
+
+        // Modo IA
+        $aiRes = $this->postJson('/api/notes/similar', [
+            'content' => 'Requisitos y documentos para estudiantes extranjeros pasaporte bachiller',
+            'mode' => 'ai',
+        ]);
+
+        $aiRes->assertStatus(200);
+        $this->assertIsArray($aiRes->json('data'));
+    }
 }

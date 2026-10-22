@@ -32,18 +32,40 @@ class NoteSimilarityService
      *
      * @return array<int, array<string, mixed>>
      */
-    public function findSimilarForNote(Note $note, User $user, int $limit = 5): array
+    public function findSimilarForNote(Note $note, User $user, int $limit = 5, string $mode = 'auto'): array
     {
         $organizationId = $user->current_organization_id;
 
-        $candidates = Note::query()
+        $keywords = $this->extractKeywords("{$note->title} {$note->content}");
+
+        $candidatesQuery = Note::query()
             ->where('notes.organization_id', $organizationId)
             ->where('notes.id', '!=', $note->id)
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags'])
-            ->orderByDesc('updated_at')
-            ->limit(25)
-            ->get();
+            ->with(['user', 'categories', 'customStatuses', 'tags']);
+
+        if (!empty($keywords)) {
+            $candidatesQuery->where(function ($q) use ($keywords) {
+                foreach (array_slice($keywords, 0, 6) as $kw) {
+                    $q->orWhere('title', 'ilike', "%{$kw}%")
+                      ->orWhere('content', 'ilike', "%{$kw}%");
+                }
+            });
+        }
+
+        $candidates = $candidatesQuery->limit(60)->get();
+
+        if ($candidates->count() < 15) {
+            $recent = Note::query()
+                ->where('notes.organization_id', $organizationId)
+                ->where('notes.id', '!=', $note->id)
+                ->visibleToUser($user, $organizationId)
+                ->with(['user', 'categories', 'customStatuses', 'tags'])
+                ->orderByDesc('updated_at')
+                ->limit(30)
+                ->get();
+            $candidates = $candidates->merge($recent)->unique('id');
+        }
 
         if ($candidates->isEmpty()) {
             return [];
@@ -56,7 +78,8 @@ class NoteSimilarityService
             targetTagNames: $note->tags->pluck('name')->all(),
             candidates: $candidates,
             organizationId: $organizationId,
-            limit: $limit
+            limit: $limit,
+            mode: $mode
         );
     }
 
@@ -70,21 +93,46 @@ class NoteSimilarityService
         ?string $title,
         User $user,
         ?string $excludeId = null,
-        int $limit = 5
+        int $limit = 5,
+        string $mode = 'auto'
     ): array {
         $organizationId = $user->current_organization_id;
+        $keywords = $this->extractKeywords("{$title} {$content}");
 
         $query = Note::query()
             ->where('notes.organization_id', $organizationId)
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags'])
-            ->orderByDesc('updated_at');
+            ->with(['user', 'categories', 'customStatuses', 'tags']);
 
         if (!empty($excludeId)) {
             $query->where('notes.id', '!=', $excludeId);
         }
 
-        $candidates = $query->limit(25)->get();
+        if (!empty($keywords)) {
+            $query->where(function ($q) use ($keywords) {
+                foreach (array_slice($keywords, 0, 6) as $kw) {
+                    $q->orWhere('title', 'ilike', "%{$kw}%")
+                      ->orWhere('content', 'ilike', "%{$kw}%");
+                }
+            });
+        }
+
+        $candidates = $query->limit(60)->get();
+
+        if ($candidates->count() < 15) {
+            $fallbackQuery = Note::query()
+                ->where('notes.organization_id', $organizationId)
+                ->visibleToUser($user, $organizationId)
+                ->with(['user', 'categories', 'customStatuses', 'tags'])
+                ->orderByDesc('updated_at');
+
+            if (!empty($excludeId)) {
+                $fallbackQuery->where('notes.id', '!=', $excludeId);
+            }
+
+            $recent = $fallbackQuery->limit(30)->get();
+            $candidates = $candidates->merge($recent)->unique('id');
+        }
 
         if ($candidates->isEmpty()) {
             return [];
@@ -97,13 +145,14 @@ class NoteSimilarityService
             targetTagNames: [],
             candidates: $candidates,
             organizationId: $organizationId,
-            limit: $limit
+            limit: $limit,
+            mode: $mode
         );
     }
 
     /**
-     * Orquesta la evaluación de similitud: primero intenta mediante IA (LLM),
-     * y si no hay API key configurada o falla la conexión, aplica el algoritmo de fallback léxico-semántico.
+     * Orquesta la evaluación de similitud: soporta modo algorítmico explícito,
+     * modo IA explícito y modo automático (intenta IA con fallback algorítmico).
      *
      * @param Collection<int, Note> $candidates
      * @return array<int, array<string, mixed>>
@@ -115,8 +164,22 @@ class NoteSimilarityService
         array $targetTagNames,
         Collection $candidates,
         string $organizationId,
-        int $limit = 5
+        int $limit = 5,
+        string $mode = 'auto'
     ): array {
+        // 1. Si el usuario solicita específicamente similitud léxica/algorítmica
+        if ($mode === 'algorithmic') {
+            return $this->evaluateAlgorithmically(
+                targetTitle: $targetTitle,
+                targetContent: $targetContent,
+                targetCategoryNames: $targetCategoryNames,
+                targetTagNames: $targetTagNames,
+                candidates: $candidates,
+                limit: $limit
+            );
+        }
+
+        // 2. Si es modo 'ai' o 'auto', verificar configuración de IA
         $config = $this->aiCopilotService->getEffectiveConfig($organizationId);
 
         if (!empty($config['api_key'])) {
@@ -138,6 +201,7 @@ class NoteSimilarityService
             }
         }
 
+        // 3. Fallback algorítmico
         return $this->evaluateAlgorithmically(
             targetTitle: $targetTitle,
             targetContent: $targetContent,

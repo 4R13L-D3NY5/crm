@@ -90,3 +90,30 @@ export interface SimilarNotesResponse {
   target_note?: Note
   total: number
 }
+
+export interface KeepParsedNote {
+  temp_id: string
+  title: string
+  content: string
+  color: string
+  keep_color: string
+  is_pinned: boolean
+  is_archived: boolean
+  shortcut: string
+  labels: string[]
+  source_file: string
+  selected: boolean
+}
+
+export interface KeepPreviewResponse {
+  message?: string
+  data: {
+    total_detected: number
+    notes: KeepParsedNote[]
+  }
+}
+
+export interface KeepImportResult {
+  imported_count: number
+  ai_chunks_created: number
+}

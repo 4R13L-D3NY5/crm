@@ -30,7 +30,8 @@ class NoteAiController extends Controller
             ->findOrFail($id);
 
         $limit = max(1, min(10, (int) $request->query('limit', 5)));
-        $similarNotes = $this->similarityService->findSimilarForNote($note, $user, $limit);
+        $mode = (string) $request->query('mode', 'auto');
+        $similarNotes = $this->similarityService->findSimilarForNote($note, $user, $limit, $mode);
 
         return response()->json([
             'data' => $similarNotes,
@@ -44,19 +45,22 @@ class NoteAiController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'content' => ['required', 'string', 'min:3'],
+            'content' => ['required', 'string', 'min:2'],
             'title' => ['nullable', 'string', 'max:255'],
             'exclude_id' => ['nullable', 'string'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:15'],
+            'mode' => ['nullable', 'string', 'in:auto,ai,algorithmic'],
         ]);
 
         $limit = (int) ($validated['limit'] ?? 5);
+        $mode = (string) ($validated['mode'] ?? 'auto');
         $similarNotes = $this->similarityService->findSimilarForDraft(
             content: $validated['content'],
             title: $validated['title'] ?? null,
             user: $user,
             excludeId: $validated['exclude_id'] ?? null,
-            limit: $limit
+            limit: $limit,
+            mode: $mode
         );
 
         return response()->json([

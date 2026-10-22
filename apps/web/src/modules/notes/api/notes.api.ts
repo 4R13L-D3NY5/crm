@@ -1,6 +1,9 @@
 import { http } from '@/shared/api/http'
 import type {
   AnalyzeResult,
+  KeepImportResult,
+  KeepParsedNote,
+  KeepPreviewResponse,
   Note,
   NotePayload,
   RefineAiResult,
@@ -9,6 +12,8 @@ import type {
 
 export interface NoteFilterParams {
   search?: string
+  permissive?: boolean
+  mode?: string
   category_id?: string
   custom_status_id?: string
   tag_id?: string
@@ -64,9 +69,13 @@ export async function refineNoteAi(payload: {
   return response.data.data
 }
 
-export async function getSimilarNotes(noteId: string, limit = 5): Promise<SimilarNotesResponse> {
+export async function getSimilarNotes(
+  noteId: string,
+  limit = 5,
+  mode: 'auto' | 'ai' | 'algorithmic' = 'auto'
+): Promise<SimilarNotesResponse> {
   const response = await http.get<SimilarNotesResponse>(`/notes/${noteId}/similar`, {
-    params: { limit },
+    params: { limit, mode },
   })
   return response.data
 }
@@ -76,7 +85,49 @@ export async function searchSimilarDraft(payload: {
   title?: string
   exclude_id?: string
   limit?: number
+  mode?: 'auto' | 'ai' | 'algorithmic'
 }): Promise<SimilarNotesResponse> {
   const response = await http.post<SimilarNotesResponse>('/notes/similar', payload)
   return response.data
+}
+
+/**
+ * Previsualizar notas contenidas en el ZIP de Google Takeout
+ */
+export async function previewKeepZip(file: File): Promise<KeepPreviewResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await http.post<KeepPreviewResponse>('/notes/preview-keep', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+/**
+ * Importar lote de notas seleccionadas y editadas
+ */
+export async function importKeepBatch(
+  notes: KeepParsedNote[],
+  indexAi = true
+): Promise<KeepImportResult> {
+  const response = await http.post<{ message: string; data: KeepImportResult }>('/notes/import-batch', {
+    notes,
+    index_ai: indexAi,
+  })
+  return response.data.data
+}
+
+/**
+ * Cargar e ingerir documento institucional (.pdf, .docx, .xlsx, .txt)
+ */
+export async function uploadKnowledgeDocument(formData: FormData): Promise<Note> {
+  const response = await http.post<{ message: string; data: Note }>('/notes/upload-document', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data.data
 }

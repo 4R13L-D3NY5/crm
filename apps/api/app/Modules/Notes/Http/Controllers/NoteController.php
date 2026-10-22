@@ -8,10 +8,13 @@ use App\Modules\Notes\Http\Requests\CreateNoteRequest;
 use App\Modules\Notes\Http\Requests\UpdateNoteRequest;
 use App\Modules\Notes\Http\Resources\NoteResource;
 use App\Modules\Notes\Models\Note;
+use App\Modules\Notes\Services\DocumentIngestionService;
+use App\Modules\Notes\Services\KeepImportService;
 use App\Modules\Notes\Services\NoteEntityAnalyzerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class NoteController extends Controller
 {
@@ -36,13 +39,48 @@ class NoteController extends Controller
             $query->where('is_pinned', filter_var($request->query('is_pinned'), FILTER_VALIDATE_BOOLEAN));
         }
 
-        // Búsqueda de texto o atajo
+        // Búsqueda de texto o atajo (soporta modo estándar y modo permisivo no correlativo)
         if ($search = $request->query('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'ilike', "%{$search}%")
-                    ->orWhere('content', 'ilike', "%{$search}%")
-                    ->orWhere('shortcut', 'ilike', "%{$search}%");
-            });
+            $isPermissive = filter_var($request->query('permissive', false), FILTER_VALIDATE_BOOLEAN)
+                || $request->query('mode') === 'permissive';
+            $isPgsql = DB::getDriverName() === 'pgsql';
+
+            if ($isPermissive) {
+                // Modo permisivo: extrae palabras individuales y exige que TODAS estén presentes sin importar el orden
+                $words = array_filter(preg_split('/\s+/', trim($search)));
+
+                if (!empty($words)) {
+                    $query->where(function ($mainQ) use ($words, $isPgsql) {
+                        foreach ($words as $word) {
+                            $wordClean = ltrim($word, '#');
+                            $mainQ->where(function ($subQ) use ($word, $wordClean, $isPgsql) {
+                                if ($isPgsql) {
+                                    $subQ->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$word}%"])
+                                        ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$word}%"])
+                                        ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$wordClean}%"]);
+                                } else {
+                                    $subQ->where('title', 'like', "%{$word}%")
+                                        ->orWhere('content', 'like', "%{$word}%")
+                                        ->orWhere('shortcut', 'like', "%{$wordClean}%");
+                                }
+                            });
+                        }
+                    });
+                }
+            } else {
+                // Modo estándar correlativo
+                $query->where(function ($q) use ($search, $isPgsql) {
+                    if ($isPgsql) {
+                        $q->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$search}%"])
+                            ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$search}%"])
+                            ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$search}%"]);
+                    } else {
+                        $q->where('title', 'like', "%{$search}%")
+                            ->orWhere('content', 'like', "%{$search}%")
+                            ->orWhere('shortcut', 'like', "%{$search}%");
+                    }
+                });
+            }
         }
 
         // Filtro por categoría
@@ -238,5 +276,87 @@ class NoteController extends Controller
         return response()->json([
             'data' => $result,
         ]);
+    }
+
+    public function previewKeep(Request $request, KeepImportService $service): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|max:102400',
+        ]);
+
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+        if ($ext !== 'zip') {
+            return response()->json([
+                'message' => 'El archivo debe ser un archivo comprimido .zip',
+            ], 422);
+        }
+
+        $result = $service->previewZip($file);
+
+        return response()->json([
+            'message' => 'Archivo ZIP analizado exitosamente.',
+            'data' => $result,
+        ]);
+    }
+
+    public function importBatch(Request $request, KeepImportService $service): JsonResponse
+    {
+        $request->validate([
+            'notes' => 'required|array|min:1',
+            'notes.*.title' => 'nullable|string|max:255',
+            'notes.*.content' => 'nullable|string',
+            'notes.*.shortcut' => 'nullable|string|max:100',
+            'notes.*.color' => 'nullable|string|max:30',
+            'notes.*.is_pinned' => 'nullable|boolean',
+            'notes.*.is_archived' => 'nullable|boolean',
+            'notes.*.labels' => 'nullable|array',
+            'index_ai' => 'nullable|boolean',
+        ]);
+
+        $user = $request->user();
+        $indexAi = $request->boolean('index_ai', true);
+
+        $result = $service->importBatch($user, $request->input('notes'), $indexAi);
+
+        return response()->json([
+            'message' => 'Notas importadas con éxito a la base institucional.',
+            'data' => $result,
+        ]);
+    }
+
+    public function uploadDocument(Request $request, DocumentIngestionService $service): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|max:102400',
+            'title' => 'nullable|string|max:255',
+            'shortcut' => 'nullable|string|max:100',
+            'color' => 'nullable|string|max:30',
+            'is_pinned' => 'nullable|boolean',
+            'index_ai' => 'nullable|boolean',
+        ]);
+
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+        $allowed = ['pdf', 'docx', 'xlsx', 'xls', 'txt', 'csv', 'doc', 'json'];
+        if (!in_array($ext, $allowed)) {
+            return response()->json([
+                'message' => "El formato .{$ext} no está permitido. Formatos admitidos: " . implode(', ', $allowed),
+            ], 422);
+        }
+
+        $user = $request->user();
+        $note = $service->ingest($user, $file, [
+            'title' => $request->input('title'),
+            'shortcut' => $request->input('shortcut'),
+            'color' => $request->input('color'),
+            'is_pinned' => $request->boolean('is_pinned'),
+            'index_ai' => $request->boolean('index_ai', true),
+        ]);
+
+        return response()->json([
+            'message' => 'Documento procesado e importado como nota y base de conocimiento.',
+            'data' => new NoteResource($note),
+        ], 201);
     }
 }

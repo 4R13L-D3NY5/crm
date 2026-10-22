@@ -20,6 +20,16 @@
 
       <div class="col-12 col-sm-auto row items-center q-gutter-x-sm">
         <q-btn
+          outline
+          color="teal-4"
+          icon="sym_r_cloud_upload"
+          label="Importar Keep / Documentos"
+          class="q-px-md text-weight-bold"
+          @click="isImportDialogOpen = true"
+        >
+          <q-tooltip class="bg-dark text-white">Importar Google Keep (ZIP) o documentos (.pdf, .docx, .xlsx, .txt) para IA</q-tooltip>
+        </q-btn>
+        <q-btn
           unelevated
           color="primary"
           icon="sym_r_add"
@@ -133,6 +143,68 @@
             @update:model-value="applyFilters"
           />
         </div>
+
+        <!-- Fila de Opciones: Buscador Permisivo y Búsqueda por Similitud / IA -->
+        <div class="col-12 row items-center justify-between q-mt-xs q-pt-xs border-top-subtle q-col-gutter-xs">
+          <div class="col-12 col-md-auto row items-center q-gutter-x-sm">
+            <q-toggle
+              v-model="isPermissiveSearch"
+              dense
+              color="teal-4"
+              size="sm"
+              @update:model-value="onPermissiveToggle"
+            >
+              <template #default>
+                <span class="text-caption text-weight-medium" :class="isPermissiveSearch ? 'text-teal-3' : 'text-grey-4'">
+                  <q-icon :name="isPermissiveSearch ? 'sym_r_manage_search' : 'sym_r_search'" size="16px" class="q-mr-xs" />
+                  Buscador permisivo (todas las palabras sin correlatividad)
+                </span>
+              </template>
+            </q-toggle>
+            <q-badge v-if="isPermissiveSearch" color="teal-9" text-color="teal-2" class="text-caption font-mono">
+              ON
+            </q-badge>
+            <span class="text-caption text-grey-5 hidden-xs">
+              {{ isPermissiveSearch ? '— Encuentra notas que incluyan cada palabra en cualquier orden' : '— Coincidencia correlativa de frase' }}
+            </span>
+          </div>
+
+          <div class="col-12 col-md-auto row items-center q-gutter-x-xs justify-end">
+            <!-- Botón Buscar Similar (Algorítmico) -->
+            <q-btn
+              outline
+              dense
+              no-caps
+              size="sm"
+              color="teal-3"
+              icon="sym_r_find_in_page"
+              label="Buscar similar"
+              class="q-px-sm"
+              @click="triggerSearchSimilar('algorithmic')"
+            >
+              <q-tooltip class="bg-dark text-white">
+                Buscar notas afines por similitud léxica y términos clave
+              </q-tooltip>
+            </q-btn>
+
+            <!-- Botón Buscar Similares con IA -->
+            <q-btn
+              unelevated
+              dense
+              no-caps
+              size="sm"
+              color="purple-8"
+              icon="sym_r_auto_awesome"
+              label="Buscar similares con IA"
+              class="q-px-sm text-weight-bold"
+              @click="triggerSearchSimilar('ai')"
+            >
+              <q-tooltip class="bg-dark text-white">
+                Analizar intención semántica con IA y encontrar notas afines
+              </q-tooltip>
+            </q-btn>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -230,7 +302,17 @@
     <SimilarNotesDialog
       v-model="isSimilarDialogOpen"
       :note="similarDialogNote"
+      :draft-content="similarDialogDraft"
+      :draft-title="similarDialogDraft"
+      :similarity-mode="similaritySearchMode"
       @select-note="openEditDialog"
+      @filter-board="handleFilterFromSimilar"
+    />
+
+    <!-- Modal de Importación Keep (ZIP) y Documentos para IA -->
+    <KeepImportPreviewDialog
+      v-model="isImportDialogOpen"
+      @imported="fetchNotes"
     />
   </q-page>
 </template>
@@ -246,10 +328,13 @@ import type { Note } from '../types/note.types'
 import NoteCard from '../components/NoteCard.vue'
 import NoteEditDialog from '../components/NoteEditDialog.vue'
 import SimilarNotesDialog from '../components/SimilarNotesDialog.vue'
+import KeepImportPreviewDialog from '../components/KeepImportPreviewDialog.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
 const { notes, isLoading, fetchNotes, togglePin, toggleArchive, removeNote } = useNotes()
+
+const isImportDialogOpen = ref(false)
 
 const isAdmin = computed(() => {
   return authStore.currentRole === 'admin' || authStore.currentRole === 'owner'
@@ -263,10 +348,60 @@ function canEditNote(note: Note): boolean {
 
 const isSimilarDialogOpen = ref(false)
 const similarDialogNote = ref<Note | null>(null)
+const similarDialogDraft = ref<string>('')
+const similaritySearchMode = ref<'auto' | 'ai' | 'algorithmic'>('ai')
 
 function openSimilarDialog(note: Note) {
   similarDialogNote.value = note
+  similarDialogDraft.value = ''
+  similaritySearchMode.value = 'auto'
   isSimilarDialogOpen.value = true
+}
+
+function triggerSearchSimilar(mode: 'algorithmic' | 'ai') {
+  similaritySearchMode.value = mode
+  const query = searchQuery.value.trim()
+
+  if (query.length >= 2) {
+    similarDialogNote.value = null
+    similarDialogDraft.value = query
+    isSimilarDialogOpen.value = true
+  } else {
+    $q.dialog({
+      title: mode === 'ai' ? 'Buscar Notas Similares con IA' : 'Buscar Notas Similares',
+      message: 'Ingresa una consulta, pregunta, borrador o tema para encontrar notas afines en la base de conocimiento:',
+      prompt: {
+        model: '',
+        type: 'textarea',
+        placeholder: 'Ej: Costos de la carrera de medicina para extranjeros en Cochabamba...',
+      },
+      cancel: true,
+      persistent: true,
+      ok: {
+        color: mode === 'ai' ? 'purple-7' : 'teal-7',
+        label: mode === 'ai' ? 'Analizar con IA' : 'Buscar Similares',
+      },
+    }).onOk((data: string) => {
+      if (data && data.trim()) {
+        searchQuery.value = data.trim()
+        similarDialogNote.value = null
+        similarDialogDraft.value = data.trim()
+        isSimilarDialogOpen.value = true
+      }
+    })
+  }
+}
+
+function handleFilterFromSimilar(keyword: string) {
+  searchQuery.value = keyword
+  applyFilters()
+}
+
+const isPermissiveSearch = ref<boolean>(localStorage.getItem('notes_permissive_search') === 'true')
+
+function onPermissiveToggle(val: boolean) {
+  localStorage.setItem('notes_permissive_search', val ? 'true' : 'false')
+  applyFilters()
 }
 
 const activeTab = ref<'active' | 'pinned' | 'archived'>('active')
@@ -335,7 +470,10 @@ async function loadFiltersData() {
 
 function applyFilters() {
   const params: any = {}
-  if (searchQuery.value.trim()) params.search = searchQuery.value.trim()
+  if (searchQuery.value.trim()) {
+    params.search = searchQuery.value.trim()
+    params.permissive = isPermissiveSearch.value
+  }
   if (selectedCategory.value) params.category_id = selectedCategory.value
   if (selectedStatus.value) params.custom_status_id = selectedStatus.value
 
@@ -452,6 +590,10 @@ function confirmDelete(id: string) {
 .xf-keep-filters-card {
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.border-top-subtle {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .keep-grid {
