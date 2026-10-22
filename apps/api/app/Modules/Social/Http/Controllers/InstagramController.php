@@ -9,6 +9,7 @@ use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\Conversations\Http\Resources\MessageResource;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
+use App\Modules\WhatsApp\Models\WhatsAppMessageMapping;
 use GuzzleHttp\Client;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -158,11 +159,29 @@ class InstagramController extends Controller
                 }
 
                 $isOutbound = ($msgSenderId === (string) $igAccountId);
+                $externalMsgId = (string) data_get($msgData, 'id');
 
-                $exists = Message::where('conversation_id', $conversation->id)
-                    ->where('body', $text)
-                    ->where('sent_at', $sentAt)
-                    ->exists();
+                $exists = false;
+                if ($externalMsgId && WhatsAppMessageMapping::where('provider_message_id', $externalMsgId)->exists()) {
+                    $exists = true;
+                } else {
+                    $exists = Message::where('conversation_id', $conversation->id)
+                        ->where('body', $text)
+                        ->where(function ($query) use ($sentAt, $isOutbound) {
+                            $query->where('sent_at', $sentAt)
+                                ->orWhereBetween('sent_at', [
+                                    $sentAt->copy()->subMinutes(5),
+                                    $sentAt->copy()->addMinutes(5),
+                                ]);
+                            if ($isOutbound) {
+                                $query->orWhereBetween('created_at', [
+                                    $sentAt->copy()->subMinutes(5),
+                                    $sentAt->copy()->addMinutes(5),
+                                ]);
+                            }
+                        })
+                        ->exists();
+                }
 
                 if (!$exists) {
                     $msg = Message::create([
@@ -173,6 +192,21 @@ class InstagramController extends Controller
                         'sent_at' => $sentAt,
                         'delivery_status' => $isOutbound ? 'delivered' : 'read',
                     ]);
+
+                    if ($externalMsgId) {
+                        WhatsAppMessageMapping::query()->updateOrCreate(
+                            ['provider_message_id' => $externalMsgId],
+                            [
+                                'organization_id' => $organization->id,
+                                'whatsapp_account_id' => $account->id,
+                                'contact_id' => $contact->id,
+                                'conversation_id' => $conversation->id,
+                                'message_id' => $msg->id,
+                                'direction' => $isOutbound ? 'outbound' : 'inbound',
+                                'status' => $isOutbound ? 'delivered' : 'read',
+                            ]
+                        );
+                    }
 
                     if (!$isOutbound) {
                         $conversation->increment('unread_count');
@@ -269,6 +303,22 @@ class InstagramController extends Controller
             'sent_at' => now(),
             'delivery_status' => 'delivered',
         ]);
+
+        $externalMsgId = data_get($result, 'message_id');
+        if ($externalMsgId) {
+            WhatsAppMessageMapping::query()->updateOrCreate(
+                ['provider_message_id' => $externalMsgId],
+                [
+                    'organization_id' => $organization->id,
+                    'whatsapp_account_id' => $account->id,
+                    'contact_id' => $contact->id,
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
+                    'direction' => 'outbound',
+                    'status' => 'delivered',
+                ]
+            );
+        }
 
         $convUpdate = [
             'last_message_at' => now(),
