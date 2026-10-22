@@ -259,6 +259,47 @@ class BaileysWebhookController extends Controller
 
         if ($isFromMe) {
             // Sincronización espejo de mensaje enviado fuera del CRM (WhatsApp Web o Móvil Android/iOS)
+            // Verificar si corresponde a un mensaje saliente reciente ya registrado en el CRM para no duplicarlo
+            $recentOutbound = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('direction', 'outbound')
+                ->where('created_at', '>=', Carbon::now()->subSeconds(60))
+                ->where(function ($query) use ($mediaType, $body) {
+                    if (filled($mediaType) && $mediaType !== 'text') {
+                        $query->where('media_type', $mediaType);
+                    } else {
+                        $query->where('body', $body);
+                    }
+                })
+                ->orderByDesc('id')
+                ->first();
+
+            if ($recentOutbound) {
+                Log::info("Baileys outbound message matched recent CRM outbound message {$recentOutbound->id}. Mapping provider ID {$providerMessageId} without creating duplicate.");
+                if ($providerMessageId) {
+                    WhatsAppMessageMapping::query()->updateOrCreate(
+                        ['provider_message_id' => $providerMessageId],
+                        [
+                            'organization_id' => $account->organization_id,
+                            'whatsapp_account_id' => $account->id,
+                            'contact_id' => $contact->id,
+                            'conversation_id' => $conversation->id,
+                            'message_id' => $recentOutbound->id,
+                            'direction' => 'outbound',
+                            'status' => 'delivered',
+                            'from_phone' => $cleanPhone,
+                            'payload' => $request->all(),
+                        ]
+                    );
+                }
+                $recentOutbound->update([
+                    'message_status' => 'delivered',
+                    'delivery_status' => 'delivered',
+                ]);
+
+                return;
+            }
+
             // Al responder el asesor fuera del CRM, se resetea automáticamente unread_count a 0
             $conversation->update([
                 'status' => 'open',

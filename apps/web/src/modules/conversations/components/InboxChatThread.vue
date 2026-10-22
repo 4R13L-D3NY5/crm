@@ -663,7 +663,7 @@
           :rows="1"
           :placeholder="composerMode === 'whatsapp' ? 'Escribe una respuesta para el cliente... (o pega imagen con Ctrl+V, / para atajos)' : 'Escribe una nota interna para los supervisores...'"
           class="composer-textarea col"
-          @keydown.enter.exact.prevent="handleSend"
+          @keydown.enter.exact.prevent="!isSending && handleSend()"
           @paste="handlePaste"
         />
 
@@ -674,7 +674,7 @@
           :color="composerMode === 'whatsapp' ? 'primary' : 'amber-8'"
           icon="sym_r_send"
           :loading="isSending"
-          :disable="!composerText.trim() && !pendingFile"
+          :disable="(!composerText.trim() && !pendingFile) || isSending"
           @click="handleSend"
         />
       </div>
@@ -1787,6 +1787,7 @@ function getChannelLabel(channel?: string) {
 }
 
 function handleSend() {
+  if (props.isSending) return
   if (!composerText.value.trim() && !pendingFile.value) return
   emit('send-message', {
     body: composerText.value.trim(),

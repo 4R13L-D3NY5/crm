@@ -48,6 +48,30 @@ app.use(express.json({ limit: '50mb' }));
 // sessions[id] = { sock, qrRaw, qrImage, status, phone, name }
 const sessions = {};
 
+// In-memory set to track outbound messages sent via CRM API to avoid echo reflection loops
+const sentByCrmMessageIds = new Map();
+
+function trackSentByCrm(messageId) {
+  if (!messageId) return;
+  const now = Date.now();
+  sentByCrmMessageIds.set(messageId, now);
+
+  // Periodic pruning of entries older than 5 minutes
+  if (sentByCrmMessageIds.size > 200) {
+    const cutoff = now - 5 * 60 * 1000;
+    for (const [id, timestamp] of sentByCrmMessageIds.entries()) {
+      if (timestamp < cutoff) {
+        sentByCrmMessageIds.delete(id);
+      }
+    }
+  }
+}
+
+function isSentByCrm(messageId) {
+  if (!messageId) return false;
+  return sentByCrmMessageIds.has(messageId);
+}
+
 async function notifyLaravel(payload) {
   try {
     await axios.post(LARAVEL_WEBHOOK_URL, payload, {
@@ -284,6 +308,14 @@ async function initSession(sessionId) {
       }
 
       const isFromMe = Boolean(msg.key.fromMe);
+
+      // Si el mensaje fue enviado desde el CRM vía API, descartar el evento espejo para:
+      // 1) Evitar re-descargar el multimedia desde los servidores de WhatsApp (ahorro masivo de tiempo y CPU)
+      // 2) Evitar duplicación de mensaje en la bandeja del CRM
+      if (isFromMe && isSentByCrm(msg.key.id)) {
+        console.log(`[Skipping Echo: Sent by CRM] account=${sessionId} messageId=${msg.key.id}`);
+        continue;
+      }
 
       console.log(`[Processing Message] id=${msg.key.id} fromMe=${isFromMe} remoteJid=${remoteJid} participant=${msg.key.participant || 'none'}`);
 
@@ -589,13 +621,25 @@ app.post('/sessions/:sessionId/send-message', async (req, res) => {
     }
 
     console.log(`[Sending Outbound Message] account=${sessionId} to=${jid} text=${text}`);
-    const sent = await session.sock.sendMessage(jid, { text });
-    console.log(`[Outbound Message Sent] account=${sessionId} messageId=${sent?.key?.id}`);
+    const customMessageId = (baileys.generateMessageID && typeof baileys.generateMessageID === 'function')
+      ? baileys.generateMessageID()
+      : undefined;
+
+    if (customMessageId) {
+      trackSentByCrm(customMessageId);
+    }
+
+    const sent = await session.sock.sendMessage(jid, { text }, customMessageId ? { messageId: customMessageId } : undefined);
+    const finalId = sent?.key?.id || customMessageId;
+    if (finalId) {
+      trackSentByCrm(finalId);
+    }
+    console.log(`[Outbound Message Sent] account=${sessionId} messageId=${finalId}`);
 
     res.json({
       success: true,
-      messageId: sent?.key?.id,
-      timestamp: sent?.messageTimestamp,
+      messageId: finalId,
+      timestamp: sent?.messageTimestamp || Math.floor(Date.now() / 1000),
     });
   } catch (err) {
     console.error(`[Error Sending Message] ${err.message}`);
@@ -632,11 +676,15 @@ app.post('/sessions/:sessionId/edit-message', async (req, res) => {
       fromMe: true,
     };
     const edited = await session.sock.sendMessage(jid, { text, edit: key });
-    console.log(`[Outbound Message Edited] account=${sessionId} messageId=${edited?.key?.id || messageId}`);
+    const finalEditId = edited?.key?.id || messageId;
+    if (finalEditId) {
+      trackSentByCrm(finalEditId);
+    }
+    console.log(`[Outbound Message Edited] account=${sessionId} messageId=${finalEditId}`);
 
     res.json({
       success: true,
-      messageId: edited?.key?.id || messageId,
+      messageId: finalEditId,
       timestamp: edited?.messageTimestamp || Math.floor(Date.now() / 1000),
     });
   } catch (err) {
@@ -715,13 +763,25 @@ app.post('/sessions/:sessionId/send-media', async (req, res) => {
       };
     }
 
-    const sent = await session.sock.sendMessage(jid, messagePayload);
-    console.log(`[Outbound Media Sent Success] account=${sessionId} messageId=${sent?.key?.id}`);
+    const customMessageId = (baileys.generateMessageID && typeof baileys.generateMessageID === 'function')
+      ? baileys.generateMessageID()
+      : undefined;
+
+    if (customMessageId) {
+      trackSentByCrm(customMessageId);
+    }
+
+    const sent = await session.sock.sendMessage(jid, messagePayload, customMessageId ? { messageId: customMessageId } : undefined);
+    const finalId = sent?.key?.id || customMessageId;
+    if (finalId) {
+      trackSentByCrm(finalId);
+    }
+    console.log(`[Outbound Media Sent Success] account=${sessionId} messageId=${finalId}`);
 
     res.json({
       success: true,
-      messageId: sent?.key?.id,
-      timestamp: sent?.messageTimestamp,
+      messageId: finalId,
+      timestamp: sent?.messageTimestamp || Math.floor(Date.now() / 1000),
     });
   } catch (err) {
     console.error(`[Error Sending Media] ${err.message}`);

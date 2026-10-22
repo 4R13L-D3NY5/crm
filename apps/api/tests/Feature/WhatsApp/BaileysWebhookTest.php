@@ -388,4 +388,87 @@ class BaileysWebhookTest extends TestCase
         $this->assertSame(1, Message::where('conversation_id', $conversation->id)->count());
         Event::assertNotDispatched(TicketMessageCreatedEvent::class);
     }
+
+    public function test_baileys_outbound_crm_image_without_preexisting_mapping_is_linked_to_recent_outbound_without_duplicate(): void
+    {
+        Event::fake([TicketMessageCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_009',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $contact = \App\Modules\Contacts\Models\Contact::create([
+            'organization_id' => $organization->id,
+            'phone' => '+59178899002',
+            'first_name' => 'Comprador',
+            'last_name' => 'Multimedia',
+        ]);
+
+        $conversation = Conversation::create([
+            'organization_id' => $organization->id,
+            'contact_id' => $contact->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+            'unread_count' => 0,
+            'last_message_at' => now(),
+        ]);
+
+        // Simula el mensaje recién creado por SendWhatsAppMessageAction desde la UI del CRM
+        // pero que AUN NO tiene un WhatsAppMessageMapping registrado (condición de carrera)
+        $outboundImageMessage = Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $conversation->id,
+            'direction' => 'outbound',
+            'message_type' => 'image',
+            'media_type' => 'image',
+            'media_url' => '/storage/whatsapp_media/sample.jpg',
+            'message_status' => 'pending',
+            'delivery_status' => 'pending',
+            'body' => '[Imagen]',
+            'created_at' => now(),
+            'sent_at' => null,
+        ]);
+
+        // El webhook espejo de Baileys llega de inmediato antes de que el Job termine de guardar el mapeo
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_out_race_img_8877',
+            'from_phone' => '+59178899002',
+            'from_me' => true,
+            'media_type' => 'image',
+            'body' => '[Imagen]',
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        // Debe mantenerse exactamente 1 mensaje en la base de datos (NO duplicado)
+        $this->assertSame(1, Message::where('conversation_id', $conversation->id)->count());
+
+        // El mensaje existente debe haber sido actualizado a 'delivered'
+        $outboundImageMessage->refresh();
+        $this->assertSame('delivered', $outboundImageMessage->message_status);
+        $this->assertSame('delivered', $outboundImageMessage->delivery_status);
+
+        // Se debe haber creado el mapeo con el ID del proveedor
+        $this->assertDatabaseHas('whatsapp_message_mappings', [
+            'provider_message_id' => 'baileys_out_race_img_8877',
+            'conversation_id' => $conversation->id,
+            'message_id' => $outboundImageMessage->id,
+            'direction' => 'outbound',
+            'status' => 'delivered',
+        ]);
+
+        // NO se debe haber emitido evento de creación nuevo
+        Event::assertNotDispatched(TicketMessageCreatedEvent::class);
+    }
 }
