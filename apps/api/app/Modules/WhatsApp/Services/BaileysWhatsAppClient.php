@@ -64,12 +64,13 @@ class BaileysWhatsAppClient implements WhatsAppClient
             $storageRelativePath = substr($mediaUrl, strlen('/storage/'));
             if (\Illuminate\Support\Facades\Storage::disk('public')->exists($storageRelativePath)) {
                 $fileBytes = \Illuminate\Support\Facades\Storage::disk('public')->get($storageRelativePath);
-                $mimeType = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($storageRelativePath) ?: 'image/jpeg';
-                $payload['media_base64'] = base64_encode($fileBytes);
-                $payload['mime_type'] = $mimeType;
-            } else {
-                $payload['media_url'] = 'http://api:8010' . $mediaUrl;
+                if (filled($fileBytes)) {
+                    $mimeType = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($storageRelativePath) ?: 'image/jpeg';
+                    $payload['media_base64'] = base64_encode($fileBytes);
+                    $payload['mime_type'] = $mimeType;
+                }
             }
+            $payload['media_url'] = 'http://api:8010' . $mediaUrl;
         } else {
             $payload['media_url'] = $mediaUrl;
         }

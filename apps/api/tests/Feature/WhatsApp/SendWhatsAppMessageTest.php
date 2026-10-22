@@ -379,7 +379,7 @@ class SendWhatsAppMessageTest extends TestCase
             ], 200),
         ]);
 
-        $file = UploadedFile::fake()->create('foto_producto.jpg', 120, 'image/jpeg');
+        $file = UploadedFile::fake()->createWithContent('foto_producto.jpg', 'fake-image-binary-data-12345');
 
         // Enviar SOLO la imagen, sin campo 'body'
         $response = $this->actingAs($user)->post("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
