@@ -299,5 +299,43 @@ function submit() {
 
 .message-composer__input {
   flex: 1;
+
+  :deep(.q-field__control) {
+    border-radius: 8px;
+    font-size: 0.85rem;
+    max-height: 180px;
+    overflow: hidden;
+  }
+
+  :deep(.q-field__control-container) {
+    max-height: 180px;
+    overflow: hidden;
+  }
+
+  :deep(.q-field__native),
+  :deep(textarea) {
+    max-height: 160px !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(16, 185, 129, 0.5) transparent;
+    resize: none;
+    line-height: 1.45;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(16, 185, 129, 0.5);
+      border-radius: 4px;
+      &:hover {
+        background: rgba(16, 185, 129, 0.8);
+      }
+    }
+  }
 }
 </style>

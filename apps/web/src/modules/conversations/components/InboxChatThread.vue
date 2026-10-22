@@ -1834,6 +1834,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--crm-bg-app);
 }
 
@@ -1852,11 +1854,28 @@ onUnmounted(() => {
 }
 
 .inbox-messages-stream {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 99px;
+    &:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+  }
 }
 
 .message-row {
@@ -1909,10 +1928,22 @@ onUnmounted(() => {
 
 .message-bubble {
   max-width: 65%;
+  max-height: 520px;
+  overflow-y: auto;
   padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid var(--crm-color-border);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+  }
 }
 
 .message-body {
@@ -1928,8 +1959,10 @@ onUnmounted(() => {
 }
 
 .inbox-composer {
+  flex-shrink: 0;
   background: var(--crm-bg-sidebar);
   border-top: 1px solid var(--crm-color-border);
+  max-height: 45vh;
 }
 
 .composer-mode-bar {
@@ -1996,6 +2029,39 @@ onUnmounted(() => {
   :deep(.q-field__control) {
     border-radius: 8px;
     font-size: 0.85rem;
+    max-height: 180px;
+    overflow: hidden;
+  }
+
+  :deep(.q-field__control-container) {
+    max-height: 180px;
+    overflow: hidden;
+  }
+
+  :deep(.q-field__native),
+  :deep(textarea) {
+    max-height: 160px !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(16, 185, 129, 0.5) transparent;
+    resize: none;
+    line-height: 1.45;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(16, 185, 129, 0.5);
+      border-radius: 4px;
+      &:hover {
+        background: rgba(16, 185, 129, 0.8);
+      }
+    }
   }
 }
 
