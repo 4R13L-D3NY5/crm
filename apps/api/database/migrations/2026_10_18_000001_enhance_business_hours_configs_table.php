@@ -9,13 +9,24 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('business_hours_configs', function (Blueprint $table) {
-            $table->dropUnique('business_hours_configs_organization_id_unique');
-            $table->boolean('is_default')->default(false)->after('is_active');
-            $table->string('scope_type', 20)->default('general')->after('name');
-        });
+        if (Schema::hasTable('business_hours_configs')) {
+            Schema::table('business_hours_configs', function (Blueprint $table) {
+                // Drop unique constraint if exists
+                try {
+                    $table->dropUnique('business_hours_configs_organization_id_unique');
+                } catch (\Throwable $e) {
+                    // ignore if already dropped
+                }
+                if (!Schema::hasColumn('business_hours_configs', 'is_default')) {
+                    $table->boolean('is_default')->default(false)->after('is_active');
+                }
+                if (!Schema::hasColumn('business_hours_configs', 'scope_type')) {
+                    $table->string('scope_type', 20)->default('general')->after('name');
+                }
+            });
 
-        DB::table('business_hours_configs')->update(['is_default' => true]);
+            DB::table('business_hours_configs')->update(['is_default' => true]);
+        }
 
         if (Schema::hasTable('business_hours_users')) {
             Schema::dropIfExists('business_hours_users');

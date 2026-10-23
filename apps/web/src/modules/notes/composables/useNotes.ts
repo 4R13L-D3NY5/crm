@@ -37,6 +37,8 @@ export function useNotes() {
       // Clean undefined and empty strings
       const cleanedParams: NoteFilterParams = {}
       if (activeParams.search?.trim()) cleanedParams.search = activeParams.search.trim()
+      if (typeof activeParams.permissive === 'boolean') cleanedParams.permissive = activeParams.permissive
+      if (activeParams.mode) cleanedParams.mode = activeParams.mode
       if (activeParams.category_id) cleanedParams.category_id = activeParams.category_id
       if (activeParams.custom_status_id) cleanedParams.custom_status_id = activeParams.custom_status_id
       if (activeParams.tag_id) cleanedParams.tag_id = activeParams.tag_id

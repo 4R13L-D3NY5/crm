@@ -554,16 +554,16 @@ class NoteManagementTest extends TestCase
             'visibility' => 'all',
         ]);
 
-        // 1. En búsqueda tradicional correlativa, palabras salteadas NO coinciden
-        $resStandard = $this->getJson('/api/notes?search=medicina+cochabamba+arancel');
-        $resStandard->assertStatus(200);
-        $this->assertCount(0, $resStandard->json('data'));
+        // 1. Por defecto, búsqueda permisiva inteligente: palabras no correlativas SÍ coinciden
+        $resDefault = $this->getJson('/api/notes?search=medicina+cochabamba+arancel');
+        $resDefault->assertStatus(200);
+        $this->assertCount(1, $resDefault->json('data'));
+        $this->assertSame('Carrera de Medicina Humana', $resDefault->json('data.0.title'));
 
-        // 2. En búsqueda permisiva, palabras no correlativas SÍ coinciden
-        $resPermissive = $this->getJson('/api/notes?search=medicina+cochabamba+arancel&permissive=true');
-        $resPermissive->assertStatus(200);
-        $this->assertCount(1, $resPermissive->json('data'));
-        $this->assertSame('Carrera de Medicina Humana', $resPermissive->json('data.0.title'));
+        // 2. Si se fuerza modo frase exacta o permissive=false, palabras salteadas NO coinciden
+        $resExact = $this->getJson('/api/notes?search=medicina+cochabamba+arancel&permissive=false');
+        $resExact->assertStatus(200);
+        $this->assertCount(0, $resExact->json('data'));
     }
 
     public function test_similarity_draft_supports_algorithmic_and_ai_modes(): void

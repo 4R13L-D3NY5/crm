@@ -39,15 +39,33 @@ class NoteController extends Controller
             $query->where('is_pinned', filter_var($request->query('is_pinned'), FILTER_VALIDATE_BOOLEAN));
         }
 
-        // Búsqueda de texto o atajo (soporta modo estándar y modo permisivo no correlativo)
+        // Búsqueda de texto o atajo: por defecto Búsqueda Permisiva Inteligente (todas las palabras no correlativas)
         if ($search = $request->query('search')) {
-            $isPermissive = filter_var($request->query('permissive', false), FILTER_VALIDATE_BOOLEAN)
-                || $request->query('mode') === 'permissive';
             $isPgsql = DB::getDriverName() === 'pgsql';
 
-            if ($isPermissive) {
-                // Modo permisivo: extrae palabras individuales y exige que TODAS estén presentes sin importar el orden
-                $words = array_filter(preg_split('/\s+/', trim($search)));
+            // Comprobar si se solicita explícitamente modo correlativo/exacto (ej: comillas dobles o permissive=false)
+            $trimmedSearch = trim($search);
+            $isExactPhrase = (str_starts_with($trimmedSearch, '"') && str_ends_with($trimmedSearch, '"'))
+                || $request->query('permissive') === 'false'
+                || $request->query('mode') === 'exact';
+
+            if ($isExactPhrase) {
+                // Modo frase exacta correlativa
+                $phrase = trim($trimmedSearch, "\"' \t\n\r\0\x0B");
+                $query->where(function ($q) use ($phrase, $isPgsql) {
+                    if ($isPgsql) {
+                        $q->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$phrase}%"])
+                            ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$phrase}%"])
+                            ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$phrase}%"]);
+                    } else {
+                        $q->where('title', 'like', "%{$phrase}%")
+                            ->orWhere('content', 'like', "%{$phrase}%")
+                            ->orWhere('shortcut', 'like', "%{$phrase}%");
+                    }
+                });
+            } else {
+                // Búsqueda Permisiva (POR DEFECTO): Todas las palabras ingresadas deben coincidir en cualquier orden
+                $words = array_filter(preg_split('/\s+/', $trimmedSearch));
 
                 if (!empty($words)) {
                     $query->where(function ($mainQ) use ($words, $isPgsql) {
@@ -67,19 +85,6 @@ class NoteController extends Controller
                         }
                     });
                 }
-            } else {
-                // Modo estándar correlativo
-                $query->where(function ($q) use ($search, $isPgsql) {
-                    if ($isPgsql) {
-                        $q->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$search}%"])
-                            ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$search}%"])
-                            ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$search}%"]);
-                    } else {
-                        $q->where('title', 'like', "%{$search}%")
-                            ->orWhere('content', 'like', "%{$search}%")
-                            ->orWhere('shortcut', 'like', "%{$search}%");
-                    }
-                });
             }
         }
 

@@ -397,7 +397,7 @@ function handleFilterFromSimilar(keyword: string) {
   applyFilters()
 }
 
-const isPermissiveSearch = ref<boolean>(localStorage.getItem('notes_permissive_search') === 'true')
+const isPermissiveSearch = ref<boolean>(localStorage.getItem('notes_permissive_search') !== 'false')
 
 function onPermissiveToggle(val: boolean) {
   localStorage.setItem('notes_permissive_search', val ? 'true' : 'false')
