@@ -10,7 +10,7 @@
           <div>
             <h1 class="text-h5 text-bold text-ink q-my-none">Campañas Masivas de Difusión</h1>
             <p class="text-caption text-muted q-mt-xs q-mb-none">
-              Comunícate masivamente con tus segmentos de clientes con algoritmo anti-bloqueo y monitoreo en tiempo real.
+              Comunícate masivamente con tus segmentos de clientes con algoritmo anti-bloqueo y segmentación por categorías y etiquetas.
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@
             v-model="search"
             dense
             outlined
-            placeholder="Buscar por nombre de campaña..."
+            placeholder="Buscar por nombre o segmento..."
             class="xf-search-input"
             clearable
           >
@@ -131,8 +131,8 @@
         <q-icon name="sym_r_campaign" size="44px" color="primary" />
       </div>
       <div class="text-h6 text-bold text-ink">No se encontraron campañas</div>
-      <div class="text-caption text-muted q-mt-xs q-mb-lg" style="max-width: 420px; margin-inline: auto;">
-        Crea una campaña masiva para comunicar promociones, recordatorios o convocatorias a tus contactos de forma segura.
+      <div class="text-caption text-muted q-mt-xs q-mb-lg" style="max-width: 440px; margin-inline: auto;">
+        Crea una campaña masiva para comunicar promociones, recordatorios o convocatorias a tus contactos segmentando por categorías o etiquetas.
       </div>
       <q-btn
         color="primary"
@@ -150,7 +150,7 @@
       <q-markup-table flat class="xf-campaigns-table">
         <thead>
           <tr>
-            <th class="text-left">CAMPAÑA</th>
+            <th class="text-left">CAMPAÑA Y SEGMENTO</th>
             <th class="text-left">CANAL REMITENTE</th>
             <th class="text-left" style="width: 220px">PROGRESO DE ENVÍO</th>
             <th class="text-left">INTERVALO ANTI-BAN</th>
@@ -160,10 +160,26 @@
         </thead>
         <tbody>
           <tr v-for="c in filteredCampaigns" :key="c.id" class="xf-table-row">
-            <!-- Nombre y Fecha -->
+            <!-- Nombre, Fecha y Segmento -->
             <td class="text-left">
               <div class="text-weight-bold text-ink">{{ c.name }}</div>
-              <div class="text-caption text-muted">{{ c.created_at }}</div>
+              <div class="row items-center q-gutter-x-xs q-mt-xs">
+                <span class="text-caption text-muted">{{ c.created_at }}</span>
+                <span class="text-muted">•</span>
+                <q-badge
+                  :color="c.target_type === 'categories' ? 'cyan-9' : c.target_type === 'tags' ? 'purple-9' : c.target_type === 'mixed' ? 'deep-purple-9' : 'blue-grey-8'"
+                  :text-color="c.target_type === 'categories' ? 'cyan-2' : c.target_type === 'tags' ? 'purple-2' : c.target_type === 'mixed' ? 'deep-purple-2' : 'blue-grey-2'"
+                  size="sm"
+                  class="text-weight-medium q-px-xs"
+                >
+                  <q-icon
+                    :name="c.target_type === 'categories' ? 'sym_r_category' : c.target_type === 'tags' ? 'sym_r_sell' : c.target_type === 'mixed' ? 'sym_r_tune' : 'sym_r_public'"
+                    size="12px"
+                    class="q-mr-xs"
+                  />
+                  {{ c.target_summary || (c.target_type === 'categories' ? 'Categorías' : c.target_type === 'tags' ? 'Etiquetas' : 'Toda la base') }}
+                </q-badge>
+              </div>
             </td>
 
             <!-- Conexión -->
@@ -251,6 +267,19 @@
                   <q-tooltip>Reanudar campaña</q-tooltip>
                 </q-btn>
 
+                <!-- Reintentar Fallidos (si tiene fallidos y no está enviando) -->
+                <q-btn
+                  v-if="c.failed_count > 0 && c.status !== 'processing'"
+                  flat
+                  round
+                  dense
+                  icon="sym_r_replay"
+                  color="amber-9"
+                  @click="retryFailedCampaign(c.id)"
+                >
+                  <q-tooltip>Reintentar {{ c.failed_count }} envíos fallidos</q-tooltip>
+                </q-btn>
+
                 <!-- Eliminar -->
                 <q-btn
                   flat
@@ -271,7 +300,7 @@
 
     <!-- Modal Crear Nueva Campaña Masiva -->
     <q-dialog v-model="isDialogOpen" persistent>
-      <q-card style="width: 680px; max-width: 95vw;" class="xf-modal-card">
+      <q-card style="width: 720px; max-width: 95vw;" class="xf-modal-card">
         <q-card-section class="row items-center justify-between q-pb-none">
           <div class="row items-center q-gutter-x-sm">
             <q-avatar size="36px" color="primary" text-color="white">
@@ -279,7 +308,7 @@
             </q-avatar>
             <div>
               <div class="text-h6 text-bold text-ink">Nueva Campaña Masiva</div>
-              <div class="text-caption text-muted">Configura el segmento, redacción y ritmo seguro de envío</div>
+              <div class="text-caption text-muted">Configura el segmento por categorías o etiquetas, redacción y ritmo anti-bloqueo</div>
             </div>
           </div>
           <q-btn flat round dense icon="sym_r_close" class="text-muted" v-close-popup />
@@ -287,16 +316,19 @@
 
         <q-separator class="q-my-md" />
 
-        <q-card-section class="q-gutter-y-md q-pt-none scroll" style="max-height: 72vh;">
+        <q-card-section class="q-gutter-y-md q-pt-none scroll" style="max-height: 74vh;">
           <!-- 1. Identificación y Canal -->
           <div class="row q-col-gutter-md">
             <div class="col-12 col-md-7">
               <q-input
+                ref="nameInputRef"
                 v-model="form.name"
                 label="Nombre de la Campaña *"
                 outlined
                 dense
-                placeholder="ej. Admisiones 2026 - Convocatoria Beca"
+                placeholder="ej. Admisiones 2026 - Convocatoria Salud"
+                :rules="[val => !!val?.trim() || 'El nombre de la campaña es obligatorio']"
+                lazy-rules="ondemand"
               />
             </div>
             <div class="col-12 col-md-5">
@@ -314,27 +346,191 @@
 
           <!-- 2. Segmentación de Audiencia -->
           <div class="xf-section-box q-pa-md rounded-borders">
-            <div class="text-subtitle2 text-bold text-ink q-mb-xs">Segmentación de Destinatarios</div>
-            <div class="text-caption text-muted q-mb-sm">Elige si enviarás a toda la base o filtrarás por etiquetas específicas del CRM.</div>
-
-            <div class="row items-center q-gutter-md q-mb-sm">
-              <q-radio v-model="targetMode" val="all" label="Todos los contactos con teléfono" dense color="primary" />
-              <q-radio v-model="targetMode" val="tags" label="Filtrar por Etiquetas" dense color="primary" />
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="text-subtitle2 text-bold text-ink">Segmentación de Destinatarios</div>
+              <q-badge color="primary" outline class="text-caption text-weight-medium">
+                {{ targetModeLabel }}
+              </q-badge>
+            </div>
+            <div class="text-caption text-muted q-mb-sm">
+              Selecciona cómo se filtrará la audiencia. Puedes segmentar por categorías organizacionales (carreras/sedes), etiquetas o combinar ambas.
             </div>
 
-            <div v-if="targetMode === 'tags'" class="q-mt-sm">
+            <!-- Botones Segmentados de Modo -->
+            <div class="row items-center q-gutter-xs q-mb-md">
+              <q-btn
+                :outline="targetMode !== 'categories'"
+                :unelevated="targetMode === 'categories'"
+                color="cyan-8"
+                no-caps
+                dense
+                class="q-px-sm text-weight-bold"
+                icon="sym_r_category"
+                label="Por Categorías"
+                @click="setTargetMode('categories')"
+              />
+              <q-btn
+                :outline="targetMode !== 'tags'"
+                :unelevated="targetMode === 'tags'"
+                color="purple-8"
+                no-caps
+                dense
+                class="q-px-sm text-weight-bold"
+                icon="sym_r_sell"
+                label="Por Etiquetas"
+                @click="setTargetMode('tags')"
+              />
+              <q-btn
+                :outline="targetMode !== 'mixed'"
+                :unelevated="targetMode === 'mixed'"
+                color="deep-purple-8"
+                no-caps
+                dense
+                class="q-px-sm text-weight-bold"
+                icon="sym_r_tune"
+                label="Combinado"
+                @click="setTargetMode('mixed')"
+              />
+              <q-btn
+                :outline="targetMode !== 'all'"
+                :unelevated="targetMode === 'all'"
+                color="blue-grey-7"
+                no-caps
+                dense
+                class="q-px-sm text-weight-bold"
+                icon="sym_r_public"
+                label="Toda la Base"
+                @click="setTargetMode('all')"
+              />
+            </div>
+
+            <!-- Selector de Categorías (Buscable y con jerarquía) -->
+            <div v-if="targetMode === 'categories' || targetMode === 'mixed'" class="q-mb-sm">
               <q-select
-                v-model="form.tag_ids"
-                :options="tagOptions"
+                v-model="form.category_ids"
+                :options="filteredCategoryOptions"
+                multiple
+                use-input
+                use-chips
                 emit-value
                 map-options
-                multiple
-                use-chips
                 outlined
                 dense
-                label="Seleccionar Etiquetas Objetivo"
-                placeholder="Escoge una o más etiquetas..."
-              />
+                label="Categorías Objetivo (Sedes / Carreras / Áreas) *"
+                placeholder="Busca y selecciona una o más categorías..."
+                @filter="filterCategories"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_category" size="18px" color="cyan-5" />
+                </template>
+
+                <template #option="{ itemProps, opt, selected, toggleOption }">
+                  <q-item v-bind="itemProps" dense class="cursor-pointer" @click="toggleOption(opt)">
+                    <q-item-section side class="q-pr-xs">
+                      <q-checkbox :model-value="selected" dense @update:model-value="toggleOption(opt)" />
+                    </q-item-section>
+                    <q-item-section avatar style="min-width: 22px;" class="q-pr-xs">
+                      <span class="filter-dot" :style="{ backgroundColor: opt.color || '#06b6d4' }"></span>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-body2 text-ink">{{ opt.name || opt.label }}</q-item-label>
+                      <q-item-label v-if="opt.display_path" caption class="text-cyan-7 text-caption">
+                        {{ opt.display_path }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+
+                <template #selected-item="scope">
+                  <q-chip
+                    removable
+                    dense
+                    color="cyan-9"
+                    text-color="cyan-1"
+                    class="q-my-none text-caption"
+                    @remove="scope.removeAtIndex(scope.index)"
+                  >
+                    <span class="filter-dot-chip q-mr-xs" :style="{ backgroundColor: getCategoryColor(scope.opt.value) }"></span>
+                    {{ scope.opt.label || scope.opt.name }}
+                  </q-chip>
+                </template>
+              </q-select>
+              <div class="text-caption text-muted q-mt-xs" style="font-size: 11px;">
+                💡 <em>Al seleccionar una categoría padre (ej. una Facultad o Sede), el envío incluirá automáticamente a todos sus programas y subcategorías.</em>
+              </div>
+            </div>
+
+            <!-- Selector de Etiquetas -->
+            <div v-if="targetMode === 'tags' || targetMode === 'mixed'" class="q-mb-sm">
+              <q-select
+                v-model="form.tag_ids"
+                :options="filteredTagOptions"
+                multiple
+                use-input
+                use-chips
+                emit-value
+                map-options
+                outlined
+                dense
+                label="Etiquetas Objetivo *"
+                placeholder="Busca y selecciona una o más etiquetas..."
+                @filter="filterTags"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_sell" size="18px" color="purple-5" />
+                </template>
+                <template #option="{ itemProps, opt, selected, toggleOption }">
+                  <q-item v-bind="itemProps" dense class="cursor-pointer" @click="toggleOption(opt)">
+                    <q-item-section side class="q-pr-xs">
+                      <q-checkbox :model-value="selected" dense @update:model-value="toggleOption(opt)" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-body2 text-ink">{{ opt.label }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+
+            <!-- Banner de Conteo en Vivo de Destinatarios -->
+            <div
+              class="xf-recipient-preview q-pa-sm q-mt-md rounded-borders"
+              :class="previewLoading ? 'bg-grey-2 text-grey-8' : (previewCount ?? 0) > 0 ? 'bg-teal-1 text-teal-10 border-teal' : 'bg-amber-1 text-amber-10 border-amber'"
+            >
+              <div class="row items-center justify-between no-wrap">
+                <div class="row items-center q-gutter-x-sm">
+                  <q-spinner-dots v-if="previewLoading" size="18px" color="primary" />
+                  <q-icon
+                    v-else
+                    :name="(previewCount ?? 0) > 0 ? 'sym_r_group' : 'sym_r_warning'"
+                    size="20px"
+                    :color="(previewCount ?? 0) > 0 ? 'teal-8' : 'amber-9'"
+                  />
+                  <div>
+                    <span class="text-weight-bold text-body2">
+                      {{ previewLoading ? 'Calculando destinatarios...' : `${previewCount ?? 0} contactos con teléfono encontrados` }}
+                    </span>
+                    <div class="text-caption text-muted" style="font-size: 11px;">
+                      {{ (previewCount ?? 0) > 0 ? 'Destinatarios únicos validados listos para recibir el mensaje' : 'No hay contactos con teléfono que cumplan este filtro' }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="!previewLoading && previewSamples.length > 0" class="row items-center q-gutter-xs">
+                  <q-badge
+                    v-for="s in previewSamples.slice(0, 3)"
+                    :key="s.id"
+                    outline
+                    color="teal-8"
+                    class="text-caption"
+                  >
+                    {{ s.name }}
+                  </q-badge>
+                  <span v-if="(previewCount ?? 0) > 3" class="text-caption text-weight-medium text-teal-9">
+                    +{{ (previewCount ?? 0) - 3 }} más
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -376,10 +572,10 @@
                 <q-icon name="sym_r_shield" size="20px" color="positive" />
                 <span class="text-subtitle2 text-bold text-ink">Protección Anti-Baneo de WhatsApp</span>
               </div>
-              <q-badge color="positive" class="text-bold">{{ form.delay_seconds }}s delay promedio</q-badge>
+              <q-badge color="positive" class="text-bold">{{ form.delay_seconds }}s intervalo promedio</q-badge>
             </div>
             <p class="text-caption text-muted q-mt-xs q-mb-sm">
-              Un intervalo aleatorio entre mensajes simula el comportamiento humano y evita suspensiones de número por Meta.
+              Un intervalo dinámico entre cada mensaje simula el comportamiento humano y previene restricciones por parte de Meta.
             </p>
 
             <q-slider
@@ -404,6 +600,7 @@
             color="primary"
             no-caps
             :loading="saving"
+            :disable="previewCount === 0 || previewLoading"
             @click="handleSaveCampaign(false)"
           />
           <q-btn
@@ -413,6 +610,7 @@
             no-caps
             class="text-weight-bold"
             :loading="saving"
+            :disable="previewCount === 0 || previewLoading"
             @click="handleSaveCampaign(true)"
           />
         </q-card-actions>
@@ -422,9 +620,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { http } from '@/shared/api/http'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 
 const notify = useAppNotify()
 
@@ -432,7 +631,7 @@ const search = ref('')
 const selectedStatus = ref('all')
 const isDialogOpen = ref(false)
 const saving = ref(false)
-const targetMode = ref<'all' | 'tags'>('all')
+const targetMode = ref<'all' | 'categories' | 'tags' | 'mixed'>('categories')
 
 interface CampaignModel {
   id: string
@@ -445,11 +644,20 @@ interface CampaignModel {
   progress: number
   delay_seconds: number
   status: 'draft' | 'processing' | 'paused' | 'completed'
+  target_type?: string
+  target_summary?: string
 }
 
 const campaigns = ref<CampaignModel[]>([])
 const channelOptions = ref<{ label: string; value: string }[]>([])
+const rawCategories = ref<any[]>([])
+const categorySearch = ref('')
 const tagOptions = ref<{ label: string; value: string }[]>([])
+const tagSearch = ref('')
+
+const previewLoading = ref(false)
+const previewCount = ref<number | null>(null)
+const previewSamples = ref<{ id: string; name: string; phone: string }[]>([])
 
 const statusOptions = [
   { label: 'Todos los estados', value: 'all' },
@@ -462,13 +670,28 @@ const statusOptions = [
 const form = reactive({
   name: '',
   whatsapp_account_id: '',
+  category_ids: [] as string[],
   tag_ids: [] as string[],
   message_template: '{Hola|Buen día} {name}, te escribimos de UNITEPC para informarte sobre el inicio de clases y beneficios de matrícula de este periodo.',
   delay_seconds: 20,
 })
 
+const targetModeLabel = computed(() => {
+  switch (targetMode.value) {
+    case 'categories':
+      return 'Filtrado por Categorías'
+    case 'tags':
+      return 'Filtrado por Etiquetas'
+    case 'mixed':
+      return 'Filtro Combinado (Categorías + Etiquetas)'
+    case 'all':
+    default:
+      return 'Toda la Base de Contactos'
+  }
+})
+
 onMounted(async () => {
-  await Promise.all([loadCampaigns(), loadChannels(), loadTags()])
+  await Promise.all([loadCampaigns(), loadChannels(), loadCategories(), loadTags()])
 })
 
 async function loadCampaigns() {
@@ -486,7 +709,10 @@ async function loadCampaigns() {
         progress: c.total_contacts > 0 ? Math.round((c.sent_count / c.total_contacts) * 100) : 0,
         delay_seconds: c.delay_seconds || 20,
         status: c.status || 'draft',
+        target_type: c.target_type || 'all',
+        target_summary: c.target_summary || '',
       }))
+      checkPollingState()
     }
   } catch {
     // Si no hay campañas, mantener array vacío
@@ -510,6 +736,17 @@ async function loadChannels() {
   }
 }
 
+async function loadCategories() {
+  try {
+    const res = await http.get('/categories')
+    if (res.data?.data) {
+      rawCategories.value = res.data.data
+    }
+  } catch {
+    rawCategories.value = []
+  }
+}
+
 async function loadTags() {
   try {
     const res = await http.get('/tags')
@@ -524,9 +761,96 @@ async function loadTags() {
   }
 }
 
+const allCategoryOptions = computed(() => {
+  const list = rawCategories.value
+  return list.map((c: any) => {
+    const displayPath = formatCategoryDisplayPath(c, list)
+    return {
+      label: displayPath,
+      name: c.name,
+      code: c.code,
+      value: c.id,
+      color: c.color || '#06b6d4',
+      icon: c.icon || 'sym_r_category',
+      display_path: displayPath,
+      full_path: c.full_path,
+    }
+  })
+})
+
+const filteredCategoryOptions = computed(() => {
+  const needle = categorySearch.value.toLowerCase().trim()
+  if (!needle) return allCategoryOptions.value
+  return allCategoryOptions.value.filter((c) =>
+    matchesCategorySearch(c, needle, c.display_path)
+  )
+})
+
+function filterCategories(val: string, update: (cb: () => void) => void) {
+  update(() => {
+    categorySearch.value = val
+  })
+}
+
+const filteredTagOptions = computed(() => {
+  const needle = tagSearch.value.toLowerCase().trim()
+  if (!needle) return tagOptions.value
+  return tagOptions.value.filter((t) => t.label.toLowerCase().includes(needle))
+})
+
+function filterTags(val: string, update: (cb: () => void) => void) {
+  update(() => {
+    tagSearch.value = val
+  })
+}
+
+function getCategoryColor(id: string): string {
+  const match = rawCategories.value.find((c) => c.id === id)
+  return match?.color || '#06b6d4'
+}
+
+function setTargetMode(mode: 'all' | 'categories' | 'tags' | 'mixed') {
+  targetMode.value = mode
+}
+
+// Conteo y vista previa reactiva de destinatarios
+let previewDebounceTimer: any = null
+watch(
+  [targetMode, () => form.category_ids, () => form.tag_ids],
+  () => {
+    clearTimeout(previewDebounceTimer)
+    previewDebounceTimer = setTimeout(() => {
+      fetchRecipientPreview()
+    }, 250)
+  },
+  { deep: true },
+)
+
+async function fetchRecipientPreview() {
+  previewLoading.value = true
+  try {
+    const payload = {
+      target_mode: targetMode.value,
+      category_ids: targetMode.value === 'categories' || targetMode.value === 'mixed' ? form.category_ids : [],
+      tag_ids: targetMode.value === 'tags' || targetMode.value === 'mixed' ? form.tag_ids : [],
+    }
+    const res = await http.post('/campaigns/preview-recipients', payload)
+    previewCount.value = res.data?.count ?? 0
+    previewSamples.value = res.data?.samples ?? []
+  } catch {
+    previewCount.value = 0
+    previewSamples.value = []
+  } finally {
+    previewLoading.value = false
+  }
+}
+
 const filteredCampaigns = computed(() => {
   return campaigns.value.filter((c) => {
-    const matchesSearch = !search.value || c.name.toLowerCase().includes(search.value.toLowerCase())
+    const matchesSearch =
+      !search.value ||
+      c.name.toLowerCase().includes(search.value.toLowerCase()) ||
+      (c.target_summary && c.target_summary.toLowerCase().includes(search.value.toLowerCase()))
     const matchesStatus = selectedStatus.value === 'all' || c.status === selectedStatus.value
     return matchesSearch && matchesStatus
   })
@@ -553,12 +877,46 @@ const previewText = computed(() => {
 })
 
 function openCreateDialog() {
-  form.name = ''
+  const today = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })
+  const time = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
+  form.name = `Campaña Difusión - ${today} ${time}`
+  form.category_ids = []
   form.tag_ids = []
-  targetMode.value = 'all'
+  targetMode.value = 'categories'
   form.delay_seconds = 20
   isDialogOpen.value = true
+  fetchRecipientPreview()
 }
+
+// Auto-sugerir nombre descriptivo de campaña según la primera categoría seleccionada
+watch(
+  () => form.category_ids,
+  (newIds) => {
+    if (newIds.length > 0 && (!form.name.trim() || form.name.startsWith('Campaña '))) {
+      const cat = rawCategories.value.find((c) => c.id === newIds[0])
+      if (cat) {
+        const today = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })
+        form.name = `Campaña ${cat.name} - ${today}`
+      }
+    }
+  },
+  { deep: true },
+)
+
+// Auto-sugerir nombre descriptivo de campaña según la primera etiqueta seleccionada
+watch(
+  () => form.tag_ids,
+  (newIds) => {
+    if (newIds.length > 0 && targetMode.value === 'tags' && (!form.name.trim() || form.name.startsWith('Campaña '))) {
+      const tag = tagOptions.value.find((t) => t.value === newIds[0])
+      if (tag) {
+        const today = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })
+        form.name = `Campaña ${tag.label} - ${today}`
+      }
+    }
+  },
+  { deep: true },
+)
 
 function insertVariable(variableTag: string) {
   form.message_template += ` ${variableTag}`
@@ -566,11 +924,34 @@ function insertVariable(variableTag: string) {
 
 async function handleSaveCampaign(startImmediately = false) {
   if (!form.name.trim()) {
-    notify.warning({ message: 'El nombre de la campaña es obligatorio.' })
-    return
+    const today = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit' })
+    const time = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
+    const segmentName =
+      targetMode.value === 'categories' && form.category_ids.length > 0
+        ? rawCategories.value.find((c) => c.id === form.category_ids[0])?.name || 'Categorías'
+        : targetMode.value === 'tags' && form.tag_ids.length > 0
+        ? tagOptions.value.find((t) => t.value === form.tag_ids[0])?.label || 'Etiquetas'
+        : 'General'
+    form.name = `Campaña ${segmentName} - ${today} ${time}`
   }
   if (!form.message_template.trim()) {
     notify.warning({ message: 'La plantilla del mensaje no puede estar vacía.' })
+    return
+  }
+  if (targetMode.value === 'categories' && form.category_ids.length === 0) {
+    notify.warning({ message: 'Debes seleccionar al menos una categoría objetivo.' })
+    return
+  }
+  if (targetMode.value === 'tags' && form.tag_ids.length === 0) {
+    notify.warning({ message: 'Debes seleccionar al menos una etiqueta objetivo.' })
+    return
+  }
+  if (targetMode.value === 'mixed' && form.category_ids.length === 0 && form.tag_ids.length === 0) {
+    notify.warning({ message: 'Debes seleccionar al menos una categoría o etiqueta objetivo.' })
+    return
+  }
+  if ((previewCount.value ?? 0) === 0) {
+    notify.warning({ message: 'No hay destinatarios encontrados para este filtro. Ajusta los criterios para continuar.' })
     return
   }
 
@@ -581,7 +962,9 @@ async function handleSaveCampaign(startImmediately = false) {
       whatsapp_account_id: form.whatsapp_account_id || undefined,
       message_template: form.message_template.trim(),
       delay_seconds: form.delay_seconds,
-      tag_ids: targetMode.value === 'tags' ? form.tag_ids : undefined,
+      target_mode: targetMode.value,
+      category_ids: targetMode.value === 'categories' || targetMode.value === 'mixed' ? form.category_ids : undefined,
+      tag_ids: targetMode.value === 'tags' || targetMode.value === 'mixed' ? form.tag_ids : undefined,
     }
 
     const res = await http.post('/campaigns', payload)
@@ -609,6 +992,7 @@ async function startCampaign(id: string) {
     const target = campaigns.value.find((c) => c.id === id)
     if (target) target.status = 'processing'
     notify.success({ message: 'Disparo de campaña iniciado con protección anti-ban.' })
+    startPolling()
   } catch (err: any) {
     notify.error({ message: err?.response?.data?.message || 'Error al iniciar campaña.' })
   }
@@ -620,6 +1004,7 @@ async function pauseCampaign(id: string) {
     const target = campaigns.value.find((c) => c.id === id)
     if (target) target.status = 'paused'
     notify.info({ message: 'Campaña pausada.' })
+    checkPollingState()
   } catch (err: any) {
     notify.error({ message: err?.response?.data?.message || 'Error al pausar campaña.' })
   }
@@ -631,6 +1016,7 @@ async function resumeCampaign(id: string) {
     const target = campaigns.value.find((c) => c.id === id)
     if (target) target.status = 'processing'
     notify.success({ message: 'Campaña reanudada.' })
+    startPolling()
   } catch (err: any) {
     notify.error({ message: err?.response?.data?.message || 'Error al reanudar campaña.' })
   }
@@ -641,10 +1027,53 @@ async function deleteCampaign(id: string) {
     await http.delete(`/campaigns/${id}`)
     campaigns.value = campaigns.value.filter((c) => c.id !== id)
     notify.success({ message: 'Campaña eliminada correctamente.' })
+    checkPollingState()
   } catch (err: any) {
     notify.error({ message: err?.response?.data?.message || 'Error al eliminar campaña.' })
   }
 }
+
+async function retryFailedCampaign(id: string) {
+  try {
+    const res = await http.post(`/campaigns/${id}/retry-failed`)
+    notify.success({ message: res.data?.message || 'Destinatarios reactivados para reintento.' })
+    await loadCampaigns()
+    startPolling()
+  } catch (err: any) {
+    notify.error({ message: err?.response?.data?.message || 'Error al reintentar envíos fallidos.' })
+  }
+}
+
+let pollingInterval: any = null
+
+function checkPollingState() {
+  const hasActiveCampaign = campaigns.value.some((c) => c.status === 'processing')
+  if (hasActiveCampaign) {
+    if (!pollingInterval) {
+      pollingInterval = setInterval(() => {
+        loadCampaigns()
+      }, 3000)
+    }
+  } else if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+}
+
+function startPolling() {
+  if (!pollingInterval) {
+    pollingInterval = setInterval(() => {
+      loadCampaigns()
+    }, 3000)
+  }
+}
+
+onUnmounted(() => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+    pollingInterval = null
+  }
+})
 
 function getStatusBadgeColor(status: string) {
   switch (status) {
@@ -764,6 +1193,33 @@ function formatDate(isoDate?: string) {
 .body--light .xf-section-box {
   background: #f8fafc;
   border-color: #e2e8f0;
+}
+
+.filter-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.filter-dot-chip {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.xf-recipient-preview {
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.border-teal {
+  border-color: rgba(20, 184, 166, 0.35);
+}
+
+.border-amber {
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
 .xf-whatsapp-preview {

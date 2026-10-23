@@ -358,151 +358,191 @@
 
     <!-- Redactor de Respuestas (Composer) -->
     <footer class="inbox-composer q-pa-sm" @paste="handlePaste">
-      <div class="composer-mode-bar row items-center justify-between q-mb-xs no-wrap">
-        <div class="row items-center q-gutter-x-xs no-wrap composer-tools-scroll">
-          <button
-            type="button"
-            class="composer-mode-btn"
-            :class="{ 'composer-mode-btn--active': composerMode === 'whatsapp' }"
-            @click="composerMode = 'whatsapp'"
-          >
-            <q-icon name="sym_r_chat" size="14px" />
-            <span class="gt-xs">WhatsApp</span>
-          </button>
-
-          <button
-            type="button"
-            class="composer-mode-btn composer-mode-btn--note"
-            :class="{ 'composer-mode-btn--active-note': composerMode === 'internal' }"
-            @click="composerMode = 'internal'"
-          >
-            <q-icon name="sym_r_lock" size="14px" />
-            <span class="gt-xs">Nota Interna</span>
-          </button>
-
+      <div class="composer-mode-bar row items-center no-wrap">
+        <div class="composer-tools-wrapper row items-center no-wrap">
+          <!-- Botón de desplazamiento hacia la izquierda -->
           <q-btn
+            v-if="canScrollToolsLeft"
             flat
             dense
-            size="sm"
+            round
+            size="xs"
             color="teal-4"
-            icon="sym_r_bolt"
-            :label="isMobile ? '' : 'Respuestas (/)'"
-            class="q-px-xs"
-            @click="showQuickMessagesModal = true"
+            icon="sym_r_chevron_left"
+            class="composer-scroll-btn composer-scroll-btn--left"
+            @click="scrollTools('left')"
           >
-            <q-tooltip>Atajos de respuesta rápida (/)</q-tooltip>
+            <q-tooltip>Ver herramientas anteriores</q-tooltip>
           </q-btn>
 
-          <!-- Notas & Micro-Conocimiento (#) -->
-          <q-btn
-            flat
-            dense
-            size="sm"
-            color="deep-purple-3"
-            icon="sym_r_sticky_note_2"
-            :label="isMobile ? '' : 'Notas (#)'"
-            class="q-px-xs"
-            @click="openKeepNotesPicker"
+          <div
+            ref="composerToolsScrollRef"
+            class="composer-tools-scroll row items-center no-wrap"
+            @scroll="onComposerToolsScroll"
+            @wheel.passive="onComposerToolsWheel"
           >
-            <q-tooltip>Base de conocimiento y notas rápidas (#)</q-tooltip>
-          </q-btn>
+            <button
+              type="button"
+              class="composer-mode-btn"
+              :class="{ 'composer-mode-btn--active': composerMode === 'whatsapp' }"
+              @click="composerMode = 'whatsapp'"
+            >
+              <q-icon name="sym_r_chat" size="14px" />
+              <span class="composer-btn-text">WhatsApp</span>
+              <q-tooltip>Canal WhatsApp</q-tooltip>
+            </button>
 
-          <!-- Programar Envío Diferido -->
-          <q-btn
-            flat
-            dense
-            size="sm"
-            color="light-blue-3"
-            icon="sym_r_schedule_send"
-            :label="isMobile ? '' : 'Programar'"
-            class="q-px-xs"
-            @click="openScheduleFromChat"
-          >
-            <q-tooltip>Programar mensaje diferido para este contacto</q-tooltip>
-          </q-btn>
+            <button
+              type="button"
+              class="composer-mode-btn composer-mode-btn--note"
+              :class="{ 'composer-mode-btn--active-note': composerMode === 'internal' }"
+              @click="composerMode = 'internal'"
+            >
+              <q-icon name="sym_r_lock" size="14px" />
+              <span class="composer-btn-text">Nota Interna</span>
+              <q-tooltip>Nota interna (solo visible para el equipo)</q-tooltip>
+            </button>
 
-          <!-- Selector de Emojis -->
-          <q-btn
-            flat
-            dense
-            size="sm"
-            color="amber-4"
-            icon="sym_r_sentiment_satisfied"
-            :label="isMobile ? '' : 'Emojis'"
-            class="q-px-xs"
-          >
-            <q-tooltip>Insertar Emoji</q-tooltip>
-            <q-menu anchor="top start" self="bottom start" :offset="[0, 8]" class="emoji-menu-popover">
-              <div class="emoji-picker-container q-pa-sm">
-                <div class="text-caption text-weight-bold text-grey-4 q-mb-xs">Emojis Frecuentes</div>
-                <div class="emoji-grid">
-                  <button
-                    v-for="emoji in popularEmojis"
-                    :key="emoji"
-                    type="button"
-                    class="emoji-grid-btn"
-                    @click="insertEmoji(emoji)"
-                  >
-                    {{ emoji }}
-                  </button>
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="teal-4"
+              icon="sym_r_bolt"
+              class="composer-tool-btn q-px-xs"
+              @click="showQuickMessagesModal = true"
+            >
+              <span class="composer-btn-text q-ml-xs">Respuestas (/)</span>
+              <q-tooltip>Atajos de respuesta rápida (/)</q-tooltip>
+            </q-btn>
+
+            <!-- Notas & Micro-Conocimiento (#) -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="deep-purple-3"
+              icon="sym_r_sticky_note_2"
+              class="composer-tool-btn q-px-xs"
+              @click="openKeepNotesPicker"
+            >
+              <span class="composer-btn-text q-ml-xs">Notas (#)</span>
+              <q-tooltip>Base de conocimiento y notas rápidas (#)</q-tooltip>
+            </q-btn>
+
+            <!-- Programar Envío Diferido -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="light-blue-3"
+              icon="sym_r_schedule_send"
+              class="composer-tool-btn q-px-xs"
+              @click="openScheduleFromChat"
+            >
+              <span class="composer-btn-text q-ml-xs">Programar</span>
+              <q-tooltip>Programar mensaje diferido para este contacto</q-tooltip>
+            </q-btn>
+
+            <!-- Selector de Emojis -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="amber-4"
+              icon="sym_r_sentiment_satisfied"
+              class="composer-tool-btn q-px-xs"
+            >
+              <span class="composer-btn-text q-ml-xs">Emojis</span>
+              <q-tooltip>Insertar Emoji</q-tooltip>
+              <q-menu anchor="top start" self="bottom start" :offset="[0, 8]" class="emoji-menu-popover">
+                <div class="emoji-picker-container q-pa-sm">
+                  <div class="text-caption text-weight-bold text-grey-4 q-mb-xs">Emojis Frecuentes</div>
+                  <div class="emoji-grid">
+                    <button
+                      v-for="emoji in popularEmojis"
+                      :key="emoji"
+                      type="button"
+                      class="emoji-grid-btn"
+                      @click="insertEmoji(emoji)"
+                    >
+                      {{ emoji }}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </q-menu>
-          </q-btn>
+              </q-menu>
+            </q-btn>
 
-          <!-- Adjuntar Archivo / Imagen -->
+            <!-- Adjuntar Archivo / Imagen -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="light-blue-4"
+              icon="sym_r_attach_file"
+              class="composer-tool-btn q-px-xs"
+              @click="triggerFileInput"
+            >
+              <span class="composer-btn-text q-ml-xs">Adjuntar</span>
+              <q-tooltip>Adjuntar imagen/archivo o pegar con Ctrl+V</q-tooltip>
+            </q-btn>
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*,audio/*,application/pdf"
+              style="display: none"
+              @change="handleFileSelected"
+            />
+
+            <!-- Grabar Nota de Voz -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              :color="isRecordingVoice ? 'negative' : 'teal-3'"
+              :icon="isRecordingVoice ? 'sym_r_stop_circle' : 'sym_r_mic'"
+              class="composer-tool-btn q-px-xs"
+              :class="{ 'pulse-recording': isRecordingVoice }"
+              @click="toggleVoiceRecording"
+            >
+              <span v-if="isRecordingVoice" class="q-ml-xs font-mono text-caption">{{ formatRecordTimer(recordingSeconds) }}</span>
+              <span v-else class="composer-btn-text q-ml-xs">Audio</span>
+              <q-tooltip>{{ isRecordingVoice ? 'Detener grabación de audio' : 'Grabar nota de voz con micrófono' }}</q-tooltip>
+            </q-btn>
+
+            <!-- Sugerencia IA con MiniMax -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="amber-4"
+              icon="sym_r_auto_awesome"
+              class="composer-tool-btn q-px-xs"
+              :loading="isGeneratingAiSuggestion"
+              @click="generateAiSuggestion"
+            >
+              <span class="composer-btn-text q-ml-xs">IA Copilot</span>
+              <q-tooltip>Generar sugerencia de respuesta automática con MiniMax según los mensajes del cliente</q-tooltip>
+            </q-btn>
+          </div>
+
+          <!-- Botón de desplazamiento hacia la derecha -->
           <q-btn
+            v-if="canScrollToolsRight"
             flat
             dense
-            size="sm"
-            color="light-blue-4"
-            icon="sym_r_attach_file"
-            :label="isMobile ? '' : 'Adjuntar'"
-            class="q-px-xs"
-            @click="triggerFileInput"
+            round
+            size="xs"
+            color="teal-4"
+            icon="sym_r_chevron_right"
+            class="composer-scroll-btn composer-scroll-btn--right"
+            @click="scrollTools('right')"
           >
-            <q-tooltip>Adjuntar imagen/archivo o pegar con Ctrl+V</q-tooltip>
-          </q-btn>
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/*,audio/*,application/pdf"
-            style="display: none"
-            @change="handleFileSelected"
-          />
-
-          <!-- Grabar Nota de Voz -->
-          <q-btn
-            flat
-            dense
-            size="sm"
-            :color="isRecordingVoice ? 'negative' : 'teal-3'"
-            :icon="isRecordingVoice ? 'sym_r_stop_circle' : 'sym_r_mic'"
-            :label="isRecordingVoice ? formatRecordTimer(recordingSeconds) : (isMobile ? '' : 'Audio')"
-            class="q-px-xs"
-            :class="{ 'pulse-recording': isRecordingVoice }"
-            @click="toggleVoiceRecording"
-          >
-            <q-tooltip>{{ isRecordingVoice ? 'Detener grabación de audio' : 'Grabar nota de voz con micrófono' }}</q-tooltip>
-          </q-btn>
-
-          <!-- Sugerencia IA con MiniMax -->
-          <q-btn
-            flat
-            dense
-            size="sm"
-            color="amber-4"
-            icon="sym_r_auto_awesome"
-            :label="isMobile ? '' : 'IA Copilot'"
-            class="q-px-xs"
-            :loading="isGeneratingAiSuggestion"
-            @click="generateAiSuggestion"
-          >
-            <q-tooltip>Generar sugerencia de respuesta automática con MiniMax según los mensajes del cliente</q-tooltip>
+            <q-tooltip>Ver más herramientas</q-tooltip>
           </q-btn>
         </div>
 
-        <span class="text-caption text-grey-5 gt-xs" style="font-size: 0.7rem">
+        <span class="composer-enter-hint text-caption text-grey-5 gt-sm" style="font-size: 0.7rem">
           Presiona <strong>Enter</strong> para enviar
         </span>
       </div>
@@ -1614,6 +1654,40 @@ const messagesContainer = ref<HTMLElement | null>(null)
 const composerMode = ref<'whatsapp' | 'internal'>('whatsapp')
 const composerText = ref('')
 
+// Navegación horizontal y accesibilidad para herramientas del composer
+const composerToolsScrollRef = ref<HTMLElement | null>(null)
+const canScrollToolsLeft = ref(false)
+const canScrollToolsRight = ref(false)
+let composerToolsResizeObserver: ResizeObserver | null = null
+
+function updateComposerScrollState() {
+  const el = composerToolsScrollRef.value
+  if (!el) return
+  canScrollToolsLeft.value = el.scrollLeft > 6
+  canScrollToolsRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 6
+}
+
+function onComposerToolsScroll() {
+  updateComposerScrollState()
+}
+
+function onComposerToolsWheel(e: WheelEvent) {
+  const el = composerToolsScrollRef.value
+  if (!el) return
+  if (el.scrollWidth > el.clientWidth) {
+    el.scrollLeft += e.deltaY || e.deltaX
+    updateComposerScrollState()
+  }
+}
+
+function scrollTools(direction: 'left' | 'right') {
+  const el = composerToolsScrollRef.value
+  if (!el) return
+  const delta = direction === 'left' ? -150 : 150
+  el.scrollBy({ left: delta, behavior: 'smooth' })
+  setTimeout(updateComposerScrollState, 250)
+}
+
 const filteredQuickMessages = computed(() => {
   const list = quickMessagesQuery.data.value ?? []
   const query = quickSearch.value.trim().toLowerCase()
@@ -1813,9 +1887,24 @@ watch(
   () => scrollToBottom(),
 )
 
-onMounted(() => scrollToBottom())
+onMounted(() => {
+  scrollToBottom()
+  nextTick(() => {
+    updateComposerScrollState()
+    if (composerToolsScrollRef.value && typeof ResizeObserver !== 'undefined') {
+      composerToolsResizeObserver = new ResizeObserver(() => {
+        updateComposerScrollState()
+      })
+      composerToolsResizeObserver.observe(composerToolsScrollRef.value)
+    }
+  })
+})
 
 onUnmounted(() => {
+  if (composerToolsResizeObserver) {
+    composerToolsResizeObserver.disconnect()
+    composerToolsResizeObserver = null
+  }
   if (pendingFilePreview.value) {
     URL.revokeObjectURL(pendingFilePreview.value)
   }
@@ -1963,17 +2052,126 @@ onUnmounted(() => {
   background: var(--crm-bg-sidebar);
   border-top: 1px solid var(--crm-color-border);
   max-height: 45vh;
+  container-type: inline-size;
+  container-name: composer;
 }
 
 .composer-mode-bar {
   padding: 0 4px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.composer-tools-wrapper {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
 }
 
 .composer-tools-scroll {
+  flex: 1 1 0;
+  min-width: 0;
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  padding: 2px 2px;
+
   &::-webkit-scrollbar {
-    display: none;
+    height: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 99px;
+    &:hover {
+      background: rgba(16, 185, 129, 0.6);
+    }
+  }
+}
+
+.composer-scroll-btn {
+  flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(16, 185, 129, 0.3) !important;
+    border-color: rgba(16, 185, 129, 0.8);
+    transform: scale(1.08);
+  }
+
+  &--left {
+    margin-right: 4px;
+  }
+  &--right {
+    margin-left: 4px;
+  }
+}
+
+.composer-tool-btn {
+  flex-shrink: 0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.composer-btn-text {
+  white-space: nowrap;
+}
+
+.composer-enter-hint {
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+/* En contenedores medianos o estrechos, ocultar texto de botones para que quepan todos como iconos */
+@container composer (max-width: 920px) {
+  .composer-enter-hint {
+    display: none !important;
+  }
+}
+
+@container composer (max-width: 780px) {
+  .composer-btn-text {
+    display: none !important;
+  }
+  .composer-mode-btn {
+    padding: 3px 6px !important;
+  }
+  .composer-tool-btn {
+    padding: 2px 4px !important;
+  }
+}
+
+/* Fallback estándar de media queries si el navegador no evalúa container queries */
+@media (max-width: 1250px) {
+  .composer-enter-hint {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1050px) {
+  .composer-btn-text {
+    display: none !important;
   }
 }
 
