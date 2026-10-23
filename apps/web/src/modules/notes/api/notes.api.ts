@@ -7,7 +7,10 @@ import type {
   Note,
   NotePayload,
   RefineAiResult,
+  SimilarMatrixResponse,
   SimilarNotesResponse,
+  SuggestEntitiesPayload,
+  SuggestEntitiesResponse,
 } from '../types/note.types'
 
 export interface NoteFilterParams {
@@ -130,4 +133,27 @@ export async function uploadKnowledgeDocument(formData: FormData): Promise<Note>
     },
   })
   return response.data.data
+}
+
+/**
+ * Consultar matriz de pares de tarjetas similares entre sí en el tablero
+ */
+export async function getSimilarMatrix(params?: {
+  mode?: 'auto' | 'ai' | 'algorithmic'
+  search?: string
+  category_id?: string
+  limit?: number
+}): Promise<SimilarMatrixResponse> {
+  const response = await http.post<SimilarMatrixResponse>('/notes/similar-matrix', params || {})
+  return response.data
+}
+
+/**
+ * Sugerir categorías, estados y etiquetas (con o sin IA) para una nota
+ */
+export async function suggestEntities(
+  payload: SuggestEntitiesPayload
+): Promise<SuggestEntitiesResponse> {
+  const response = await http.post<SuggestEntitiesResponse>('/notes/ai/suggest-entities', payload)
+  return response.data
 }

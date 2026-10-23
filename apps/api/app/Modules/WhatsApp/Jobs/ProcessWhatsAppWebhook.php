@@ -142,17 +142,33 @@ class ProcessWhatsAppWebhook implements ShouldQueue
             ->first();
 
         if (! $conversation) {
-            $conversation = Conversation::query()->create([
-                'organization_id' => $account->organization_id,
-                'contact_id' => $contact->getKey(),
-                'company_id' => null,
-                'created_by_user_id' => null,
-                'channel' => 'whatsapp',
-                'whatsapp_account_id' => $account->getKey(),
-                'status' => 'pending',
-                'subject' => 'WhatsApp: '.$profileName,
-                'last_message_at' => $sentAt,
-            ]);
+            $lastClosed = Conversation::query()
+                ->where('organization_id', $account->organization_id)
+                ->where('contact_id', $contact->getKey())
+                ->where('channel', 'whatsapp')
+                ->latest('last_message_at')
+                ->first();
+
+            if ($lastClosed) {
+                $conversation = $lastClosed;
+                $conversation->forceFill([
+                    'status' => 'pending',
+                    'closed_at' => null,
+                    'whatsapp_account_id' => $account->getKey(),
+                ])->save();
+            } else {
+                $conversation = Conversation::query()->create([
+                    'organization_id' => $account->organization_id,
+                    'contact_id' => $contact->getKey(),
+                    'company_id' => null,
+                    'created_by_user_id' => null,
+                    'channel' => 'whatsapp',
+                    'whatsapp_account_id' => $account->getKey(),
+                    'status' => 'pending',
+                    'subject' => 'WhatsApp: '.$profileName,
+                    'last_message_at' => $sentAt,
+                ]);
+            }
         } elseif (! $conversation->whatsapp_account_id) {
             $conversation->forceFill(['whatsapp_account_id' => $account->getKey()])->save();
         }

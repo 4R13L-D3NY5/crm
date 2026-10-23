@@ -42,7 +42,7 @@ class NoteSimilarityService
             ->where('notes.organization_id', $organizationId)
             ->where('notes.id', '!=', $note->id)
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags']);
+            ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags']);
 
         if (!empty($keywords)) {
             $candidatesQuery->where(function ($q) use ($keywords) {
@@ -60,7 +60,7 @@ class NoteSimilarityService
                 ->where('notes.organization_id', $organizationId)
                 ->where('notes.id', '!=', $note->id)
                 ->visibleToUser($user, $organizationId)
-                ->with(['user', 'categories', 'customStatuses', 'tags'])
+                ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags'])
                 ->orderByDesc('updated_at')
                 ->limit(30)
                 ->get();
@@ -84,6 +84,264 @@ class NoteSimilarityService
     }
 
     /**
+     * Compara las notas de la base de conocimiento entre sí para encontrar pares afines o duplicadas.
+     *
+     * @return array{
+     *     pairs: array<int, array<string, mixed>>,
+     *     total_pairs: int,
+     *     total_scanned: int,
+     *     mode: string
+     * }
+     */
+    public function findSimilarMatrix(
+        User $user,
+        string $mode = 'auto',
+        ?string $search = null,
+        ?string $categoryId = null,
+        int $limit = 25
+    ): array {
+        $organizationId = $user->current_organization_id;
+
+        $query = Note::query()
+            ->where('notes.organization_id', $organizationId)
+            ->where('notes.is_archived', false)
+            ->visibleToUser($user, $organizationId)
+            ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags'])
+            ->orderByDesc('updated_at');
+
+        if (!empty($search)) {
+            $words = preg_split('/\s+/', trim($search), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            if (!empty($words)) {
+                $query->where(function ($q) use ($words) {
+                    foreach ($words as $w) {
+                        $q->where(function ($sub) use ($w) {
+                            $sub->where('title', 'ilike', "%{$w}%")
+                                ->orWhere('content', 'ilike', "%{$w}%");
+                        });
+                    }
+                });
+            }
+        }
+
+        if (!empty($categoryId)) {
+            $query->whereHas('categories', function ($q) use ($categoryId) {
+                $q->where('categories.id', $categoryId);
+            });
+        }
+
+        $notes = $query->limit(80)->get();
+
+        if ($notes->count() < 2) {
+            return [
+                'pairs' => [],
+                'total_pairs' => 0,
+                'total_scanned' => $notes->count(),
+                'mode' => $mode,
+            ];
+        }
+
+        // Precomputar palabras clave y datos para comparaciones O(N) rápidas
+        $preparedNotes = [];
+        foreach ($notes as $note) {
+            $preparedNotes[$note->id] = [
+                'note' => $note,
+                'keywords' => $this->extractKeywords("{$note->title} {$note->content}"),
+                'title_keywords' => $this->extractKeywords($note->title ?? ''),
+                'category_names' => $note->categories->pluck('name')->all(),
+                'tag_names' => $note->tags->pluck('name')->all(),
+            ];
+        }
+
+        $noteIds = $notes->pluck('id')->values()->all();
+        $count = count($noteIds);
+        $pairs = [];
+
+        // Comparación algorítmica par a par
+        for ($i = 0; $i < $count; $i++) {
+            $idA = $noteIds[$i];
+            $dataA = $preparedNotes[$idA];
+
+            for ($j = $i + 1; $j < $count; $j++) {
+                $idB = $noteIds[$j];
+                $dataB = $preparedNotes[$idB];
+
+                // 1. Intersección de palabras clave
+                $kwA = $dataA['keywords'];
+                $kwB = $dataB['keywords'];
+                if (empty($kwA) || empty($kwB)) {
+                    continue;
+                }
+
+                $intersection = array_intersect($kwA, $kwB);
+                $union = array_unique(array_merge($kwA, $kwB));
+                $jaccard = count($union) > 0 ? (count($intersection) / count($union)) : 0;
+                $overlapMin = min(count($kwA), count($kwB));
+                $overlapScore = $overlapMin > 0 ? (count($intersection) / $overlapMin) : 0;
+
+                $textScore = ($jaccard * 0.4 + $overlapScore * 0.6) * 70;
+
+                // 2. Categorías compartidas (+20 pts)
+                $sharedCats = array_intersect($dataA['category_names'], $dataB['category_names']);
+                $catBonus = !empty($sharedCats) ? 20 : 0;
+
+                // 3. Etiquetas compartidas (+15 pts)
+                $sharedTags = array_intersect($dataA['tag_names'], $dataB['tag_names']);
+                $tagBonus = !empty($sharedTags) ? 15 : 0;
+
+                // 4. Palabras compartidas en título (+15 pts)
+                $sharedTitle = array_intersect($dataA['title_keywords'], $dataB['title_keywords']);
+                $titleBonus = !empty($sharedTitle) ? 15 : 0;
+
+                $totalScore = (int) round($textScore + $catBonus + $tagBonus + $titleBonus);
+
+                if ($totalScore >= 25) {
+                    $matchedKw = array_slice(array_values($intersection), 0, 3);
+                    $reasonParts = [];
+                    if (!empty($matchedKw)) {
+                        $reasonParts[] = 'términos ("' . implode('", "', $matchedKw) . '")';
+                    }
+                    if (!empty($sharedCats)) {
+                        $reasonParts[] = 'categoría (' . reset($sharedCats) . ')';
+                    }
+                    if (!empty($sharedTags)) {
+                        $reasonParts[] = 'etiqueta (' . reset($sharedTags) . ')';
+                    }
+                    if (!empty($sharedTitle)) {
+                        $reasonParts[] = 'título afín';
+                    }
+
+                    $reason = !empty($reasonParts)
+                        ? 'Coincidencia en ' . implode(' y ', $reasonParts) . '.'
+                        : 'Afinidad temática detectada.';
+
+                    $pairs[] = [
+                        'id' => "{$idA}_{$idB}",
+                        'note_a' => (new NoteResource($dataA['note']))->resolve(),
+                        'note_b' => (new NoteResource($dataB['note']))->resolve(),
+                        'similarity_percent' => min(98, max(25, $totalScore)),
+                        'similarity_reason' => $reason,
+                        'source' => 'algorithmic',
+                        'matched_keywords' => $matchedKw,
+                    ];
+                }
+            }
+        }
+
+        // Ordenar pares de mayor a menor porcentaje de parecido
+        usort($pairs, fn ($a, $b) => $b['similarity_percent'] <=> $a['similarity_percent']);
+        $topPairs = array_slice($pairs, 0, $limit);
+
+        // Si se solicita modo IA o auto, y hay configuración de IA activa, refinar los mejores pares
+        if (($mode === 'ai' || $mode === 'auto') && !empty($topPairs)) {
+            $config = $this->aiCopilotService->getEffectiveConfig($organizationId);
+            if (!empty($config['api_key'])) {
+                try {
+                    $aiPairs = $this->enrichPairsWithAi($topPairs, $config, $organizationId);
+                    if (!empty($aiPairs)) {
+                        return [
+                            'pairs' => $aiPairs,
+                            'total_pairs' => count($aiPairs),
+                            'total_scanned' => $notes->count(),
+                            'mode' => 'ia',
+                        ];
+                    }
+                } catch (\Throwable $e) {
+                    Log::info("Similitud Matrix con IA falló ({$e->getMessage()}), empleando evaluación algorítmica.");
+                }
+            }
+        }
+
+        return [
+            'pairs' => $topPairs,
+            'total_pairs' => count($topPairs),
+            'total_scanned' => $notes->count(),
+            'mode' => 'algorithmic',
+        ];
+    }
+
+    /**
+     * Enriquece con IA los pares candidatos preseleccionados, refinando el porcentaje y redactando la razón.
+     *
+     * @param array<int, array<string, mixed>> $candidatePairs
+     * @param array<string, mixed> $config
+     * @return array<int, array<string, mixed>>
+     */
+    protected function enrichPairsWithAi(array $candidatePairs, array $config, string $organizationId): array
+    {
+        $pairsToEvaluate = array_slice($candidatePairs, 0, 10);
+        $payload = array_map(function ($item) {
+            return [
+                'pair_id' => $item['id'],
+                'note_a_title' => $item['note_a']['title'] ?? '',
+                'note_a_snippet' => Str::limit($item['note_a']['content'] ?? '', 160),
+                'note_b_title' => $item['note_b']['title'] ?? '',
+                'note_b_snippet' => Str::limit($item['note_b']['content'] ?? '', 160),
+            ];
+        }, $pairsToEvaluate);
+
+        $payloadJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $prompt = <<<PROMPT
+Eres un asistente CRM especialista en análisis de duplicidad y relaciones de base de conocimiento.
+Evalúa semánticamente los siguientes pares de notas y determina el porcentaje de parecido temático (30% a 99%) y una breve explicación en español (máx 15 palabras) de por qué se relacionan.
+
+Pares de notas:
+{$payloadJson}
+
+Devuelve ÚNICAMENTE un array JSON válido con la siguiente estructura:
+[
+  {
+    "pair_id": "ID_DEL_PAR",
+    "similarity_percent": 85,
+    "reason": "Ambas notas detallan aranceles de medicina y métodos de pago."
+  }
+]
+PROMPT;
+
+        $rawResponse = $this->aiCopilotService->sendDirectPrompt(
+            prompt: $prompt,
+            provider: $config['provider'],
+            apiKey: $config['api_key'],
+            model: $config['model'],
+            baseUrl: $config['base_url'],
+            systemInstruction: 'Responde siempre y exclusivamente en JSON sin markdown ni saludos.',
+            organizationId: $organizationId,
+            bypassBudget: true
+        );
+
+        $clean = trim($rawResponse);
+        if (str_starts_with($clean, '```json')) {
+            $clean = substr($clean, 7);
+        }
+        if (str_starts_with($clean, '```')) {
+            $clean = substr($clean, 3);
+        }
+        if (str_ends_with($clean, '```')) {
+            $clean = substr($clean, 0, -3);
+        }
+
+        $decoded = json_decode(trim($clean), true);
+        if (!is_array($decoded)) {
+            return $candidatePairs;
+        }
+
+        $aiByPairId = collect($decoded)->keyBy('pair_id');
+        $enriched = [];
+
+        foreach ($candidatePairs as $pair) {
+            $aiData = $aiByPairId->get($pair['id']);
+            if ($aiData) {
+                $pair['similarity_percent'] = max(30, min(99, (int) ($aiData['similarity_percent'] ?? $pair['similarity_percent'])));
+                $pair['similarity_reason'] = $aiData['reason'] ?? $pair['similarity_reason'];
+                $pair['source'] = 'ia';
+            }
+            $enriched[] = $pair;
+        }
+
+        usort($enriched, fn ($a, $b) => $b['similarity_percent'] <=> $a['similarity_percent']);
+        return $enriched;
+    }
+
+    /**
      * Encuentra notas similares a partir de un borrador de contenido y título.
      *
      * @return array<int, array<string, mixed>>
@@ -102,7 +360,7 @@ class NoteSimilarityService
         $query = Note::query()
             ->where('notes.organization_id', $organizationId)
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags']);
+            ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags']);
 
         if (!empty($excludeId)) {
             $query->where('notes.id', '!=', $excludeId);
@@ -123,7 +381,7 @@ class NoteSimilarityService
             $fallbackQuery = Note::query()
                 ->where('notes.organization_id', $organizationId)
                 ->visibleToUser($user, $organizationId)
-                ->with(['user', 'categories', 'customStatuses', 'tags'])
+                ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags'])
                 ->orderByDesc('updated_at');
 
             if (!empty($excludeId)) {

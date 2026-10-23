@@ -218,7 +218,7 @@ class WhatsAppQrSessionController extends Controller
             );
         }
 
-        // 2. Buscar conversación activa existente o crear nueva
+        // 2. Buscar conversación activa existente o reabrir la última cerrada (Chat Continuo)
         $conversation = Conversation::where('organization_id', $organization->id)
             ->where('contact_id', $contact->id)
             ->where('channel', $channel)
@@ -227,15 +227,30 @@ class WhatsAppQrSessionController extends Controller
             ->first();
 
         if (!$conversation) {
-            $conversation = Conversation::create([
-                'organization_id' => $organization->id,
-                'contact_id' => $contact->id,
-                'channel' => $channel,
-                'whatsapp_account_id' => $account->id,
-                'status' => 'pending',
-                'unread_count' => 0,
-                'last_message_at' => Carbon::now(),
-            ]);
+            $lastClosed = Conversation::where('organization_id', $organization->id)
+                ->where('contact_id', $contact->id)
+                ->where('channel', $channel)
+                ->latest('last_message_at')
+                ->first();
+
+            if ($lastClosed) {
+                $conversation = $lastClosed;
+                $conversation->update([
+                    'status' => 'pending',
+                    'closed_at' => null,
+                    'whatsapp_account_id' => $account->id,
+                ]);
+            } else {
+                $conversation = Conversation::create([
+                    'organization_id' => $organization->id,
+                    'contact_id' => $contact->id,
+                    'channel' => $channel,
+                    'whatsapp_account_id' => $account->id,
+                    'status' => 'pending',
+                    'unread_count' => 0,
+                    'last_message_at' => Carbon::now(),
+                ]);
+            }
         }
 
         $conversation->increment('unread_count');

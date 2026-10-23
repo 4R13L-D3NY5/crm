@@ -12,12 +12,50 @@
           {{ getInitials(conversation.contact?.name || conversation.subject || 'W') }}
         </q-avatar>
 
-        <div class="text-subtitle1 text-weight-bold text-white">
-          {{ conversation.contact?.name || conversation.subject || 'Cliente' }}
+        <div class="row items-center justify-center q-gutter-x-xs">
+          <div class="text-subtitle1 text-weight-bold text-white">
+            {{ conversation.contact?.name || conversation.subject || 'Cliente' }}
+          </div>
+          <q-btn
+            v-if="conversation.contact"
+            flat
+            round
+            dense
+            size="xs"
+            color="teal-3"
+            icon="sym_r_edit"
+            @click="openEditContactDialog"
+          >
+            <q-tooltip>Editar datos / teléfono del cliente</q-tooltip>
+          </q-btn>
         </div>
 
-        <div v-if="conversation.contact?.phone" class="text-caption text-grey-4 font-mono q-mt-xs">
-          {{ conversation.contact.phone }}
+        <div v-if="conversation.contact?.phone" class="row items-center justify-center q-gutter-x-xs q-mt-xs">
+          <span class="text-caption text-grey-4 font-mono">{{ conversation.contact.phone }}</span>
+          <q-badge
+            v-if="conversation.contact?.custom_fields?.whatsapp_lid"
+            color="grey-8"
+            text-color="grey-4"
+            class="q-px-xs font-mono"
+            style="font-size: 0.65rem"
+          >
+            LID
+            <q-tooltip class="bg-dark text-white shadow-3 text-caption">
+              Vinculado a WhatsApp LID: {{ conversation.contact.custom_fields.whatsapp_lid }}
+            </q-tooltip>
+          </q-badge>
+        </div>
+        <div v-else class="q-mt-xs">
+          <q-btn
+            flat
+            dense
+            size="xs"
+            color="teal-3"
+            icon="sym_r_add"
+            label="Asignar teléfono"
+            no-caps
+            @click="openEditContactDialog"
+          />
         </div>
 
         <div class="row items-center q-gutter-x-sm q-mt-sm">
@@ -433,6 +471,89 @@
         </q-card>
       </q-dialog>
 
+      <!-- Diálogo Editar Contacto / Teléfono -->
+      <q-dialog v-model="isEditContactDialogOpen">
+        <q-card style="width: 460px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
+          <q-card-section>
+            <div class="text-subtitle1 text-bold text-white row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_person_edit" size="20px" class="text-teal-4" />
+              <span>Editar Datos del Cliente</span>
+            </div>
+            <div class="text-caption text-grey-4 q-mt-xs">
+              Actualiza el teléfono real o nombre del contacto. La vinculación de WhatsApp se mantiene intacta.
+            </div>
+          </q-card-section>
+
+          <q-card-section class="q-gutter-y-sm">
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-sm-6">
+                <q-input
+                  v-model="editContactForm.first_name"
+                  label="Nombre *"
+                  outlined
+                  dark
+                  dense
+                  :rules="[val => !!val?.trim() || 'El nombre es obligatorio']"
+                />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-input
+                  v-model="editContactForm.last_name"
+                  label="Apellido"
+                  outlined
+                  dark
+                  dense
+                />
+              </div>
+            </div>
+
+            <q-input
+              v-model="editContactForm.phone"
+              label="Teléfono Móvil / WhatsApp *"
+              outlined
+              dark
+              dense
+              placeholder="+591 70000000"
+              hint="Coloca el número real (ej: +591 79326793)"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_call" size="18px" class="text-teal-4" />
+              </template>
+            </q-input>
+
+            <q-input
+              v-model="editContactForm.email"
+              label="Correo electrónico"
+              outlined
+              dark
+              dense
+              type="email"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_mail" size="18px" class="text-teal-4" />
+              </template>
+            </q-input>
+
+            <div v-if="conversation.contact?.custom_fields?.whatsapp_lid" class="q-pa-xs rounded-borders bg-dark text-caption text-grey-4 font-mono row items-center justify-between" style="border: 1px dashed var(--crm-color-border);">
+              <span>ID Técnico (WhatsApp LID):</span>
+              <span class="text-teal-3">{{ conversation.contact.custom_fields.whatsapp_lid }}</span>
+            </div>
+          </q-card-section>
+
+          <q-card-actions align="right" class="q-mt-sm">
+            <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
+            <q-btn
+              unelevated
+              label="Guardar Cambios"
+              color="primary"
+              no-caps
+              :loading="savingContact"
+              @click="submitEditContact"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
       <!-- Resumen Inteligente de la Conversación con MiniMax -->
       <div class="q-mb-md">
         <div class="row items-center justify-between q-mb-xs">
@@ -589,6 +710,62 @@ const notify = useAppNotify()
 const queryClient = useQueryClient()
 const aiSummaryData = ref<{ summary: string; key_points: string[] } | null>(null)
 const isLoadingAiSummary = ref(false)
+
+// Edición de Contacto / Teléfono
+const isEditContactDialogOpen = ref(false)
+const savingContact = ref(false)
+const editContactForm = ref({
+  first_name: '',
+  last_name: '',
+  phone: '',
+  email: '',
+})
+
+function openEditContactDialog() {
+  const c = props.conversation?.contact as any
+  if (!c) return
+  editContactForm.value = {
+    first_name: c.first_name || c.name || '',
+    last_name: c.last_name || '',
+    phone: c.phone || '',
+    email: c.email || '',
+  }
+  isEditContactDialogOpen.value = true
+}
+
+async function submitEditContact() {
+  const contactId = props.conversation?.contact?.id
+  if (!contactId) return
+  if (!editContactForm.value.first_name?.trim()) {
+    notify.error({ message: 'El nombre es obligatorio' })
+    return
+  }
+  savingContact.value = true
+  try {
+    const payload = {
+      first_name: editContactForm.value.first_name.trim(),
+      last_name: editContactForm.value.last_name?.trim() || null,
+      phone: editContactForm.value.phone?.trim() || null,
+      email: editContactForm.value.email?.trim() || null,
+    }
+    const res = await http.put(`/contacts/${contactId}`, payload)
+    const updated = res.data?.data || res.data
+    if (props.conversation?.contact) {
+      Object.assign(props.conversation.contact, updated)
+      if (updated.first_name) {
+        props.conversation.contact.name = [updated.first_name, updated.last_name].filter(Boolean).join(' ')
+      }
+    }
+    await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    await queryClient.invalidateQueries({ queryKey: ['contacts'] })
+    isEditContactDialogOpen.value = false
+    notify.success({ message: 'Datos del cliente actualizados exitosamente.' })
+  } catch (e: any) {
+    notify.error({ message: 'Error al actualizar contacto: ' + (e?.response?.data?.message || e?.message || 'Error desconocido') })
+  } finally {
+    savingContact.value = false
+  }
+}
 
 async function loadAiSummary() {
   if (!props.conversation?.id) return

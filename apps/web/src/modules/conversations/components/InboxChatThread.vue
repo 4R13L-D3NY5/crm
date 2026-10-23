@@ -347,10 +347,12 @@
             <span class="message-time">{{ formatMessageTime(msg.sent_at || msg.created_at) }}</span>
             <q-icon
               v-if="msg.direction === 'outbound' && !msg.is_internal"
-              name="sym_r_done_all"
+              :name="msg.delivery_status === 'pending' || msg.id.startsWith('temp_') ? 'sym_r_schedule' : 'sym_r_done_all'"
               size="13px"
-              color="teal-3"
-            />
+              :color="msg.delivery_status === 'pending' || msg.id.startsWith('temp_') ? 'grey-5' : 'teal-3'"
+            >
+              <q-tooltip v-if="msg.delivery_status === 'pending' || msg.id.startsWith('temp_')">Enviando...</q-tooltip>
+            </q-icon>
           </div>
         </div>
       </div>
@@ -703,7 +705,7 @@
           :rows="1"
           :placeholder="composerMode === 'whatsapp' ? 'Escribe una respuesta para el cliente... (o pega imagen con Ctrl+V, / para atajos)' : 'Escribe una nota interna para los supervisores...'"
           class="composer-textarea col"
-          @keydown.enter.exact.prevent="!isSending && handleSend()"
+          @keydown.enter.exact.prevent="handleSend"
           @paste="handlePaste"
         />
 
@@ -713,8 +715,7 @@
           round
           :color="composerMode === 'whatsapp' ? 'primary' : 'amber-8'"
           icon="sym_r_send"
-          :loading="isSending"
-          :disable="(!composerText.trim() && !pendingFile) || isSending"
+          :disable="!composerText.trim() && !pendingFile"
           @click="handleSend"
         />
       </div>
@@ -1862,16 +1863,21 @@ function getChannelLabel(channel?: string) {
 }
 
 function handleSend() {
-  if (props.isSending) return
   if (!composerText.value.trim() && !pendingFile.value) return
-  emit('send-message', {
-    body: composerText.value.trim(),
-    is_internal: composerMode.value === 'internal',
-    file: pendingFile.value,
-    media_type: pendingFileType.value,
-  })
+  const text = composerText.value.trim()
+  const isInternal = composerMode.value === 'internal'
+  const file = pendingFile.value
+  const mediaType = pendingFileType.value
+
   composerText.value = ''
   clearPendingFile()
+
+  emit('send-message', {
+    body: text,
+    is_internal: isInternal,
+    file,
+    media_type: mediaType,
+  })
 }
 
 function scrollToBottom() {

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 
@@ -28,6 +29,8 @@ import {
 import type {
   AssignmentPayload,
   CloseTicketPayload,
+  Conversation,
+  ConversationMessage,
   ConversationFilters,
   CreateConversationPayload,
   InternalMessagePayload,
@@ -96,6 +99,7 @@ export function useConversationFormOptions() {
 
 export function useConversationMutations(conversationId: MaybeRefOrGetter<string>) {
   const queryClient = useQueryClient()
+  const authStore = useAuthStore()
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['conversations'] })
@@ -105,6 +109,73 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
     if (currentId) {
       await queryClient.invalidateQueries({ queryKey: ['conversation', currentId] })
     }
+  }
+
+  const createOptimisticMessage = (
+    convId: string,
+    body: string,
+    isInternal: boolean = false,
+    mediaType?: string | null,
+    mediaUrl?: string | null,
+  ): ConversationMessage => {
+    const nowIso = new Date().toISOString()
+    return {
+      id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      conversation_id: convId,
+      direction: isInternal ? 'internal' : 'outbound',
+      is_internal: isInternal,
+      message_type: mediaType || 'text',
+      message_status: 'pending',
+      delivery_status: 'pending',
+      body,
+      media_url: mediaUrl,
+      media_type: (mediaType as any) || (mediaUrl ? 'image' : null),
+      sent_at: nowIso,
+      created_at: nowIso,
+      user: authStore.user ? {
+        id: authStore.user.id,
+        name: authStore.user.name,
+        email: authStore.user.email,
+      } : null,
+    }
+  }
+
+  const applyOptimisticMessage = (convId: string, optimisticMsg: ConversationMessage) => {
+    queryClient.setQueryData<Conversation>(['conversation', convId], (old) => {
+      if (!old) return old
+      return {
+        ...old,
+        last_message_at: optimisticMsg.sent_at,
+        messages: [...(old.messages || []), optimisticMsg],
+      }
+    })
+  }
+
+  const replaceOptimisticMessage = (convId: string, tempId: string, realMsg: ConversationMessage) => {
+    queryClient.setQueryData<Conversation>(['conversation', convId], (old) => {
+      if (!old) return old
+      const exists = (old.messages || []).some((m) => m.id === realMsg.id)
+      let messages = (old.messages || []).map((m) => (m.id === tempId ? realMsg : m))
+      if (exists) {
+        messages = messages.filter((m) => m.id !== tempId)
+      }
+      return {
+        ...old,
+        last_message_at: realMsg.sent_at || old.last_message_at,
+        messages,
+      }
+    })
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+  }
+
+  const rollbackOptimisticMessage = (convId: string, tempId: string) => {
+    queryClient.setQueryData<Conversation>(['conversation', convId], (old) => {
+      if (!old) return old
+      return {
+        ...old,
+        messages: (old.messages || []).filter((m) => m.id !== tempId),
+      }
+    })
   }
 
   const createMutation = useMutation({
@@ -148,7 +219,31 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
       id: string
       payload: InternalMessagePayload
     }) => createInternalMessage(id, payload),
-    onSuccess: invalidate,
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ['conversation', id] })
+      const optimisticMsg = createOptimisticMessage(id, payload.body, true, 'text', null)
+      applyOptimisticMessage(id, optimisticMsg)
+      return { tempId: optimisticMsg.id, id }
+    },
+    onSuccess: (_data, variables, context) => {
+      if (context?.tempId) {
+        queryClient.setQueryData<Conversation>(['conversation', variables.id], (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            messages: (old.messages || []).map((m) =>
+              m.id === context.tempId ? { ...m, delivery_status: 'delivered', message_status: 'delivered' } : m
+            ),
+          }
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    },
+    onError: (_err, variables, context) => {
+      if (context?.tempId) {
+        rollbackOptimisticMessage(variables.id, context.tempId)
+      }
+    },
   })
 
   const whatsappMessageMutation = useMutation({
@@ -159,7 +254,30 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
       id: string
       payload: WhatsAppMessagePayload | FormData
     }) => createWhatsAppMessage(id, payload),
-    onSuccess: invalidate,
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ['conversation', id] })
+      const bodyText = payload instanceof FormData ? (payload.get('body') as string) : (payload.body || '')
+      const mediaType = payload instanceof FormData ? (payload.get('media_type') as string) : (payload.media_type || 'text')
+      const file = payload instanceof FormData ? (payload.get('file') as File | null) : null
+      const mediaUrl = file ? URL.createObjectURL(file) : null
+
+      const optimisticMsg = createOptimisticMessage(id, bodyText, false, mediaType, mediaUrl)
+      applyOptimisticMessage(id, optimisticMsg)
+
+      return { tempId: optimisticMsg.id, id }
+    },
+    onSuccess: (realMsg, variables, context) => {
+      if (context?.tempId) {
+        replaceOptimisticMessage(variables.id, context.tempId, realMsg)
+      } else {
+        invalidate()
+      }
+    },
+    onError: (_err, variables, context) => {
+      if (context?.tempId) {
+        rollbackOptimisticMessage(variables.id, context.tempId)
+      }
+    },
   })
 
   const instagramMessageMutation = useMutation({
@@ -170,7 +288,24 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
       id: string
       payload: { body: string }
     }) => sendInstagramMessage(id, payload),
-    onSuccess: invalidate,
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ['conversation', id] })
+      const optimisticMsg = createOptimisticMessage(id, payload.body, false, 'text', null)
+      applyOptimisticMessage(id, optimisticMsg)
+      return { tempId: optimisticMsg.id, id }
+    },
+    onSuccess: (realMsg, variables, context) => {
+      if (context?.tempId) {
+        replaceOptimisticMessage(variables.id, context.tempId, realMsg)
+      } else {
+        invalidate()
+      }
+    },
+    onError: (_err, variables, context) => {
+      if (context?.tempId) {
+        rollbackOptimisticMessage(variables.id, context.tempId)
+      }
+    },
   })
 
   const facebookMessageMutation = useMutation({
@@ -181,7 +316,24 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
       id: string
       payload: { body: string }
     }) => sendFacebookMessage(id, payload),
-    onSuccess: invalidate,
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ['conversation', id] })
+      const optimisticMsg = createOptimisticMessage(id, payload.body, false, 'text', null)
+      applyOptimisticMessage(id, optimisticMsg)
+      return { tempId: optimisticMsg.id, id }
+    },
+    onSuccess: (realMsg, variables, context) => {
+      if (context?.tempId) {
+        replaceOptimisticMessage(variables.id, context.tempId, realMsg)
+      } else {
+        invalidate()
+      }
+    },
+    onError: (_err, variables, context) => {
+      if (context?.tempId) {
+        rollbackOptimisticMessage(variables.id, context.tempId)
+      }
+    },
   })
 
   const retryWhatsAppMutation = useMutation({

@@ -81,7 +81,8 @@
         <q-avatar size="14px" :style="{ backgroundColor: cat.color || '#10b981' }">
           <q-icon name="sym_r_school" size="10px" color="white" />
         </q-avatar>
-        {{ cat.name }}
+        <span class="ellipsis" style="max-width: 220px; display: inline-block;">{{ cat.display_path || cat.name }}</span>
+        <q-tooltip class="bg-dark text-white font-mono text-caption">{{ cat.full_path || cat.display_path || cat.name }}</q-tooltip>
       </q-chip>
 
       <!-- Estados de Lead -->

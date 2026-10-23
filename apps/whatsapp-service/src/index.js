@@ -248,28 +248,67 @@ async function initSession(sessionId) {
     }
   });
 
-  // Mapa de nombres de contactos y mapeo bidireccional LID <-> Teléfono
-  const contactsMap = {};
-  const lidToPhoneMap = {};
-  const phoneToLidMap = {};
+  // Mapa de nombres de contactos y mapeo bidireccional LID <-> Teléfono con persistencia en disco
+  const lidMappingFile = path.join(sessionPath, 'lid-mapping.json');
+  let contactsMap = {};
+  let lidToPhoneMap = {};
+  let phoneToLidMap = {};
+
+  try {
+    if (fs.existsSync(lidMappingFile)) {
+      const persisted = JSON.parse(fs.readFileSync(lidMappingFile, 'utf-8'));
+      lidToPhoneMap = persisted.lidToPhone || {};
+      phoneToLidMap = persisted.phoneToLid || {};
+      contactsMap = persisted.contacts || {};
+    }
+  } catch (err) {
+    console.warn(`[LID Mapping Load Warning] account=${sessionId}: ${err.message}`);
+  }
+
+  function saveLidMapping() {
+    try {
+      fs.writeFileSync(
+        lidMappingFile,
+        JSON.stringify({ lidToPhone: lidToPhoneMap, phoneToLid: phoneToLidMap, contacts: contactsMap }, null, 2),
+        'utf-8'
+      );
+    } catch (err) {
+      console.warn(`[LID Mapping Save Warning] account=${sessionId}: ${err.message}`);
+    }
+  }
 
   function registerContactMapping(c) {
     if (!c) return;
+    let modified = false;
     if (c.id) {
-      contactsMap[c.id] = c.name || c.notify || c.verifiedName || contactsMap[c.id];
+      const prevName = contactsMap[c.id];
+      const newName = c.name || c.notify || c.verifiedName || prevName;
+      if (newName && newName !== prevName) {
+        contactsMap[c.id] = newName;
+        modified = true;
+      }
     }
     // Mapear si el contacto contiene tanto @lid como @s.whatsapp.net
     if (c.lid && c.id && c.id.endsWith('@s.whatsapp.net')) {
       const phone = '+' + c.id.split('@')[0].split(':')[0];
       const lidClean = c.lid.split('@')[0].split(':')[0];
-      lidToPhoneMap[lidClean] = phone;
-      phoneToLidMap[phone] = lidClean;
+      if (lidToPhoneMap[lidClean] !== phone) {
+        lidToPhoneMap[lidClean] = phone;
+        phoneToLidMap[phone] = lidClean;
+        modified = true;
+      }
     }
     if (c.phoneNumber && c.id && c.id.endsWith('@lid')) {
       const phone = '+' + c.phoneNumber.replace(/[^0-9]/g, '');
       const lidClean = c.id.split('@')[0].split(':')[0];
-      lidToPhoneMap[lidClean] = phone;
-      phoneToLidMap[phone] = lidClean;
+      if (lidToPhoneMap[lidClean] !== phone) {
+        lidToPhoneMap[lidClean] = phone;
+        phoneToLidMap[phone] = lidClean;
+        modified = true;
+      }
+    }
+    if (modified) {
+      saveLidMapping();
     }
   }
 
@@ -327,14 +366,28 @@ async function initSession(sessionId) {
         cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(remoteJid) : remoteJid).split('@')[0].split(':')[0];
       } else if (remoteJid.endsWith('@lid')) {
         lid = remoteJid.split('@')[0].split(':')[0];
-        // En mensajes entrantes (!isFromMe), participant puede traer el teléfono real @s.whatsapp.net
-        if (!isFromMe && msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
+
+        // 1) Intentar extraer número telefónico real desde metadatos senderPn / participantPn que Baileys decodifica
+        const pnCandidate = msg.key?.senderPn || msg.key?.participantPn || msg.senderPn || msg.participantPn;
+        if (pnCandidate) {
+          const rawPn = pnCandidate.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+          if (rawPn.length >= 8 && rawPn.length <= 13) {
+            cleanPhone = `+${rawPn}`;
+            lidToPhoneMap[lid] = cleanPhone;
+            phoneToLidMap[cleanPhone] = lid;
+            saveLidMapping();
+          }
+        }
+
+        // 2) En mensajes entrantes (!isFromMe), participant puede traer el teléfono real @s.whatsapp.net
+        if (!cleanPhone && !isFromMe && msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
           cleanPhone = '+' + (jidNormalizedUser ? jidNormalizedUser(msg.key.participant) : msg.key.participant).split('@')[0].split(':')[0];
           lidToPhoneMap[lid] = cleanPhone;
           phoneToLidMap[cleanPhone] = lid;
-        } else if (lidToPhoneMap[lid]) {
+          saveLidMapping();
+        } else if (!cleanPhone && lidToPhoneMap[lid]) {
           cleanPhone = lidToPhoneMap[lid];
-        } else {
+        } else if (!cleanPhone) {
           cleanPhone = `+${lid}`;
         }
       } else {

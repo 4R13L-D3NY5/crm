@@ -4,8 +4,10 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Contacts\Models\Contact;
+use App\Modules\Conversations\Events\TicketCreatedEvent;
 use App\Modules\Conversations\Events\TicketMessageCreatedEvent;
 use App\Modules\Conversations\Events\TicketMessageUpdatedEvent;
+use App\Modules\Conversations\Events\TicketUpdatedEvent;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
@@ -13,6 +15,7 @@ use App\Modules\WhatsApp\Models\WhatsAppMessageMapping;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -228,23 +231,62 @@ class BaileysWebhookController extends Controller
             }
         }
 
-        // 2. Conversación activa (unificar si existe una conversación con el contacto o su gemelo LID)
-        $conversation = Conversation::where('organization_id', $account->organization_id)
-            ->where(function ($q) use ($contact, $lid) {
-                $q->where('contact_id', $contact->id);
-                if ($lid) {
-                    $q->orWhereHas('contact', function ($cq) use ($lid) {
-                        $cq->where('phone', "+{$lid}")->orWhere('phone', $lid);
-                    });
-                }
-            })
-            ->where('channel', 'whatsapp')
-            ->whereIn('status', ['pending', 'open'])
-            ->latest('last_message_at')
-            ->first();
+        // 2. Localización o reactivación unificada de la conversación (Chat Continuo)
+        // Concurrencia segura: usamos lockForUpdate sobre el contacto para serializar ráfagas de mensajes simultáneos
+        [$conversation, $wasReopened, $isNewlyCreated] = DB::transaction(function () use ($account, $contact, $lid, $isFromMe) {
+            Contact::where('id', $contact->id)->lockForUpdate()->first();
 
-        if (! $conversation) {
-            $conversation = Conversation::create([
+            // 2.1. Buscar conversación activa existente ('pending' u 'open')
+            $activeConv = Conversation::where('organization_id', $account->organization_id)
+                ->where(function ($q) use ($contact, $lid) {
+                    $q->where('contact_id', $contact->id);
+                    if ($lid) {
+                        $q->orWhereHas('contact', function ($cq) use ($lid) {
+                            $cq->where('phone', "+{$lid}")->orWhere('phone', $lid);
+                        });
+                    }
+                })
+                ->where('channel', 'whatsapp')
+                ->whereIn('status', ['pending', 'open'])
+                ->latest('last_message_at')
+                ->first();
+
+            if ($activeConv) {
+                if (! $activeConv->whatsapp_account_id) {
+                    $activeConv->update(['whatsapp_account_id' => $account->id]);
+                }
+                return [$activeConv, false, false];
+            }
+
+            // 2.2. Si no hay conversación abierta, buscar la última conversación (cerrada / resuelta) para reactivarla
+            $lastClosed = Conversation::where('organization_id', $account->organization_id)
+                ->where(function ($q) use ($contact, $lid) {
+                    $q->where('contact_id', $contact->id);
+                    if ($lid) {
+                        $q->orWhereHas('contact', function ($cq) use ($lid) {
+                            $cq->where('phone', "+{$lid}")->orWhere('phone', $lid);
+                        });
+                    }
+                })
+                ->where('channel', 'whatsapp')
+                ->latest('last_message_at')
+                ->first();
+
+            if ($lastClosed) {
+                // Reabrir la conversación existente:
+                // Si el mensaje es entrante del cliente, pasa a 'pending' (En espera) para ser atendido.
+                // Si es un mensaje saliente espejo del asesor, pasa a 'open' (Atendiendo).
+                $lastClosed->update([
+                    'status' => $isFromMe ? 'open' : 'pending',
+                    'closed_at' => null,
+                    'whatsapp_account_id' => $account->id,
+                ]);
+
+                return [$lastClosed, true, false];
+            }
+
+            // 2.3. Si nunca ha existido ninguna conversación previa, crearla por primera vez
+            $newConv = Conversation::create([
                 'organization_id' => $account->organization_id,
                 'contact_id' => $contact->id,
                 'channel' => 'whatsapp',
@@ -253,9 +295,9 @@ class BaileysWebhookController extends Controller
                 'unread_count' => 0,
                 'last_message_at' => Carbon::now(),
             ]);
-        } elseif (! $conversation->whatsapp_account_id) {
-            $conversation->update(['whatsapp_account_id' => $account->id]);
-        }
+
+            return [$newConv, false, true];
+        });
 
         if ($isFromMe) {
             // Sincronización espejo de mensaje enviado fuera del CRM (WhatsApp Web o Móvil Android/iOS)
@@ -349,8 +391,14 @@ class BaileysWebhookController extends Controller
             );
         }
 
-        // 5. Emitir evento de Socket en tiempo real
+        // 5. Emitir eventos de Socket en tiempo real
         event(new TicketMessageCreatedEvent($msg));
+
+        if ($wasReopened) {
+            event(new TicketUpdatedEvent($conversation->fresh()));
+        } elseif ($isNewlyCreated) {
+            event(new TicketCreatedEvent($conversation->fresh()));
+        }
 
         // 6. Verificar y enviar auto-respuesta si el mensaje ingresa fuera de horario laboral
         if (! $isFromMe) {

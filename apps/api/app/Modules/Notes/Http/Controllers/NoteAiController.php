@@ -3,11 +3,15 @@
 namespace App\Modules\Notes\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Contacts\Models\Tag;
 use App\Modules\HentleAi\Services\HentleAiCopilotService;
 use App\Modules\Notes\Http\Requests\RefineNoteAiRequest;
 use App\Modules\Notes\Http\Resources\NoteResource;
 use App\Modules\Notes\Models\Note;
+use App\Modules\Notes\Services\NoteEntityAnalyzerService;
 use App\Modules\Notes\Services\NoteSimilarityService;
+use App\Modules\Parameters\Models\Category;
+use App\Modules\Parameters\Models\CustomStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,6 +20,7 @@ class NoteAiController extends Controller
     public function __construct(
         protected HentleAiCopilotService $aiCopilotService,
         protected NoteSimilarityService $similarityService,
+        protected NoteEntityAnalyzerService $entityAnalyzer,
     ) {}
 
     public function similar(Request $request, string $id): JsonResponse
@@ -26,7 +31,7 @@ class NoteAiController extends Controller
         $note = Note::query()
             ->where('notes.organization_id', $organizationId)
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags'])
+            ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags'])
             ->findOrFail($id);
 
         $limit = max(1, min(10, (int) $request->query('limit', 5)));
@@ -119,5 +124,268 @@ class NoteAiController extends Controller
                 'code' => 'AI_GENERATION_FAILED',
             ], 500);
         }
+    }
+
+    public function similarMatrix(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'mode' => ['nullable', 'string', 'in:auto,ai,algorithmic'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'category_id' => ['nullable', 'string'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $mode = (string) ($validated['mode'] ?? 'algorithmic');
+        $search = $validated['search'] ?? null;
+        $categoryId = $validated['category_id'] ?? null;
+        $limit = (int) ($validated['limit'] ?? 25);
+
+        $result = $this->similarityService->findSimilarMatrix(
+            user: $user,
+            mode: $mode,
+            search: $search,
+            categoryId: $categoryId,
+            limit: $limit
+        );
+
+        return response()->json([
+            'data' => $result['pairs'],
+            'total' => $result['total_pairs'],
+            'total_scanned' => $result['total_scanned'],
+            'mode' => $result['mode'],
+        ]);
+    }
+
+    public function suggestEntities(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $organizationId = $user->current_organization_id;
+
+        $validated = $request->validate([
+            'content' => ['required', 'string'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'mode' => ['nullable', 'string', 'in:heuristic,ai'],
+        ]);
+
+        $mode = $validated['mode'] ?? 'ai';
+        $title = $validated['title'] ?? '';
+        $content = $validated['content'];
+        $combinedText = trim("{$title} {$content}");
+
+        // 1. Detección heurística de base
+        $heuristicResult = $this->entityAnalyzer->analyze($combinedText, $organizationId);
+
+        if ($mode === 'heuristic') {
+            return response()->json([
+                'categories' => $heuristicResult['detected_categories'],
+                'custom_statuses' => $heuristicResult['detected_custom_statuses'],
+                'tags' => $heuristicResult['detected_tags'],
+                'total' => $heuristicResult['total_detected'],
+                'source' => 'heuristic',
+                'message' => 'Entidades detectadas por coincidencia léxica directa.',
+            ]);
+        }
+
+        // 2. Si se solicitó con IA, validar configuración
+        $config = $this->aiCopilotService->getEffectiveConfig($organizationId);
+
+        if (empty($config['api_key'])) {
+            return response()->json([
+                'categories' => $heuristicResult['detected_categories'],
+                'custom_statuses' => $heuristicResult['detected_custom_statuses'],
+                'tags' => $heuristicResult['detected_tags'],
+                'total' => $heuristicResult['total_detected'],
+                'source' => 'heuristic_fallback',
+                'message' => 'Entidades detectadas por coincidencia en texto (IA no configurada en el espacio de trabajo).',
+            ]);
+        }
+
+        // Preseleccionar catálogo relevante (máx 35 categorías para proteger ventana de contexto y tokens)
+        $heuristicCatIds = array_column($heuristicResult['detected_categories'], 'id');
+        $normText = $this->entityAnalyzer->normalize($combinedText);
+        $tokens = preg_split('/\s+/', trim($normText), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $tokens = array_filter($tokens, fn ($t) => mb_strlen($t) >= 3);
+
+        $candidateCatsQuery = Category::where('organization_id', $organizationId);
+        $candidateCatsQuery->where(function ($q) use ($tokens, $heuristicCatIds) {
+            if (!empty($heuristicCatIds)) {
+                $q->whereIn('id', $heuristicCatIds);
+            }
+            foreach (array_slice($tokens, 0, 8) as $t) {
+                $q->orWhere('name', 'ilike', "%{$t}%")
+                  ->orWhere('code', 'ilike', "%{$t}%");
+            }
+        });
+        $candidateCats = $candidateCatsQuery->limit(35)->get();
+
+        // Asegurar que las sedes principales siempre estén presentes en el catálogo para selección de sede
+        $sedes = Category::where('organization_id', $organizationId)
+            ->where(function ($q) {
+                $q->where('name', 'ilike', 'Sede %')
+                  ->orWhereNull('parent_id');
+            })
+            ->limit(10)
+            ->get();
+        $candidateCats = $candidateCats->merge($sedes)->unique('id');
+
+        $statuses = CustomStatus::where('organization_id', $organizationId)->get();
+        $tags = Tag::where('organization_id', $organizationId)->get();
+
+        $catsList = $candidateCats->map(fn ($c) => [
+            'id' => $c->id,
+            'name' => $c->name,
+            'display_path' => $c->display_path,
+        ])->values()->all();
+        $statusesList = $statuses->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values()->all();
+        $tagsList = $tags->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->values()->all();
+
+        $catsJson = json_encode($catsList, JSON_UNESCAPED_UNICODE);
+        $statusesJson = json_encode($statusesList, JSON_UNESCAPED_UNICODE);
+        $tagsJson = json_encode($tagsList, JSON_UNESCAPED_UNICODE);
+
+        $prompt = <<<PROMPT
+Eres un clasificador inteligente para un CRM institucional.
+Analiza la siguiente NOTA y selecciona del CATÁLOGO las categorías, estados de lead o etiquetas que correspondan semánticamente a su temática o propósito.
+
+NOTA:
+Título: {$title}
+Contenido: {$content}
+
+CATÁLOGO:
+Categorías (con rutas de sede y facultad):
+{$catsJson}
+
+Estados de Lead:
+{$statusesJson}
+
+Etiquetas:
+{$tagsJson}
+
+INSTRUCCIONES:
+1. Elige únicamente los IDs de las entidades que aplican a la temática de la nota.
+2. Si una categoría, estado o etiqueta no aplica, deja su array vacío [].
+3. NO inventes ningún ID. Usa únicamente los IDs presentes en el catálogo.
+4. Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura:
+{
+  "category_ids": ["ID_1"],
+  "custom_status_ids": ["ID_2"],
+  "tag_ids": ["ID_3"],
+  "reason": "Explicación breve de la clasificación (máx 15 palabras)"
+}
+PROMPT;
+
+        try {
+            $rawResponse = $this->aiCopilotService->sendDirectPrompt(
+                prompt: $prompt,
+                provider: $config['provider'],
+                apiKey: $config['api_key'],
+                model: $config['model'],
+                baseUrl: $config['base_url'],
+                systemInstruction: 'Responde siempre y exclusivamente en JSON sin markdown ni saludos.',
+                organizationId: $organizationId,
+                bypassBudget: true
+            );
+
+            $clean = trim($rawResponse);
+            if (str_starts_with($clean, '```json')) {
+                $clean = substr($clean, 7);
+            }
+            if (str_starts_with($clean, '```')) {
+                $clean = substr($clean, 3);
+            }
+            if (str_ends_with($clean, '```')) {
+                $clean = substr($clean, 0, -3);
+            }
+
+            $decoded = json_decode(trim($clean), true);
+
+            if (is_array($decoded)) {
+                $catIds = (array) ($decoded['category_ids'] ?? []);
+                $stIds = (array) ($decoded['custom_status_ids'] ?? []);
+                $tagIds = (array) ($decoded['tag_ids'] ?? []);
+
+                // Fusión con las coincidencias del analizador heurístico
+                $heuristicCatIds = array_column($heuristicResult['detected_categories'], 'id');
+                $heuristicStIds = array_column($heuristicResult['detected_custom_statuses'], 'id');
+                $heuristicTagIds = array_column($heuristicResult['detected_tags'], 'id');
+
+                $allCatIds = array_values(array_unique(array_merge($catIds, $heuristicCatIds)));
+                $allStIds = array_values(array_unique(array_merge($stIds, $heuristicStIds)));
+                $allTagIds = array_values(array_unique(array_merge($tagIds, $heuristicTagIds)));
+
+                $catsById = Category::whereIn('id', $allCatIds)->get()->keyBy('id');
+                $stById = $statuses->keyBy('id');
+                $tagsById = $tags->keyBy('id');
+
+                $matchedCats = [];
+                foreach ($allCatIds as $id) {
+                    if (isset($catsById[$id])) {
+                        $c = $catsById[$id];
+                        $matchedCats[] = [
+                            'id' => $c->id,
+                            'parent_id' => $c->parent_id,
+                            'name' => $c->name,
+                            'code' => $c->code,
+                            'color' => $c->color,
+                            'icon' => $c->icon,
+                            'slug' => $c->slug,
+                            'display_path' => $c->display_path,
+                            'full_path' => $c->full_path,
+                        ];
+                    }
+                }
+
+                $matchedStatuses = [];
+                foreach ($allStIds as $id) {
+                    if (isset($stById[$id])) {
+                        $s = $stById[$id];
+                        $matchedStatuses[] = [
+                            'id' => $s->id,
+                            'name' => $s->name,
+                            'color' => $s->color,
+                            'icon' => $s->icon,
+                            'slug' => $s->slug,
+                        ];
+                    }
+                }
+
+                $matchedTags = [];
+                foreach ($allTagIds as $id) {
+                    if (isset($tagsById[$id])) {
+                        $t = $tagsById[$id];
+                        $matchedTags[] = [
+                            'id' => $t->id,
+                            'name' => $t->name,
+                            'color_hex' => $t->color_hex,
+                            'slug' => $t->slug,
+                        ];
+                    }
+                }
+
+                return response()->json([
+                    'categories' => $matchedCats,
+                    'custom_statuses' => $matchedStatuses,
+                    'tags' => $matchedTags,
+                    'total' => count($matchedCats) + count($matchedStatuses) + count($matchedTags),
+                    'reason' => $decoded['reason'] ?? 'Entidades sugeridas con IA según el tema.',
+                    'source' => 'ia',
+                    'message' => 'Entidades sugeridas con IA exitosamente.',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Sugerencia de entidades con IA falló: {$e->getMessage()}");
+        }
+
+        // Fallback si la IA falla o da formato inesperado
+        return response()->json([
+            'categories' => $heuristicResult['detected_categories'],
+            'custom_statuses' => $heuristicResult['detected_custom_statuses'],
+            'tags' => $heuristicResult['detected_tags'],
+            'total' => $heuristicResult['total_detected'],
+            'source' => 'heuristic_fallback',
+            'message' => 'Entidades detectadas por heurística (fallback).',
+        ]);
     }
 }

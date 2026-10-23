@@ -310,19 +310,198 @@
           </div>
         </div>
 
-        <!-- Selectores de Metadatos de Enlace -->
+        <!-- Sección de Clasificación: Sugerencias Inteligentes & Selectores Manuales -->
+        <div class="q-pt-xs">
+          <!-- Cabecera de Clasificación con Botones Sin IA e IA -->
+          <div class="row items-center justify-between q-mb-xs">
+            <div class="row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_loyalty" size="16px" color="teal-3" />
+              <span class="text-caption text-weight-bold text-grey-3">Categorías y Etiquetas de la Nota</span>
+              <span class="text-caption text-grey-5 font-mono hidden-xs" style="font-size: 0.72rem">(Selección manual y asistida)</span>
+            </div>
+
+            <!-- Botones de Detección Sin IA y Con IA -->
+            <div class="row items-center q-gutter-x-xs">
+              <q-btn
+                outline
+                dense
+                no-caps
+                size="xs"
+                color="teal-3"
+                icon="sym_r_manage_search"
+                label="Detectar (Sin IA)"
+                class="q-px-sm"
+                :loading="isDetectingHeuristic"
+                :disable="!hasContentToDetect"
+                @click="handleDetectEntities('heuristic')"
+              >
+                <q-tooltip class="bg-dark text-white">
+                  Buscar coincidencias léxicas exactas de categorías y etiquetas en el texto (sin usar créditos de IA)
+                </q-tooltip>
+              </q-btn>
+
+              <q-btn
+                unelevated
+                dense
+                no-caps
+                size="xs"
+                color="purple-8"
+                icon="sym_r_auto_awesome"
+                label="Sugerir con IA"
+                class="q-px-sm text-weight-bold"
+                :loading="isSuggestingAi"
+                :disable="!hasContentToDetect"
+                @click="handleDetectEntities('ai')"
+              >
+                <q-tooltip class="bg-dark text-white">
+                  Clasificar semánticamente con IA y sugerir las categorías y etiquetas más idóneas
+                </q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
+          <!-- Panel de Sugerencias Detectadas (Checkboxes individuales + 1-clic) -->
+          <div
+            v-if="suggestedEntities && suggestedEntities.total > 0"
+            class="suggestions-panel q-pa-sm q-mb-sm rounded-borders"
+            :class="suggestedEntities.source === 'ia' ? 'suggestions-panel--ia' : 'suggestions-panel--heuristic'"
+          >
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="row items-center q-gutter-x-xs text-caption">
+                <q-icon
+                  :name="suggestedEntities.source === 'ia' ? 'sym_r_auto_awesome' : 'sym_r_manage_search'"
+                  size="15px"
+                  :color="suggestedEntities.source === 'ia' ? 'purple-3' : 'teal-3'"
+                />
+                <span class="text-weight-bold" :class="suggestedEntities.source === 'ia' ? 'text-purple-3' : 'text-teal-3'">
+                  {{ suggestedEntities.source === 'ia' ? 'Sugerencias con IA' : 'Entidades Detectadas sin IA' }} ({{ suggestedEntities.total }}):
+                </span>
+                <span v-if="suggestedEntities.reason" class="text-grey-4 text-caption italic hidden-xs" style="font-size: 0.72rem">
+                  — {{ suggestedEntities.reason }}
+                </span>
+              </div>
+
+              <!-- Botón 1-clic para vincular todo o badge de completado -->
+              <div class="row items-center q-gutter-x-xs">
+                <q-btn
+                  v-if="!areAllSuggestionsLinked"
+                  unelevated
+                  dense
+                  size="xs"
+                  color="teal-8"
+                  text-color="white"
+                  icon="sym_r_done_all"
+                  label="Vincular todo con 1 clic"
+                  class="text-weight-bold q-px-xs"
+                  @click="linkAllSuggestions"
+                />
+                <q-badge v-else color="positive" class="text-caption font-mono q-px-xs">
+                  <q-icon name="sym_r_check" size="12px" class="q-mr-xs" />
+                  Todas vinculadas
+                </q-badge>
+
+                <q-btn
+                  flat
+                  dense
+                  round
+                  size="xs"
+                  color="grey-4"
+                  icon="sym_r_close"
+                  @click="suggestedEntities = null"
+                >
+                  <q-tooltip>Cerrar sugerencias</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+
+            <!-- Checkable Chips / Checkboxes interactivos -->
+            <div class="row items-center q-gutter-xs wrap q-pt-xs">
+              <!-- Categorías sugeridas -->
+              <q-chip
+                v-for="cat in suggestedEntities.categories"
+                :key="'sug-cat-' + cat.id"
+                clickable
+                dense
+                size="sm"
+                :color="isCategorySelected(cat.id) ? 'teal-9' : 'dark'"
+                :text-color="isCategorySelected(cat.id) ? 'teal-1' : 'grey-3'"
+                :style="isCategorySelected(cat.id) ? 'border: 1px solid #10b981;' : 'border: 1px solid rgba(255,255,255,0.15);'"
+                class="cursor-pointer transition-all q-mr-none"
+                @click="toggleDetectedCategory(cat.id)"
+              >
+                <q-icon
+                  :name="isCategorySelected(cat.id) ? 'sym_r_check_box' : 'sym_r_check_box_outline_blank'"
+                  size="14px"
+                  :color="isCategorySelected(cat.id) ? 'teal-3' : 'grey-5'"
+                  class="q-mr-xs"
+                />
+                <span class="text-caption text-weight-medium">{{ cat.display_path || cat.name }}</span>
+                <q-tooltip class="bg-dark text-white font-mono text-caption">{{ cat.full_path || cat.display_path || cat.name }}</q-tooltip>
+              </q-chip>
+
+              <!-- Estados sugeridos -->
+              <q-chip
+                v-for="st in suggestedEntities.custom_statuses"
+                :key="'sug-st-' + st.id"
+                clickable
+                dense
+                size="sm"
+                :color="isStatusSelected(st.id) ? 'blue-9' : 'dark'"
+                :text-color="isStatusSelected(st.id) ? 'blue-1' : 'grey-3'"
+                :style="isStatusSelected(st.id) ? 'border: 1px solid #3b82f6;' : 'border: 1px solid rgba(255,255,255,0.15);'"
+                class="cursor-pointer transition-all q-mr-none"
+                @click="toggleDetectedStatus(st.id)"
+              >
+                <q-icon
+                  :name="isStatusSelected(st.id) ? 'sym_r_check_box' : 'sym_r_check_box_outline_blank'"
+                  size="14px"
+                  :color="isStatusSelected(st.id) ? 'blue-3' : 'grey-5'"
+                  class="q-mr-xs"
+                />
+                <span class="text-caption text-weight-medium">{{ st.name }}</span>
+                <q-tooltip>{{ isStatusSelected(st.id) ? 'Estado vinculado (haz clic para desmarcar)' : 'Haz clic para marcar y vincular este estado' }}</q-tooltip>
+              </q-chip>
+
+              <!-- Etiquetas sugeridas -->
+              <q-chip
+                v-for="tg in suggestedEntities.tags"
+                :key="'sug-tg-' + tg.id"
+                clickable
+                dense
+                size="sm"
+                :color="isTagSelected(tg.id) ? 'green-9' : 'dark'"
+                :text-color="isTagSelected(tg.id) ? 'green-1' : 'grey-3'"
+                :style="isTagSelected(tg.id) ? 'border: 1px solid #22c55e;' : 'border: 1px solid rgba(255,255,255,0.15);'"
+                class="cursor-pointer transition-all q-mr-none"
+                @click="toggleDetectedTag(tg.id)"
+              >
+                <q-icon
+                  :name="isTagSelected(tg.id) ? 'sym_r_check_box' : 'sym_r_check_box_outline_blank'"
+                  size="14px"
+                  :color="isTagSelected(tg.id) ? 'green-3' : 'grey-5'"
+                  class="q-mr-xs"
+                />
+                <span class="text-caption text-weight-medium">#{{ tg.name }}</span>
+                <q-tooltip>{{ isTagSelected(tg.id) ? 'Etiqueta vinculada (haz clic para desmarcar)' : 'Haz clic para marcar y vincular esta etiqueta' }}</q-tooltip>
+              </q-chip>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selectores de Metadatos de Enlace (Apartado Manual Preservado) -->
         <div class="row q-col-gutter-sm">
+          <!-- Selector de Categorías -->
           <div class="col-12 col-sm-4">
             <q-select
               v-model="form.category_ids"
               multiple
-              use-chips
-              use-input
-              input-debounce="0"
               dense
               outlined
+              clearable
               emit-value
               map-options
+              use-input
+              input-debounce="0"
               option-value="id"
               option-label="name"
               :options="filteredCategoriesOptions"
@@ -330,20 +509,24 @@
               class="xf-input-field"
               @filter="filterCategories"
             >
-              <template #selected-item="scope">
-                <q-chip
-                  removable
-                  dense
-                  class="q-my-none q-mr-xs"
-                  :style="{ backgroundColor: scope.opt.color ? scope.opt.color + '22' : 'rgba(16,185,129,0.15)', borderColor: scope.opt.color || '#10b981' }"
-                  style="border: 1px solid;"
-                  @remove="scope.removeAtIndex(scope.index)"
-                >
-                  <span class="text-caption text-white text-weight-medium">
-                    {{ scope.opt.name }}
+              <template #selected>
+                <div v-if="selectedCategoriesList.length > 0" class="row items-center no-wrap ellipsis q-gutter-x-xs full-width" style="line-height: normal;">
+                  <q-badge color="teal-8" text-color="white" class="font-mono text-weight-bold q-px-xs" style="font-size: 0.72rem;">
+                    {{ selectedCategoriesList.length }}
+                  </q-badge>
+                  <span class="text-caption text-white ellipsis text-weight-medium">
+                    {{ selectedCategoriesList[0]?.name }}
+                    <span v-if="selectedCategoriesList.length > 1" class="text-teal-3 text-weight-bold q-ml-xs">
+                      (+{{ selectedCategoriesList.length - 1 }} más)
+                    </span>
                   </span>
-                  <q-tooltip class="bg-dark text-white font-mono text-caption">{{ scope.opt.display_path || scope.opt.name }}</q-tooltip>
-                </q-chip>
+                  <q-tooltip class="bg-dark text-white font-mono text-caption">
+                    <div class="text-weight-bold q-mb-xs">Categorías seleccionadas ({{ selectedCategoriesList.length }}):</div>
+                    <div v-for="c in selectedCategoriesList" :key="c.id" class="q-py-xs">
+                      • {{ c.display_path || c.name }}
+                    </div>
+                  </q-tooltip>
+                </div>
               </template>
               <template #option="{ itemProps, opt, selected, toggleOption }">
                 <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
@@ -374,9 +557,9 @@
             <q-select
               v-model="form.custom_status_ids"
               multiple
-              use-chips
               dense
               outlined
+              clearable
               emit-value
               map-options
               option-value="id"
@@ -384,7 +567,34 @@
               :options="statusesOptions"
               label="Estados de Lead"
               class="xf-input-field"
-            />
+            >
+              <template #selected>
+                <div v-if="selectedStatusesList.length > 0" class="row items-center no-wrap ellipsis q-gutter-x-xs full-width" style="line-height: normal;">
+                  <q-badge color="blue-8" text-color="white" class="font-mono text-weight-bold q-px-xs" style="font-size: 0.72rem;">
+                    {{ selectedStatusesList.length }}
+                  </q-badge>
+                  <span class="text-caption text-white ellipsis text-weight-medium">
+                    {{ selectedStatusesList[0]?.name }}
+                    <span v-if="selectedStatusesList.length > 1" class="text-blue-3 text-weight-bold q-ml-xs">
+                      (+{{ selectedStatusesList.length - 1 }} más)
+                    </span>
+                  </span>
+                </div>
+              </template>
+              <template #option="{ itemProps, opt, selected, toggleOption }">
+                <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                  <q-item-section side class="q-pr-xs">
+                    <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                  </q-item-section>
+                  <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                    <span class="filter-dot" :style="{ backgroundColor: opt.color || '#3b82f6' }"></span>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
           </div>
 
           <!-- Etiquetas -->
@@ -392,9 +602,9 @@
             <q-select
               v-model="form.tag_ids"
               multiple
-              use-chips
               dense
               outlined
+              clearable
               emit-value
               map-options
               option-value="id"
@@ -402,7 +612,155 @@
               :options="tagsOptions"
               label="Etiquetas"
               class="xf-input-field"
-            />
+            >
+              <template #selected>
+                <div v-if="selectedTagsList.length > 0" class="row items-center no-wrap ellipsis q-gutter-x-xs full-width" style="line-height: normal;">
+                  <q-badge color="green-8" text-color="white" class="font-mono text-weight-bold q-px-xs" style="font-size: 0.72rem;">
+                    {{ selectedTagsList.length }}
+                  </q-badge>
+                  <span class="text-caption text-white ellipsis text-weight-medium">
+                    #{{ selectedTagsList[0]?.name }}
+                    <span v-if="selectedTagsList.length > 1" class="text-green-3 text-weight-bold q-ml-xs">
+                      (+{{ selectedTagsList.length - 1 }} más)
+                    </span>
+                  </span>
+                </div>
+              </template>
+              <template #option="{ itemProps, opt, selected, toggleOption }">
+                <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                  <q-item-section side class="q-pr-xs">
+                    <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-body2 text-white">#{{ opt.name }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
+          </div>
+        </div>
+
+        <!-- Panel de Entidades Vinculadas a la Nota (Chips elegantes con ancho completo y sin desbordes) -->
+        <div
+          v-if="hasAnyLinkedEntities"
+          class="linked-entities-panel q-mt-sm q-pa-sm rounded-borders"
+        >
+          <!-- Categorías Vinculadas -->
+          <div v-if="selectedCategoriesList.length > 0" class="q-mb-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-bold text-teal-3 row items-center">
+                <q-icon name="sym_r_school" size="14px" class="q-mr-xs" />
+                Categorías vinculadas ({{ selectedCategoriesList.length }}):
+              </span>
+              <q-btn
+                v-if="selectedCategoriesList.length > 1"
+                flat
+                dense
+                size="xs"
+                color="grey-4"
+                label="Desvincular todas"
+                class="text-caption text-weight-regular"
+                @click="form.category_ids = []"
+              >
+                <q-tooltip>Quitar todas las categorías seleccionadas</q-tooltip>
+              </q-btn>
+            </div>
+            <div class="row items-center q-gutter-xs wrap linked-chips-scroll">
+              <q-chip
+                v-for="cat in selectedCategoriesList"
+                :key="'active-cat-' + cat.id"
+                removable
+                dense
+                size="sm"
+                class="linked-chip q-mr-none"
+                :style="{ backgroundColor: cat.color ? cat.color + '22' : 'rgba(16,185,129,0.15)', borderColor: cat.color || '#10b981' }"
+                @remove="toggleDetectedCategory(cat.id)"
+              >
+                <q-avatar size="14px" :style="{ backgroundColor: cat.color || '#10b981' }">
+                  <q-icon name="sym_r_school" size="10px" color="white" />
+                </q-avatar>
+                <span class="text-caption text-white text-weight-medium q-mx-xs linked-chip__text">
+                  {{ cat.display_path || cat.name }}
+                </span>
+                <q-tooltip class="bg-dark text-white font-mono text-caption">{{ cat.full_path || cat.display_path || cat.name }}</q-tooltip>
+              </q-chip>
+            </div>
+          </div>
+
+          <!-- Estados Vinculados -->
+          <div v-if="selectedStatusesList.length > 0" class="q-mt-xs q-mb-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-bold text-blue-3 row items-center">
+                <q-icon name="sym_r_flag" size="14px" class="q-mr-xs" />
+                Estados vinculados ({{ selectedStatusesList.length }}):
+              </span>
+              <q-btn
+                v-if="selectedStatusesList.length > 1"
+                flat
+                dense
+                size="xs"
+                color="grey-4"
+                label="Desvincular todos"
+                class="text-caption text-weight-regular"
+                @click="form.custom_status_ids = []"
+              />
+            </div>
+            <div class="row items-center q-gutter-xs wrap">
+              <q-chip
+                v-for="st in selectedStatusesList"
+                :key="'active-st-' + st.id"
+                removable
+                dense
+                size="sm"
+                class="linked-chip q-mr-none"
+                :style="{ backgroundColor: st.color ? st.color + '22' : 'rgba(59,130,246,0.15)', borderColor: st.color || '#3b82f6' }"
+                @remove="toggleDetectedStatus(st.id)"
+              >
+                <q-avatar size="14px" :style="{ backgroundColor: st.color || '#3b82f6' }">
+                  <q-icon name="sym_r_flag" size="10px" color="white" />
+                </q-avatar>
+                <span class="text-caption text-white text-weight-medium q-mx-xs">
+                  {{ st.name }}
+                </span>
+              </q-chip>
+            </div>
+          </div>
+
+          <!-- Etiquetas Vinculadas -->
+          <div v-if="selectedTagsList.length > 0" class="q-mt-xs">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-bold text-green-3 row items-center">
+                <q-icon name="sym_r_tag" size="14px" class="q-mr-xs" />
+                Etiquetas vinculadas ({{ selectedTagsList.length }}):
+              </span>
+              <q-btn
+                v-if="selectedTagsList.length > 1"
+                flat
+                dense
+                size="xs"
+                color="grey-4"
+                label="Desvincular todas"
+                class="text-caption text-weight-regular"
+                @click="form.tag_ids = []"
+              />
+            </div>
+            <div class="row items-center q-gutter-xs wrap">
+              <q-chip
+                v-for="tg in selectedTagsList"
+                :key="'active-tg-' + tg.id"
+                removable
+                dense
+                size="sm"
+                class="linked-chip q-mr-none"
+                :style="{ backgroundColor: tg.color ? tg.color + '22' : 'rgba(34,197,94,0.15)', borderColor: tg.color || '#22c55e' }"
+                @remove="toggleDetectedTag(tg.id)"
+              >
+                <q-icon name="sym_r_tag" size="12px" color="green-4" class="q-mr-xs" />
+                <span class="text-caption text-white text-weight-medium">
+                  #{{ tg.name }}
+                </span>
+              </q-chip>
+            </div>
           </div>
         </div>
       </q-card-section>
@@ -511,8 +869,9 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { http } from '@/shared/api/http'
 import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
+import { suggestEntities as apiSuggestEntities } from '../api/notes.api'
 import { useNotes } from '../composables/useNotes'
-import type { AnalyzeResult, Note, NotePayload } from '../types/note.types'
+import type { AnalyzeResult, Note, NotePayload, SuggestEntitiesResponse } from '../types/note.types'
 import SimilarNotesDialog from './SimilarNotesDialog.vue'
 
 const props = defineProps<{
@@ -616,7 +975,57 @@ function filterCategories(val: string, update: (fn: () => void) => void) {
   })
 }
 
+const selectedCategoriesList = computed(() => {
+  if (!form.category_ids || form.category_ids.length === 0) return []
+  const map = new Map(formattedCategoriesOptions.value.map((c: any) => [c.id, c]))
+  const noteCatsMap = new Map((props.note?.categories || []).map((c: any) => [c.id, c]))
+  return form.category_ids
+    .map((id) => map.get(id) || noteCatsMap.get(id) || { id, name: id })
+    .filter(Boolean) as Array<any>
+})
+
+const selectedStatusesList = computed(() => {
+  if (!form.custom_status_ids || form.custom_status_ids.length === 0) return []
+  const map = new Map(statusesOptions.value.map((s: any) => [s.id, s]))
+  const noteStMap = new Map((props.note?.custom_statuses || []).map((s: any) => [s.id, s]))
+  return form.custom_status_ids
+    .map((id) => map.get(id) || noteStMap.get(id) || { id, name: id })
+    .filter(Boolean) as Array<any>
+})
+
+const selectedTagsList = computed(() => {
+  if (!form.tag_ids || form.tag_ids.length === 0) return []
+  const map = new Map(tagsOptions.value.map((t: any) => [t.id, t]))
+  const noteTgMap = new Map((props.note?.tags || []).map((t: any) => [t.id, t]))
+  return form.tag_ids
+    .map((id) => map.get(id) || noteTgMap.get(id) || { id, name: id })
+    .filter(Boolean) as Array<any>
+})
+
+const hasAnyLinkedEntities = computed(() => {
+  return selectedCategoriesList.value.length > 0 ||
+    selectedStatusesList.value.length > 0 ||
+    selectedTagsList.value.length > 0
+})
+
 const detectedResult = ref<AnalyzeResult | null>(null)
+const isDetectingHeuristic = ref(false)
+const isSuggestingAi = ref(false)
+const suggestedEntities = ref<SuggestEntitiesResponse | null>(null)
+
+const hasContentToDetect = computed(() => {
+  const t = (form.title || '').trim()
+  const c = (form.content || '').trim()
+  return (t.length + c.length) >= 2
+})
+
+const areAllSuggestionsLinked = computed(() => {
+  if (!suggestedEntities.value || suggestedEntities.value.total === 0) return false
+  const catsOk = suggestedEntities.value.categories.every((c) => isCategorySelected(c.id))
+  const stOk = suggestedEntities.value.custom_statuses.every((s) => isStatusSelected(s.id))
+  const tgOk = suggestedEntities.value.tags.every((t) => isTagSelected(t.id))
+  return catsOk && stOk && tgOk
+})
 const showAiDiffModal = ref(false)
 const aiRefinedCandidate = ref('')
 const aiRefineTitle = ref('')
@@ -627,6 +1036,7 @@ watch(
     if (open) {
       loadCatalogOptions()
       detectedResult.value = null
+      suggestedEntities.value = null
 
       if (props.note) {
         form.title = props.note.title || ''
@@ -762,6 +1172,74 @@ function linkAllDetected() {
   })
 }
 
+async function handleDetectEntities(mode: 'heuristic' | 'ai') {
+  if (!hasContentToDetect.value) return
+  if (mode === 'ai') {
+    isSuggestingAi.value = true
+  } else {
+    isDetectingHeuristic.value = true
+  }
+
+  try {
+    const res = await apiSuggestEntities({
+      title: form.title || undefined,
+      content: form.content,
+      mode,
+    })
+    suggestedEntities.value = res
+    if (res.total === 0) {
+      $q.notify({
+        type: 'info',
+        message: mode === 'ai'
+          ? 'La IA no encontró categorías ni etiquetas afines en el catálogo disponible.'
+          : 'No se detectaron menciones exactas de categorías o etiquetas en el texto.',
+        position: 'bottom-right',
+      })
+    } else {
+      $q.notify({
+        type: 'positive',
+        message: mode === 'ai'
+          ? `¡La IA sugirió ${res.total} clasificaciones para tu nota!`
+          : `¡Se detectaron ${res.total} entidades por coincidencia de texto!`,
+        position: 'bottom-right',
+      })
+    }
+  } catch (err: any) {
+    console.error('Error al detectar entidades:', err)
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al sugerir clasificaciones',
+      position: 'bottom-right',
+    })
+  } finally {
+    isDetectingHeuristic.value = false
+    isSuggestingAi.value = false
+  }
+}
+
+function linkAllSuggestions() {
+  if (!suggestedEntities.value) return
+  if (!form.category_ids) form.category_ids = []
+  if (!form.custom_status_ids) form.custom_status_ids = []
+  if (!form.tag_ids) form.tag_ids = []
+
+  suggestedEntities.value.categories.forEach((cat) => {
+    if (!form.category_ids!.includes(cat.id)) form.category_ids!.push(cat.id)
+  })
+  suggestedEntities.value.custom_statuses.forEach((st) => {
+    if (!form.custom_status_ids!.includes(st.id)) form.custom_status_ids!.push(st.id)
+  })
+  suggestedEntities.value.tags.forEach((tg) => {
+    if (!form.tag_ids!.includes(tg.id)) form.tag_ids!.push(tg.id)
+  })
+
+  $q.notify({
+    type: 'positive',
+    message: '¡Todas las entidades sugeridas han sido vinculadas a la nota!',
+    position: 'bottom-right',
+  })
+}
+
 async function handleAiRefine(action: 'spellcheck' | 'summarize' | 'tone_formal' | 'tone_persuasive') {
   if (!form.content.trim()) return
 
@@ -890,6 +1368,57 @@ async function handleSubmit() {
 
   &.refined-text {
     color: #fef08a;
+  }
+}
+
+.suggestions-panel {
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  
+  &--heuristic {
+    background: rgba(13, 148, 136, 0.12);
+    border: 1px solid rgba(20, 184, 166, 0.35);
+  }
+
+  &--ia {
+    background: rgba(147, 51, 234, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+  }
+}
+
+.chip--checked {
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.linked-entities-panel {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.linked-chips-scroll {
+  max-height: 140px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.linked-chip {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid;
+  transition: all 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px);
+  }
+
+  &__text {
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
   }
 }
 </style>

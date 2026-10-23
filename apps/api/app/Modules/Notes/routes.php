@@ -9,7 +9,9 @@ Route::prefix('notes')->group(function (): void {
     Route::post('/', [NoteController::class, 'store'])->name('api.notes.store');
     Route::post('/analyze', [NoteController::class, 'analyze'])->name('api.notes.analyze');
     Route::post('/similar', [NoteAiController::class, 'similarDraft'])->name('api.notes.similar-draft');
+    Route::post('/similar-matrix', [NoteAiController::class, 'similarMatrix'])->name('api.notes.similar-matrix');
     Route::post('/ai/refine', [NoteAiController::class, 'refine'])->name('api.notes.ai.refine');
+    Route::post('/ai/suggest-entities', [NoteAiController::class, 'suggestEntities'])->name('api.notes.ai.suggest-entities');
     Route::post('/preview-keep', [NoteController::class, 'previewKeep'])->name('api.notes.preview-keep');
     Route::post('/import-batch', [NoteController::class, 'importBatch'])->name('api.notes.import-batch');
     Route::post('/upload-document', [NoteController::class, 'uploadDocument'])->name('api.notes.upload-document');

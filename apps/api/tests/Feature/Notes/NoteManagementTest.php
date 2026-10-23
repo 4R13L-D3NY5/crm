@@ -598,4 +598,114 @@ class NoteManagementTest extends TestCase
         $aiRes->assertStatus(200);
         $this->assertIsArray($aiRes->json('data'));
     }
+
+    public function test_similar_matrix_detects_pairs_of_similar_cards_with_similarity_percent(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // Crear dos notas muy similares sobre medicina y costos
+        $note1 = Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Aranceles Medicina Cochabamba',
+            'content' => 'El costo de la carrera de medicina para la sede central Cochabamba es 1200 Bs mensual con arancel congelado.',
+            'color' => '#1e293b',
+            'visibility' => 'all',
+        ]);
+
+        $note2 = Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Costos Medicina Sede Cochabamba',
+            'content' => 'Aranceles y mensualidad de medicina en Cochabamba con cuota congelada de 1200 Bs.',
+            'color' => '#1e293b',
+            'visibility' => 'all',
+        ]);
+
+        // Nota no relacionada sobre arquitectura
+        $note3 = Note::create([
+            'organization_id' => $this->organization->id,
+            'user_id' => $this->adminUser->id,
+            'title' => 'Taller de Maquetas Arquitectura',
+            'content' => 'Materiales requeridos para la materia de diseño volumétrico en La Paz.',
+            'color' => '#1e293b',
+            'visibility' => 'all',
+        ]);
+
+        $res = $this->postJson('/api/notes/similar-matrix', [
+            'mode' => 'algorithmic',
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertJsonStructure([
+            'data' => [
+                '*' => [
+                    'id',
+                    'note_a',
+                    'note_b',
+                    'similarity_percent',
+                    'similarity_reason',
+                    'source',
+                ],
+            ],
+            'total',
+            'total_scanned',
+            'mode',
+        ]);
+
+        $this->assertGreaterThanOrEqual(1, $res->json('total'));
+        $firstPair = $res->json('data.0');
+        $this->assertGreaterThanOrEqual(30, $firstPair['similarity_percent']);
+        $this->assertSame('algorithmic', $firstPair['source']);
+    }
+
+    public function test_suggest_entities_supports_heuristic_and_ai_modes(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // Crear categoría y tag en la organización
+        $cat = \App\Modules\Parameters\Models\Category::create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Admisiones',
+            'slug' => 'admisiones',
+            'color' => '#10b981',
+            'icon' => 'school',
+        ]);
+
+        $tag = \App\Modules\Contacts\Models\Tag::create([
+            'organization_id' => $this->organization->id,
+            'name' => 'Extranjeros',
+            'slug' => 'extranjeros',
+            'color_hex' => '#06b6d4',
+        ]);
+
+        // Modo heurístico: detecta mención directa en texto
+        $heuristicRes = $this->postJson('/api/notes/ai/suggest-entities', [
+            'title' => 'Proceso de Admisiones 2026',
+            'content' => 'Requisitos para estudiantes de tipo Extranjeros en la universidad.',
+            'mode' => 'heuristic',
+        ]);
+
+        $heuristicRes->assertStatus(200);
+        $heuristicRes->assertJsonStructure([
+            'categories',
+            'custom_statuses',
+            'tags',
+            'total',
+            'source',
+        ]);
+        $this->assertSame('heuristic', $heuristicRes->json('source'));
+        $this->assertGreaterThanOrEqual(1, $heuristicRes->json('total'));
+
+        // Modo IA (con fallback gracefully si no hay API key)
+        $aiRes = $this->postJson('/api/notes/ai/suggest-entities', [
+            'title' => 'Admisiones y Registro',
+            'content' => 'Información relevante para postulantes del extranjero.',
+            'mode' => 'ai',
+        ]);
+
+        $aiRes->assertStatus(200);
+        $this->assertIsArray($aiRes->json('categories'));
+        $this->assertIsArray($aiRes->json('tags'));
+    }
 }

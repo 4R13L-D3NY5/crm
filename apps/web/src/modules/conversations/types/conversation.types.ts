@@ -41,6 +41,9 @@ export interface ConversationMessage {
 }
 
 export interface ConversationSummaryRelation {
+  first_name?: string | null
+  last_name?: string | null
+  custom_fields?: Record<string, any> | null
   id: string
   name: string
   phone?: string | null

@@ -305,7 +305,11 @@
       :draft-content="similarDialogDraft"
       :draft-title="similarDialogDraft"
       :similarity-mode="similaritySearchMode"
+      :is-matrix-mode="isMatrixSimilarity"
+      :search-query="searchQuery"
+      :category-id="selectedCategory || undefined"
       @select-note="openEditDialog"
+      @edit-note="openEditDialog"
       @filter-board="handleFilterFromSimilar"
     />
 
@@ -347,11 +351,13 @@ function canEditNote(note: Note): boolean {
 }
 
 const isSimilarDialogOpen = ref(false)
+const isMatrixSimilarity = ref(false)
 const similarDialogNote = ref<Note | null>(null)
 const similarDialogDraft = ref<string>('')
 const similaritySearchMode = ref<'auto' | 'ai' | 'algorithmic'>('ai')
 
 function openSimilarDialog(note: Note) {
+  isMatrixSimilarity.value = false
   similarDialogNote.value = note
   similarDialogDraft.value = ''
   similaritySearchMode.value = 'auto'
@@ -360,36 +366,10 @@ function openSimilarDialog(note: Note) {
 
 function triggerSearchSimilar(mode: 'algorithmic' | 'ai') {
   similaritySearchMode.value = mode
-  const query = searchQuery.value.trim()
-
-  if (query.length >= 2) {
-    similarDialogNote.value = null
-    similarDialogDraft.value = query
-    isSimilarDialogOpen.value = true
-  } else {
-    $q.dialog({
-      title: mode === 'ai' ? 'Buscar Notas Similares con IA' : 'Buscar Notas Similares',
-      message: 'Ingresa una consulta, pregunta, borrador o tema para encontrar notas afines en la base de conocimiento:',
-      prompt: {
-        model: '',
-        type: 'textarea',
-        placeholder: 'Ej: Costos de la carrera de medicina para extranjeros en Cochabamba...',
-      },
-      cancel: true,
-      persistent: true,
-      ok: {
-        color: mode === 'ai' ? 'purple-7' : 'teal-7',
-        label: mode === 'ai' ? 'Analizar con IA' : 'Buscar Similares',
-      },
-    }).onOk((data: string) => {
-      if (data && data.trim()) {
-        searchQuery.value = data.trim()
-        similarDialogNote.value = null
-        similarDialogDraft.value = data.trim()
-        isSimilarDialogOpen.value = true
-      }
-    })
-  }
+  isMatrixSimilarity.value = true
+  similarDialogNote.value = null
+  similarDialogDraft.value = ''
+  isSimilarDialogOpen.value = true
 }
 
 function handleFilterFromSimilar(keyword: string) {

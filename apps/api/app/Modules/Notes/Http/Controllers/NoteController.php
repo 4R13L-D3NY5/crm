@@ -25,7 +25,7 @@ class NoteController extends Controller
 
         $query = Note::query()
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags']);
+            ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags']);
 
         // Filtro de archivadas: por defecto no mostrar archivadas a menos que se solicite
         if ($request->has('is_archived')) {
@@ -142,7 +142,7 @@ class NoteController extends Controller
             $note->tags()->sync($validated['tag_ids']);
         }
 
-        $note->load(['user', 'categories', 'customStatuses', 'tags']);
+        $note->load(['user', 'categories.parent.parent', 'customStatuses', 'tags']);
 
         return response()->json([
             'data' => (new NoteResource($note))->resolve(),
@@ -157,7 +157,7 @@ class NoteController extends Controller
 
         $note = Note::query()
             ->visibleToUser($user, $organizationId)
-            ->with(['user', 'categories', 'customStatuses', 'tags'])
+            ->with(['user', 'categories.parent.parent', 'customStatuses', 'tags'])
             ->findOrFail($id);
 
         return response()->json([
@@ -199,7 +199,7 @@ class NoteController extends Controller
             $note->tags()->sync($validated['tag_ids'] ?? []);
         }
 
-        $note->load(['user', 'categories', 'customStatuses', 'tags']);
+        $note->load(['user', 'categories.parent.parent', 'customStatuses', 'tags']);
 
         return response()->json([
             'data' => (new NoteResource($note))->resolve(),

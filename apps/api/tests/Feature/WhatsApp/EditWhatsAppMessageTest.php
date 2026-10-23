@@ -100,6 +100,7 @@ class EditWhatsAppMessageTest extends TestCase
             'organization_id' => $organization->id,
             'channel' => 'whatsapp',
             'status' => 'open',
+            'assigned_to_user_id' => $agent->id,
         ]);
 
         $message = Message::factory()->create([
@@ -132,6 +133,7 @@ class EditWhatsAppMessageTest extends TestCase
             'organization_id' => $organization->id,
             'channel' => 'whatsapp',
             'status' => 'open',
+            'assigned_to_user_id' => $otherAgent->id,
         ]);
 
         $message = Message::factory()->create([

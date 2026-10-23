@@ -98,22 +98,43 @@ export async function createInternalMessage(
 export async function createWhatsAppMessage(
   conversationId: string,
   payload: WhatsAppMessagePayload | FormData,
-): Promise<void> {
-  await http.post(`/conversations/${conversationId}/messages/whatsapp`, payload)
+): Promise<ConversationMessage> {
+  const isFormData = payload instanceof FormData
+  const response = await http.post<{ data: ConversationMessage }>(
+    `/conversations/${conversationId}/messages/whatsapp`,
+    payload,
+    isFormData
+      ? {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      : undefined,
+  )
+
+  return response.data.data
 }
 
 export async function sendInstagramMessage(
   conversationId: string,
   payload: { body: string },
-): Promise<void> {
-  await http.post(`/social/instagram/conversations/${conversationId}/messages`, payload)
+): Promise<ConversationMessage> {
+  const response = await http.post<{ data: ConversationMessage }>(
+    `/social/instagram/conversations/${conversationId}/messages`,
+    payload,
+  )
+  return response.data.data
 }
 
 export async function sendFacebookMessage(
   conversationId: string,
   payload: { body: string },
-): Promise<void> {
-  await http.post(`/social/facebook/conversations/${conversationId}/messages`, payload)
+): Promise<ConversationMessage> {
+  const response = await http.post<{ data: ConversationMessage }>(
+    `/social/facebook/conversations/${conversationId}/messages`,
+    payload,
+  )
+  return response.data.data
 }
 
 export async function retryWhatsAppMessage(

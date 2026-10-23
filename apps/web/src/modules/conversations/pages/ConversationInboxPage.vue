@@ -460,7 +460,7 @@ async function handleTicketSubmit(payload: CreateConversationPayload) {
 }
 
 
-async function handleSendMessage({
+function handleSendMessage({
   body,
   is_internal,
   file,
@@ -472,60 +472,72 @@ async function handleSendMessage({
   media_type?: string | null
 }) {
   if (!selectedConversationId.value) return
-  try {
-    if (is_internal) {
-      await mutations.messageMutation.mutateAsync({
-        id: selectedConversationId.value,
-        payload: { body },
-      })
-      notify.info({ message: 'Nota interna agregada.' })
-    } else if (selectedConversation.value?.channel === 'facebook') {
-      await mutations.facebookMessageMutation.mutateAsync({
-        id: selectedConversationId.value,
-        payload: { body },
-      })
-      notify.success({ message: 'Mensaje enviado a Facebook Messenger.' })
-    } else if (selectedConversation.value?.channel === 'instagram') {
-      await mutations.instagramMessageMutation.mutateAsync({
-        id: selectedConversationId.value,
-        payload: { body },
-      })
-      notify.success({ message: 'Mensaje directo enviado a Instagram.' })
-    } else if (selectedConversation.value?.channel === 'tiktok') {
-      await mutations.whatsappMessageMutation.mutateAsync({
-        id: selectedConversationId.value,
-        payload: { body },
-      })
-      notify.success({ message: 'Respuesta enviada a TikTok.' })
-    } else {
-      if (file) {
-        const formData = new FormData()
-        formData.append('body', body || '')
-        formData.append('file', file)
-        if (media_type) formData.append('media_type', media_type)
-        await mutations.whatsappMessageMutation.mutateAsync({
-          id: selectedConversationId.value,
-          payload: formData,
-        })
-      } else {
-        await mutations.whatsappMessageMutation.mutateAsync({
-          id: selectedConversationId.value,
-          payload: { body },
-        })
-      }
-    }
+  const convId = selectedConversationId.value
+  const channel = selectedConversation.value?.channel
 
-    // Al responder el asesor, limpiar indicador no leído de inmediato
-    if (selectedConversation.value) {
-      selectedConversation.value.unread_count = 0
-    }
-    const currentTicket = allConversations.value.find(c => c.id === selectedConversationId.value)
-    if (currentTicket) {
-      currentTicket.unread_count = 0
-    }
-  } catch (err: any) {
+  // Al responder el asesor, limpiar indicador no leído de inmediato
+  if (selectedConversation.value) {
+    selectedConversation.value.unread_count = 0
+  }
+  const currentTicket = allConversations.value.find(c => c.id === convId)
+  if (currentTicket) {
+    currentTicket.unread_count = 0
+  }
+
+  const onErrorHandler = (err: any) => {
     const errorMsg = err?.response?.data?.message || 'Error al enviar el mensaje.'
     notify.error({ message: errorMsg })
+  }
+
+  if (is_internal) {
+    mutations.messageMutation.mutate({
+      id: convId,
+      payload: { body },
+    }, {
+      onSuccess: () => notify.info({ message: 'Nota interna agregada.' }),
+      onError: onErrorHandler,
+    })
+  } else if (channel === 'facebook') {
+    mutations.facebookMessageMutation.mutate({
+      id: convId,
+      payload: { body },
+    }, {
+      onError: onErrorHandler,
+    })
+  } else if (channel === 'instagram') {
+    mutations.instagramMessageMutation.mutate({
+      id: convId,
+      payload: { body },
+    }, {
+      onError: onErrorHandler,
+    })
+  } else if (channel === 'tiktok') {
+    mutations.whatsappMessageMutation.mutate({
+      id: convId,
+      payload: { body },
+    }, {
+      onError: onErrorHandler,
+    })
+  } else {
+    if (file) {
+      const formData = new FormData()
+      formData.append('body', body || '')
+      formData.append('file', file)
+      if (media_type) formData.append('media_type', media_type)
+      mutations.whatsappMessageMutation.mutate({
+        id: convId,
+        payload: formData,
+      }, {
+        onError: onErrorHandler,
+      })
+    } else {
+      mutations.whatsappMessageMutation.mutate({
+        id: convId,
+        payload: { body },
+      }, {
+        onError: onErrorHandler,
+      })
+    }
   }
 }
 

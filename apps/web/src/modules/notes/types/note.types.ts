@@ -22,6 +22,10 @@ export interface Note {
     color?: string
     icon?: string
     slug?: string
+    display_path?: string
+    full_path?: string
+    parent_id?: string
+    code?: string
   }>
   custom_statuses?: Array<{
     id: string
@@ -29,12 +33,20 @@ export interface Note {
     color?: string
     icon?: string
     slug?: string
+    display_path?: string
+    full_path?: string
+    parent_id?: string
+    code?: string
   }>
   tags?: Array<{
     id: string
     name: string
     color_hex?: string
     slug?: string
+    display_path?: string
+    full_path?: string
+    parent_id?: string
+    code?: string
   }>
   created_at?: string
   updated_at?: string
@@ -62,6 +74,8 @@ export interface DetectedEntity {
   icon?: string
   slug?: string
   matched_text?: string
+  display_path?: string
+  full_path?: string
 }
 
 export interface AnalyzeResult {
@@ -116,4 +130,37 @@ export interface KeepPreviewResponse {
 export interface KeepImportResult {
   imported_count: number
   ai_chunks_created: number
+}
+
+export interface SimilarPairItem {
+  id: string
+  note_a: Note
+  note_b: Note
+  similarity_percent: number
+  similarity_reason: string
+  source: 'ia' | 'algorithmic'
+  matched_keywords?: string[]
+}
+
+export interface SimilarMatrixResponse {
+  data: SimilarPairItem[]
+  total: number
+  total_scanned: number
+  mode: string
+}
+
+export interface SuggestEntitiesPayload {
+  title?: string
+  content: string
+  mode?: 'heuristic' | 'ai'
+}
+
+export interface SuggestEntitiesResponse {
+  categories: DetectedEntity[]
+  custom_statuses: DetectedEntity[]
+  tags: DetectedEntity[]
+  total: number
+  reason?: string
+  source: 'ia' | 'heuristic' | 'heuristic_fallback'
+  message?: string
 }

@@ -442,6 +442,7 @@ class NotificationCenterTest extends TestCase
             'organization_id' => $org->id,
             'name' => 'WhatsApp Cochabamba',
             'phone_number_id' => '59170000001',
+            'verify_token' => 'token_59170000001',
             'session_type' => 'baileys_qr',
             'is_active' => true,
         ]);
@@ -449,6 +450,7 @@ class NotificationCenterTest extends TestCase
             'organization_id' => $org->id,
             'name' => 'WhatsApp La Paz',
             'phone_number_id' => '59170000002',
+            'verify_token' => 'token_59170000002',
             'session_type' => 'baileys_qr',
             'is_active' => true,
         ]);
@@ -515,6 +517,7 @@ class NotificationCenterTest extends TestCase
             'organization_id' => $org->id,
             'name' => 'Línea Central',
             'phone_number_id' => '59170000003',
+            'verify_token' => 'token_59170000003',
             'session_type' => 'baileys_qr',
             'is_active' => true,
         ]);
@@ -570,6 +573,7 @@ class NotificationCenterTest extends TestCase
             'organization_id' => $org->id,
             'name' => 'Línea Sin Asignar',
             'phone_number_id' => '59170000004',
+            'verify_token' => 'token_59170000004',
             'session_type' => 'baileys_qr',
             'is_active' => true,
         ]);
@@ -615,8 +619,22 @@ class NotificationCenterTest extends TestCase
         $org->users()->attach($admin->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
         $org->users()->attach($agent->id, ['id' => (string) Str::ulid(), 'role' => 'agent']);
 
-        $channel1 = WhatsAppAccount::create(['organization_id' => $org->id, 'name' => 'Línea 1', 'session_type' => 'baileys_qr', 'is_active' => true]);
-        $channel2 = WhatsAppAccount::create(['organization_id' => $org->id, 'name' => 'Línea 2', 'session_type' => 'baileys_qr', 'is_active' => true]);
+        $channel1 = WhatsAppAccount::create([
+            'organization_id' => $org->id,
+            'name' => 'Línea 1',
+            'phone_number_id' => '59170000005',
+            'verify_token' => 'token_59170000005',
+            'session_type' => 'baileys_qr',
+            'is_active' => true,
+        ]);
+        $channel2 = WhatsAppAccount::create([
+            'organization_id' => $org->id,
+            'name' => 'Línea 2',
+            'phone_number_id' => '59170000006',
+            'verify_token' => 'token_59170000006',
+            'session_type' => 'baileys_qr',
+            'is_active' => true,
+        ]);
 
         $c1 = Contact::create(['organization_id' => $org->id, 'first_name' => 'C1', 'phone' => '+59175555551']);
         $c2 = Contact::create(['organization_id' => $org->id, 'first_name' => 'C2', 'phone' => '+59175555552']);

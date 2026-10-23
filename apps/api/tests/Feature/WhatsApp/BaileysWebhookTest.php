@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\WhatsApp;
 
+use App\Modules\Conversations\Events\TicketCreatedEvent;
 use App\Modules\Conversations\Events\TicketMessageCreatedEvent;
+use App\Modules\Conversations\Events\TicketUpdatedEvent;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\Tenancy\Models\Organization;
@@ -470,5 +472,76 @@ class BaileysWebhookTest extends TestCase
 
         // NO se debe haber emitido evento de creación nuevo
         Event::assertNotDispatched(TicketMessageCreatedEvent::class);
+    }
+
+    public function test_baileys_inbound_message_reopens_closed_conversation_without_duplicate(): void
+    {
+        Event::fake([TicketMessageCreatedEvent::class, TicketUpdatedEvent::class, TicketCreatedEvent::class]);
+
+        $organization = Organization::create(['name' => 'Demo Org', 'slug' => 'demo-org']);
+        $account = WhatsAppAccount::create([
+            'organization_id' => $organization->id,
+            'name' => 'WhatsApp Baileys Line',
+            'phone_number_id' => 'baileys_phone_010',
+            'verify_token' => 'baileys_token_secret',
+            'session_type' => 'qr_baileys',
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $contact = \App\Modules\Contacts\Models\Contact::create([
+            'organization_id' => $organization->id,
+            'phone' => '+59172001140',
+            'first_name' => 'Juan P',
+        ]);
+
+        // Conversación previa cerrada / finalizada
+        $closedConversation = Conversation::create([
+            'organization_id' => $organization->id,
+            'contact_id' => $contact->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'closed',
+            'closed_at' => now()->subHour(),
+            'unread_count' => 0,
+            'last_message_at' => now()->subHour(),
+        ]);
+
+        Message::create([
+            'organization_id' => $organization->id,
+            'conversation_id' => $closedConversation->id,
+            'direction' => 'inbound',
+            'body' => 'Consulta anterior ya resuelta',
+            'sent_at' => now()->subHour(),
+        ]);
+
+        // El cliente vuelve a escribir después de cerrada la conversación
+        $response = $this->postJson('/api/whatsapp/baileys/webhook', [
+            'event' => 'message',
+            'account_id' => $account->id,
+            'provider_message_id' => 'baileys_in_reopen_001',
+            'from_phone' => '+59172001140',
+            'from_name' => 'Juan P',
+            'body' => 'Hola, me surgió una nueva consulta',
+            'timestamp' => now()->timestamp,
+        ]);
+
+        $response->assertOk();
+
+        // NO se debe crear una conversación duplicada para el mismo contacto
+        $this->assertSame(1, Conversation::where('contact_id', $contact->id)->count());
+
+        // La conversación existente debe haberse reactivado a 'pending'
+        $closedConversation->refresh();
+        $this->assertSame('pending', $closedConversation->status);
+        $this->assertNull($closedConversation->closed_at);
+        $this->assertSame(1, $closedConversation->unread_count);
+
+        // El nuevo mensaje debe estar añadido al hilo existente
+        $this->assertSame(2, Message::where('conversation_id', $closedConversation->id)->count());
+
+        Event::assertDispatched(TicketMessageCreatedEvent::class);
+        Event::assertDispatched(TicketUpdatedEvent::class);
+        Event::assertNotDispatched(TicketCreatedEvent::class);
     }
 }

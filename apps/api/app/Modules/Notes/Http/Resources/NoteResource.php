@@ -34,10 +34,14 @@ class NoteResource extends JsonResource
             'metadata' => $this->metadata,
             'categories' => $this->whenLoaded('categories', fn () => $this->categories->map(fn ($cat) => [
                 'id' => $cat->id,
+                'parent_id' => $cat->parent_id,
                 'name' => $cat->name,
+                'code' => $cat->code,
                 'color' => $cat->color,
                 'icon' => $cat->icon,
                 'slug' => $cat->slug,
+                'display_path' => $cat->display_path,
+                'full_path' => $cat->full_path,
             ])),
             'custom_statuses' => $this->whenLoaded('customStatuses', fn () => $this->customStatuses->map(fn ($st) => [
                 'id' => $st->id,
