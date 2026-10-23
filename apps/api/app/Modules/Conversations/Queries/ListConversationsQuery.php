@@ -29,17 +29,27 @@ class ListConversationsQuery
             })
             ->when($filters['whatsapp_account_id'] ?? null, fn (Builder $query, string $accountId) => $query->where('whatsapp_account_id', $accountId))
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
-                $query->where(function (Builder $nested) use ($search) {
+                $search = trim($search);
+                $cleanPhone = preg_replace('/\D+/', '', $search);
+
+                $query->where(function (Builder $nested) use ($search, $cleanPhone) {
                     $nested
-                        ->where('subject', 'like', "%{$search}%")
-                        ->orWhereHas('contact', function (Builder $contactQuery) use ($search) {
-                            $contactQuery
-                                ->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%")
-                                ->orWhere('phone', 'like', "%{$search}%");
+                        ->where('subject', 'ilike', "%{$search}%")
+                        ->orWhereHas('contact', function (Builder $contactQuery) use ($search, $cleanPhone) {
+                            $contactQuery->where(function (Builder $cq) use ($search, $cleanPhone) {
+                                $cq->where('first_name', 'ilike', "%{$search}%")
+                                   ->orWhere('last_name', 'ilike', "%{$search}%")
+                                   ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) ILIKE ?", ["%{$search}%"])
+                                   ->orWhere('email', 'ilike', "%{$search}%")
+                                   ->orWhere('phone', 'ilike', "%{$search}%");
+
+                                if (!empty($cleanPhone) && strlen($cleanPhone) >= 4) {
+                                    $cq->orWhereRaw("REGEXP_REPLACE(COALESCE(phone, ''), '\D', '', 'g') ILIKE ?", ["%{$cleanPhone}%"]);
+                                }
+                            });
                         })
-                        ->orWhereHas('company', fn (Builder $companyQuery) => $companyQuery->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('latestMessage', fn (Builder $messageQuery) => $messageQuery->where('body', 'like', "%{$search}%"));
+                        ->orWhereHas('company', fn (Builder $companyQuery) => $companyQuery->where('name', 'ilike', "%{$search}%"))
+                        ->orWhereHas('latestMessage', fn (Builder $messageQuery) => $messageQuery->where('body', 'ilike', "%{$search}%"));
                 });
             })
             // Filtro por pestañas Whaticket

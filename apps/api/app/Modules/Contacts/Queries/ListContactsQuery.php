@@ -24,12 +24,20 @@ class ListContactsQuery
                 }
             })
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
-                $query->where(function (Builder $nested) use ($search) {
+                $search = trim($search);
+                $cleanPhone = preg_replace('/\D+/', '', $search);
+
+                $query->where(function (Builder $nested) use ($search, $cleanPhone) {
                     $nested
-                        ->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('phone', 'like', "%{$search}%");
+                        ->where('first_name', 'ilike', "%{$search}%")
+                        ->orWhere('last_name', 'ilike', "%{$search}%")
+                        ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) ILIKE ?", ["%{$search}%"])
+                        ->orWhere('email', 'ilike', "%{$search}%")
+                        ->orWhere('phone', 'ilike', "%{$search}%");
+
+                    if (!empty($cleanPhone) && strlen($cleanPhone) >= 4) {
+                        $nested->orWhereRaw("REGEXP_REPLACE(COALESCE(phone, ''), '\D', '', 'g') ILIKE ?", ["%{$cleanPhone}%"]);
+                    }
                 });
             })
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))

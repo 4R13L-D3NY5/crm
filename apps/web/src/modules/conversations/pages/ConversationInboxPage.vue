@@ -10,10 +10,13 @@
       :loading="conversationsQuery.isLoading.value"
       :attending-count="attendingCount"
       :pending-count="pendingCount"
+      :all-count="allConversationsCount"
+      :closed-count="closedCount"
       :is-mobile="isMobile"
       @update:active-tab="onTabChange"
       @update:search="searchQuery = $event"
       @select="selectConversation"
+      @select-contact="handleSelectContactFromSearch"
       @create-ticket="isNewTicketModalOpen = true"
     />
 
@@ -156,7 +159,8 @@ const formOptions = useConversationFormOptions()
 const isMobile = computed(() => $q.screen.width < 900)
 
 // Estados y Filtros
-const activeTab = ref<'attending' | 'pending' | 'closed'>('attending')
+const activeTab = ref<'all' | 'attending' | 'pending' | 'closed'>('attending')
+const previousTabBeforeSearch = ref<'all' | 'attending' | 'pending' | 'closed'>('attending')
 const searchQuery = ref((route.query.search as string) || (route.query.phone as string) || '')
 const selectedConversationId = ref<string | null>((route.query.id as string) || null)
 const isProfileOpen = ref(!$q.screen.lt.md)
@@ -182,8 +186,19 @@ const pendingCount = computed(() => {
   return allConversations.value.filter(c => c.status === 'pending' || (c.status === 'open' && !c.assigned_to_user_id && !c.assignee)).length
 })
 
-// Filtrar según el tab activo
+const closedCount = computed(() => {
+  return allConversations.value.filter(c => c.status === 'closed').length
+})
+
+const allConversationsCount = computed(() => {
+  return allConversations.value.length
+})
+
+// Filtrar según el tab activo (si está en 'all' o buscando, permite ver todas las coincidencias)
 const filteredConversations = computed(() => {
+  if (activeTab.value === 'all') {
+    return allConversations.value
+  }
   if (activeTab.value === 'attending') {
     return allConversations.value.filter(c => c.status === 'open' && (c.assigned_to_user_id || c.assignee))
   }
@@ -266,6 +281,20 @@ watch(
   { immediate: true },
 )
 
+// Al escribir en el buscador, alternar temporalmente al tab 'all' para no ocultar resultados de otros estados
+watch(searchQuery, (newVal, oldVal) => {
+  if (newVal && !oldVal) {
+    if (activeTab.value !== 'all') {
+      previousTabBeforeSearch.value = activeTab.value
+      activeTab.value = 'all'
+    }
+  } else if (!newVal && oldVal) {
+    if (activeTab.value === 'all') {
+      activeTab.value = previousTabBeforeSearch.value
+    }
+  }
+})
+
 // Si se ingresó buscando un teléfono o término sin id previo, auto-seleccionar la primera coincidencia
 watch(
   allConversations,
@@ -276,10 +305,10 @@ watch(
   },
 )
 
-function onTabChange(tab: 'attending' | 'pending' | 'closed') {
+function onTabChange(tab: 'all' | 'attending' | 'pending' | 'closed') {
   activeTab.value = tab
   // Si la conversación seleccionada no coincide con el nuevo tab, limpiar selección
-  if (selectedConversation.value) {
+  if (tab !== 'all' && selectedConversation.value) {
     const isAttending = selectedConversation.value.status === 'open' && (selectedConversation.value.assigned_to_user_id || selectedConversation.value.assignee)
     const isPending = selectedConversation.value.status === 'pending' || (selectedConversation.value.status === 'open' && !selectedConversation.value.assigned_to_user_id && !selectedConversation.value.assignee)
     const isClosed = selectedConversation.value.status === 'closed'
@@ -297,6 +326,19 @@ function onTabChange(tab: 'attending' | 'pending' | 'closed') {
       }
     }
   }
+}
+
+function handleSelectContactFromSearch(contact: any) {
+  if (!contact?.id) return
+  const existing = allConversations.value.find(
+    (c) => c.contact?.id === contact.id || (contact.phone && c.contact?.phone === contact.phone)
+  )
+  if (existing) {
+    selectConversation(existing)
+    return
+  }
+
+  isNewTicketModalOpen.value = true
 }
 
 function handleBackToList() {
