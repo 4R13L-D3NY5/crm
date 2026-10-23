@@ -157,7 +157,7 @@ const isMobile = computed(() => $q.screen.width < 900)
 
 // Estados y Filtros
 const activeTab = ref<'attending' | 'pending' | 'closed'>('attending')
-const searchQuery = ref('')
+const searchQuery = ref((route.query.search as string) || (route.query.phone as string) || '')
 const selectedConversationId = ref<string | null>((route.query.id as string) || null)
 const isProfileOpen = ref(!$q.screen.lt.md)
 const isTransferModalOpen = ref(false)
@@ -234,6 +234,46 @@ watch(
     }
   },
   { immediate: true },
+)
+
+// Sincronizar parámetro search/phone de la URL
+watch(
+  () => (route.query.search as string) || (route.query.phone as string),
+  (val) => {
+    if (typeof val === 'string' && val !== searchQuery.value) {
+      searchQuery.value = val
+    }
+  },
+)
+
+// Si la conversación seleccionada se carga, alinear el tab activo al estado real del ticket
+watch(
+  selectedConversation,
+  (conv) => {
+    if (!conv) return
+    const isAttending = conv.status === 'open' && (conv.assigned_to_user_id || conv.assignee)
+    const isPending = conv.status === 'pending' || (conv.status === 'open' && !conv.assigned_to_user_id && !conv.assignee)
+    const isClosed = conv.status === 'closed'
+
+    if (isAttending && activeTab.value !== 'attending') {
+      activeTab.value = 'attending'
+    } else if (isPending && activeTab.value !== 'pending') {
+      activeTab.value = 'pending'
+    } else if (isClosed && activeTab.value !== 'closed') {
+      activeTab.value = 'closed'
+    }
+  },
+  { immediate: true },
+)
+
+// Si se ingresó buscando un teléfono o término sin id previo, auto-seleccionar la primera coincidencia
+watch(
+  allConversations,
+  (conversations) => {
+    if (!selectedConversationId.value && searchQuery.value && conversations.length > 0) {
+      selectConversation(conversations[0])
+    }
+  },
 )
 
 function onTabChange(tab: 'attending' | 'pending' | 'closed') {
