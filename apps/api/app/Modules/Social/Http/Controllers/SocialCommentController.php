@@ -74,13 +74,24 @@ class SocialCommentController extends Controller
 
             $orgId = $account?->organization_id ?? Organization::first()?->id;
 
+            if (!$account) {
+                $account = WhatsAppAccount::where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->whereIn('session_type', ['facebook', 'instagram'])
+                    ->first();
+            }
+
+            $isInstagram = $request->input('object') === 'instagram'
+                || ($account && $account->session_type === 'instagram')
+                || str_starts_with((string) data_get($entry, 'id'), '17841');
+
             // A. Mensajería Directa (Facebook Messenger / Instagram DM)
             if ($messaging = data_get($entry, 'messaging.0')) {
                 $senderId = (string) data_get($messaging, 'sender.id');
                 $recipientId = (string) data_get($messaging, 'recipient.id');
                 $isEcho = (bool) data_get($messaging, 'message.is_echo', false);
                 $messageText = (string) data_get($messaging, 'message.text', 'Mensaje multimedia recibido');
-                $platform = $account?->session_type ?? 'facebook';
+                $platform = $isInstagram ? 'instagram' : ($account?->session_type ?? 'facebook');
 
                 $isOutbound = $isEcho
                     || ($senderId === (string) $pageId)
@@ -113,6 +124,30 @@ class SocialCommentController extends Controller
                     }
                 }
 
+                $rawReferral = data_get($messaging, 'referral') ?: data_get($messaging, 'message.referral');
+                $referral = null;
+                if ($rawReferral) {
+                    $adsContext = data_get($rawReferral, 'ads_context_data', []);
+                    $adId = data_get($rawReferral, 'ad_id') ?: data_get($adsContext, 'ad_id');
+                    $postId = data_get($adsContext, 'post_id');
+                    $sourceUrl = null;
+                    if ($postId) {
+                        $sourceUrl = str_contains((string) $postId, '_')
+                            ? 'https://www.facebook.com/' . str_replace('_', '/posts/', (string) $postId)
+                            : "https://facebook.com/{$postId}";
+                    }
+                    $referral = [
+                        'source_type' => 'ad',
+                        'source_id' => (string) ($adId ?: $postId),
+                        'source_url' => $sourceUrl,
+                        'headline' => (string) (data_get($adsContext, 'ad_title') ?: 'Anuncio de Meta Ads'),
+                        'body' => data_get($rawReferral, 'ref') ?: null,
+                        'media_type' => data_get($adsContext, 'video_url') ? 'video' : 'image',
+                        'image_url' => data_get($adsContext, 'photo_url') ?: data_get($adsContext, 'image_url'),
+                        'video_url' => data_get($adsContext, 'video_url'),
+                    ];
+                }
+
                 $conversation = Conversation::firstOrCreate(
                     [
                         'organization_id' => $orgId,
@@ -124,8 +159,17 @@ class SocialCommentController extends Controller
                         'status' => 'pending',
                         'unread_count' => 0,
                         'last_message_at' => Carbon::now(),
+                        'origin_referral' => $referral,
+                        'metadata' => $referral ? ['origin_referral' => $referral] : null,
                     ]
                 );
+
+                if ($referral && empty($conversation->origin_referral)) {
+                    $conversation->update([
+                        'origin_referral' => $referral,
+                        'metadata' => array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $referral]),
+                    ]);
+                }
 
                 if ($isOutbound) {
                     $conversation->update([
@@ -143,9 +187,16 @@ class SocialCommentController extends Controller
                     'conversation_id' => $conversation->id,
                     'direction' => $isOutbound ? 'outbound' : 'inbound',
                     'body' => $messageText,
+                    'metadata' => $referral ? ['referral' => $referral] : null,
                     'sent_at' => Carbon::now(),
                     'delivery_status' => $isOutbound ? 'delivered' : 'read',
                 ]);
+
+                if ($referral) {
+                    $cf = (array) ($contact->custom_fields ?? []);
+                    $cf['last_ad_referral'] = $referral;
+                    $contact->update(['custom_fields' => $cf]);
+                }
 
                 event(new TicketMessageCreatedEvent($msg));
 
@@ -159,7 +210,7 @@ class SocialCommentController extends Controller
             if ($changes = data_get($entry, 'changes.0.value')) {
                 $validated = [
                     'organization_id' => $orgId,
-                    'platform' => $account?->session_type ?? 'facebook',
+                    'platform' => $isInstagram ? 'instagram' : ($account?->session_type ?? 'facebook'),
                     'post_id' => (string) data_get($changes, 'post_id', data_get($changes, 'media.id', 'post_' . time())),
                     'comment_id' => (string) data_get($changes, 'comment_id', data_get($changes, 'id', (string) uniqid())),
                     'author_name' => (string) data_get($changes, 'from.name', data_get($changes, 'from.username', data_get($changes, 'sender_name', 'Usuario Redes'))),
@@ -188,30 +239,89 @@ class SocialCommentController extends Controller
 
         $orgId = $validated['organization_id'];
 
+        $authorId = $validated['author_id'] ?? null;
+
         // Crear o encontrar contacto por nombre / autor social
         $contact = Contact::firstOrCreate(
             ['organization_id' => $orgId, 'first_name' => $validated['author_name']],
-            ['status' => 'active', 'notes' => "Lead capturado desde {$validated['platform']} Post #{$validated['post_id']}"]
+            [
+                'status' => 'active',
+                'notes' => "Lead capturado desde {$validated['platform']} Post #{$validated['post_id']}",
+                'custom_fields' => array_filter([
+                    "{$validated['platform']}_id" => $authorId,
+                    $validated['platform'] === 'instagram' ? 'instagram_username' : null => $validated['author_name'],
+                ]),
+            ]
         );
+
+        if (!empty($authorId)) {
+            $cf = (array) ($contact->custom_fields ?? []);
+            if (empty($cf["{$validated['platform']}_id"])) {
+                $cf["{$validated['platform']}_id"] = $authorId;
+                $contact->update(['custom_fields' => $cf]);
+            }
+        }
 
         $conversation = null;
         if ($validated['open_dm_ticket'] ?? true) {
-            $conversation = Conversation::create([
-                'organization_id' => $orgId,
-                'contact_id' => $contact->id,
-                'channel' => $validated['platform'],
-                'status' => 'pending',
-                'last_message_at' => Carbon::now(),
-                'unread_count' => 1,
-            ]);
+            $postId = (string) $validated['post_id'];
+            $sourceUrl = "https://{$validated['platform']}.com/{$postId}";
+            if ($validated['platform'] === 'facebook' && str_contains($postId, '_')) {
+                [$pagePart, $postPart] = explode('_', $postId, 2);
+                $sourceUrl = "https://www.facebook.com/{$pagePart}/posts/{$postPart}";
+            } elseif ($validated['platform'] === 'instagram') {
+                $sourceUrl = "https://www.instagram.com/p/{$postId}";
+            }
+
+            $postReferral = [
+                'source_type' => 'post',
+                'source_id' => $postId,
+                'source_url' => $sourceUrl,
+                'comment_id' => (string) $validated['comment_id'],
+                'headline' => "Publicación en {$validated['platform']} (#{$postId})",
+                'body' => "Comentario de {$validated['author_name']}: \"{$validated['comment_text']}\"",
+                'media_type' => 'text',
+            ];
+
+            $conversation = Conversation::where('organization_id', $orgId)
+                ->where('contact_id', $contact->id)
+                ->where('channel', $validated['platform'])
+                ->whereIn('status', ['pending', 'open'])
+                ->latest('last_message_at')
+                ->first();
+
+            if (!$conversation) {
+                $conversation = Conversation::create([
+                    'organization_id' => $orgId,
+                    'contact_id' => $contact->id,
+                    'channel' => $validated['platform'],
+                    'status' => 'pending',
+                    'last_message_at' => Carbon::now(),
+                    'unread_count' => 1,
+                    'origin_referral' => $postReferral,
+                    'metadata' => ['origin_referral' => $postReferral],
+                ]);
+            } else {
+                $conversation->update([
+                    'last_message_at' => Carbon::now(),
+                    'origin_referral' => $postReferral,
+                    'metadata' => array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $postReferral]),
+                ]);
+                $conversation->increment('unread_count');
+            }
 
             Message::create([
                 'organization_id' => $orgId,
                 'conversation_id' => $conversation->id,
                 'direction' => 'inbound',
                 'body' => "💬 Comentario en publicación: \"{$validated['comment_text']}\"",
+                'metadata' => ['referral' => $postReferral],
                 'sent_at' => Carbon::now(),
             ]);
+
+            $cf = (array) ($contact->custom_fields ?? []);
+            $cf['last_ad_referral'] = $postReferral;
+            $contact->update(['custom_fields' => $cf]);
         }
 
         // Registrar el comentario social
@@ -256,11 +366,25 @@ class SocialCommentController extends Controller
         $pageId = $account->phone_number_id;
 
         $client = new \GuzzleHttp\Client();
+
+        // Suscribir automáticamente la Fanpage a los webhooks de la App (feed y messages)
+        try {
+            $client->post("https://graph.facebook.com/v21.0/{$pageId}/subscribed_apps", [
+                'form_params' => [
+                    'subscribed_fields' => 'feed,messages',
+                    'access_token' => $token,
+                ],
+                'timeout' => 5,
+            ]);
+        } catch (\Throwable $e) {
+            // Silencioso si aún faltan permisos específicos
+        }
+
         try {
             $response = $client->get("https://graph.facebook.com/v21.0/{$pageId}/conversations?fields=id,updated_time,participants{id,name,email},messages{id,message,from,created_time}&access_token={$token}");
             $data = json_decode($response->getBody()->getContents(), true);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al conectar con la API de Facebook: ' . $e->getMessage()], 502);
+            $data = ['data' => []];
         }
 
         $createdCount = 0;
@@ -447,6 +571,21 @@ class SocialCommentController extends Controller
                         ->latest('last_message_at')
                         ->first();
 
+                    $sourceUrl = "https://facebook.com/{$postId}";
+                    if (str_contains($postId, '_')) {
+                        [$pagePart, $postPart] = explode('_', $postId, 2);
+                        $sourceUrl = "https://www.facebook.com/{$pagePart}/posts/{$postPart}";
+                    }
+
+                    $postReferral = [
+                        'source_type' => 'post',
+                        'source_id' => $postId,
+                        'source_url' => $sourceUrl,
+                        'headline' => (string) (data_get($post, 'message') ?: "Publicación en Facebook (#{$postId})"),
+                        'body' => "Comentario de {$authorName}: \"{$commentText}\"",
+                        'media_type' => 'text',
+                    ];
+
                     if (!$conversation) {
                         $conversation = Conversation::create([
                             'organization_id' => $organization->id,
@@ -456,6 +595,13 @@ class SocialCommentController extends Controller
                             'whatsapp_account_id' => $account->id,
                             'unread_count' => 0,
                             'last_message_at' => $commentTime,
+                            'origin_referral' => $postReferral,
+                            'metadata' => ['origin_referral' => $postReferral],
+                        ]);
+                    } elseif (empty($conversation->origin_referral)) {
+                        $conversation->update([
+                            'origin_referral' => $postReferral,
+                            'metadata' => array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $postReferral]),
                         ]);
                     }
 
@@ -464,6 +610,7 @@ class SocialCommentController extends Controller
                         'conversation_id' => $conversation->id,
                         'direction' => 'inbound',
                         'body' => "💬 Comentario en publicación: \"{$commentText}\"",
+                        'metadata' => ['referral' => $postReferral],
                         'sent_at' => $commentTime,
                     ]);
 
@@ -545,6 +692,14 @@ class SocialCommentController extends Controller
         $contact = $conversation->contact;
         $recipientId = data_get($contact?->custom_fields, 'facebook_id');
 
+        // Buscar si hay un comentario asociado (SocialComment) o en metadata
+        $socialComment = SocialComment::where('conversation_id', $conversation->id)->latest()->first();
+        $commentId = $socialComment?->comment_id;
+        if (!$commentId) {
+            $commentId = data_get($conversation->origin_referral, 'comment_id')
+                ?: data_get($conversation->metadata, 'origin_referral.comment_id');
+        }
+
         // Extraer recipient ID de las notas si no está en custom_fields
         if (!$recipientId && $contact?->notes) {
             if (preg_match('/ID #?(\d+)/', $contact->notes, $matches)) {
@@ -552,9 +707,9 @@ class SocialCommentController extends Controller
             }
         }
 
-        if (!$recipientId) {
+        if (!$recipientId && !$commentId) {
             return response()->json([
-                'message' => 'No se encontró el ID de Facebook Messenger del contacto para enviar el mensaje.',
+                'message' => 'No se encontró el ID de Facebook Messenger ni el comentario del contacto para enviar el mensaje.',
             ], 422);
         }
 
@@ -562,24 +717,102 @@ class SocialCommentController extends Controller
         $pageTarget = $account->phone_number_id ?: 'me';
         $client = new \GuzzleHttp\Client(['timeout' => 15]);
 
-        try {
-            $response = $client->post("https://graph.facebook.com/v21.0/{$pageTarget}/messages", [
-                'headers' => [
-                    'Authorization' => "Bearer {$token}",
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'recipient' => ['id' => $recipientId],
-                    'messaging_type' => 'RESPONSE',
-                    'message' => ['text' => $validated['body']],
-                ],
-            ]);
+        $result = null;
+        $sendError = null;
+        $commentReplied = false;
 
-            $result = json_decode($response->getBody()->getContents(), true);
-        } catch (\Throwable $e) {
+        // Estrategia 1: Si proviene de un comentario en un post, responder directamente al comentario en Facebook (Público en el Post)
+        if ($commentId) {
+            try {
+                $commentResp = $client->post("https://graph.facebook.com/v21.0/{$commentId}/comments", [
+                    'headers' => [
+                        'Authorization' => "Bearer {$token}",
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => [
+                        'message' => $validated['body'],
+                    ],
+                ]);
+                $commentData = json_decode($commentResp->getBody()->getContents(), true);
+                if (!empty($commentData['id'])) {
+                    $result = $commentData;
+                    $commentReplied = true;
+                    if ($socialComment) {
+                        $socialComment->update([
+                            'is_replied' => true,
+                            'reply_text' => $validated['body'],
+                        ]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $sendError = $e->getMessage();
+            }
+
+            // Si falló responder en el post (ej: falta pages_manage_engagement), intentar respuesta privada por Messenger
+            if (!$commentReplied) {
+                try {
+                    $response = $client->post("https://graph.facebook.com/v21.0/{$pageTarget}/messages", [
+                        'headers' => [
+                            'Authorization' => "Bearer {$token}",
+                            'Content-Type' => 'application/json',
+                        ],
+                        'json' => [
+                            'recipient' => ['comment_id' => $commentId],
+                            'message' => ['text' => $validated['body']],
+                        ],
+                    ]);
+                    $result = json_decode($response->getBody()->getContents(), true);
+                } catch (\Throwable $e) {
+                    $sendError = $e->getMessage();
+                }
+            }
+        }
+
+        // Estrategia 2: Si no hubo comment_id o falló, enviar por recipient id (PSID)
+        if (!$result && $recipientId) {
+            try {
+                $response = $client->post("https://graph.facebook.com/v21.0/{$pageTarget}/messages", [
+                    'headers' => [
+                        'Authorization' => "Bearer {$token}",
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => [
+                        'recipient' => ['id' => $recipientId],
+                        'messaging_type' => 'RESPONSE',
+                        'message' => ['text' => $validated['body']],
+                    ],
+                ]);
+                $result = json_decode($response->getBody()->getContents(), true);
+            } catch (\Throwable $e) {
+                $sendError = $e->getMessage();
+            }
+        }
+
+        if (!$result) {
+            $userFriendly = 'No se pudo enviar el mensaje a través de Meta.';
+            if (str_contains((string) $sendError, '2018278') || str_contains((string) $sendError, 'período permitido') || str_contains((string) $sendError, 'outside the allowed window')) {
+                $userFriendly = 'Meta no permite enviar mensajes por Messenger porque han pasado más de 24 horas desde el último mensaje del cliente. Para chatear por privado, el cliente debe escribir primero en su Messenger (política oficial de 24 horas de Facebook).';
+            } elseif (str_contains((string) $sendError, '10900') || str_contains((string) $sendError, 'one private reply')) {
+                $userFriendly = 'Ya se utilizó la respuesta privada inicial permitida por Meta para este comentario. Para continuar chateando por privado, el cliente debe responder en su Messenger.';
+            } elseif (str_contains((string) $sendError, 'Permissions error') || str_contains((string) $sendError, '"code":200')) {
+                $userFriendly = 'Para responder públicamente en el comentario del post de Facebook, tu Token en Meta necesita el permiso "pages_manage_engagement".';
+            } else {
+                $userFriendly = 'Error de Meta: ' . $sendError;
+            }
+
             return response()->json([
-                'message' => 'Error de Meta al enviar mensaje de Messenger: ' . $e->getMessage(),
+                'message' => $userFriendly,
             ], 422);
+        }
+
+        // Si Meta devolvió el PSID en recipient_id, persistirlo en el contacto para futuros mensajes
+        $returnedPsid = data_get($result, 'recipient_id');
+        if ($returnedPsid && $contact) {
+            $cf = (array) ($contact->custom_fields ?? []);
+            if (empty($cf['facebook_id']) || $cf['facebook_id'] !== $returnedPsid) {
+                $cf['facebook_id'] = $returnedPsid;
+                $contact->update(['custom_fields' => $cf]);
+            }
         }
 
         // Registrar mensaje saliente en la base de datos

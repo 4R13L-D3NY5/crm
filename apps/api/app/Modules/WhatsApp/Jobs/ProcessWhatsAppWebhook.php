@@ -116,6 +116,23 @@ class ProcessWhatsAppWebhook implements ShouldQueue
         $body = $messagePayload['text']['body'] ?? '[mensaje sin soporte en MVP]';
         $sentAt = isset($messagePayload['timestamp']) ? Carbon::createFromTimestamp((int) $messagePayload['timestamp']) : now();
 
+        $rawReferral = $messagePayload['referral'] ?? null;
+        $referral = null;
+        if (is_array($rawReferral)) {
+            $referral = [
+                'source_type' => strtolower($rawReferral['source_type'] ?? 'ad'),
+                'source_id' => $rawReferral['source_id'] ?? null,
+                'source_url' => $rawReferral['source_url'] ?? null,
+                'headline' => $rawReferral['headline'] ?? null,
+                'body' => $rawReferral['body'] ?? null,
+                'media_type' => $rawReferral['media_type'] ?? 'image',
+                'image_url' => $rawReferral['image_url'] ?? null,
+                'video_url' => $rawReferral['video_url'] ?? null,
+                'thumbnail_url' => $rawReferral['thumbnail_url'] ?? null,
+                'ctwa_clid' => $rawReferral['ctwa_clid'] ?? null,
+            ];
+        }
+
         $contact = Contact::query()
             ->where('organization_id', $account->organization_id)
             ->where('phone', $phone)
@@ -151,11 +168,16 @@ class ProcessWhatsAppWebhook implements ShouldQueue
 
             if ($lastClosed) {
                 $conversation = $lastClosed;
-                $conversation->forceFill([
+                $convUpdates = [
                     'status' => 'pending',
                     'closed_at' => null,
                     'whatsapp_account_id' => $account->getKey(),
-                ])->save();
+                ];
+                if ($referral && empty($conversation->origin_referral)) {
+                    $convUpdates['origin_referral'] = $referral;
+                    $convUpdates['metadata'] = array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $referral]);
+                }
+                $conversation->forceFill($convUpdates)->save();
             } else {
                 $conversation = Conversation::query()->create([
                     'organization_id' => $account->organization_id,
@@ -167,10 +189,22 @@ class ProcessWhatsAppWebhook implements ShouldQueue
                     'status' => 'pending',
                     'subject' => 'WhatsApp: '.$profileName,
                     'last_message_at' => $sentAt,
+                    'origin_referral' => $referral,
+                    'metadata' => $referral ? ['origin_referral' => $referral] : null,
                 ]);
             }
-        } elseif (! $conversation->whatsapp_account_id) {
-            $conversation->forceFill(['whatsapp_account_id' => $account->getKey()])->save();
+        } else {
+            $convUpdates = [];
+            if (! $conversation->whatsapp_account_id) {
+                $convUpdates['whatsapp_account_id'] = $account->getKey();
+            }
+            if ($referral && empty($conversation->origin_referral)) {
+                $convUpdates['origin_referral'] = $referral;
+                $convUpdates['metadata'] = array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $referral]);
+            }
+            if (! empty($convUpdates)) {
+                $conversation->forceFill($convUpdates)->save();
+            }
         }
 
         $message = Message::query()->create([
@@ -181,8 +215,15 @@ class ProcessWhatsAppWebhook implements ShouldQueue
             'message_type' => $messagePayload['type'] ?? 'text',
             'message_status' => 'received',
             'body' => $body,
+            'metadata' => $referral ? ['referral' => $referral] : null,
             'sent_at' => $sentAt,
         ]);
+
+        if ($referral) {
+            $cf = (array) ($contact->custom_fields ?? []);
+            $cf['last_ad_referral'] = $referral;
+            $contact->update(['custom_fields' => $cf]);
+        }
 
         $conversation->increment('unread_count');
         $conversation->forceFill([

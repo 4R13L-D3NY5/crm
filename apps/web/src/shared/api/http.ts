@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { notifySessionExpired, resetActivityTimer } from '@/modules/auth/composables/useSessionTimeout'
 
 export function resolveApiBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL
@@ -89,7 +90,10 @@ http.interceptors.request.use(
 )
 
 http.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    resetActivityTimer()
+    return response
+  },
   async (error: AxiosError) => {
     const status = error.response?.status
     const originalRequest = error.config as (InternalAxiosRequestConfig & {
@@ -102,6 +106,16 @@ http.interceptors.response.use(
       applyXsrfHeader(originalRequest)
 
       return http(originalRequest)
+    }
+
+    if (status === 401) {
+      const url = originalRequest?.url || ''
+      const isLoginRequest = url.includes('/login')
+      const isAuthPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/login')
+
+      if (!isLoginRequest && !isAuthPage) {
+        notifySessionExpired()
+      }
     }
 
     throw error

@@ -252,9 +252,18 @@ class InstagramController extends Controller
             ->where('session_type', 'instagram')
             ->first();
 
+        // Fallback: si no hay cuenta de Instagram separada, utilizar la cuenta de Facebook con token activo
+        // (ya que el Page Access Token gestiona tanto la Fanpage como su cuenta comercial de Instagram vinculada)
+        if (!$account || !$account->access_token) {
+            $account = WhatsAppAccount::where('organization_id', $organization->id)
+                ->where('session_type', 'facebook')
+                ->whereNotNull('access_token')
+                ->first();
+        }
+
         if (!$account || !$account->access_token) {
             return response()->json([
-                'message' => 'No hay una cuenta de Instagram activa configurada.',
+                'message' => 'No hay una cuenta de Instagram activa ni cuenta de Facebook vinculada configurada.',
             ], 422);
         }
 
@@ -268,29 +277,94 @@ class InstagramController extends Controller
             }
         }
 
-        if (!$recipientId) {
-            return response()->json([
-                'message' => 'No se encontró el ID de Instagram del contacto para enviar el DM.',
-            ], 422);
-        }
-
         [$pageToken, $pageId] = $this->resolvePageTokenAndId($account, $organization->id);
 
         $client = new Client(['timeout' => 15]);
 
-        try {
-            $response = $client->post("https://graph.facebook.com/v21.0/me/messages?access_token={$pageToken}", [
-                'json' => [
-                    'recipient' => ['id' => $recipientId],
-                    'message' => ['text' => $validated['body']],
-                ],
-            ]);
+        // Detectar si este ticket proviene de un comentario en un post / reel de Instagram
+        $commentId = data_get($conversation->origin_referral, 'comment_id')
+            ?: data_get($conversation->metadata, 'origin_referral.comment_id');
 
-            $result = json_decode($response->getBody()->getContents(), true);
-        } catch (Throwable $e) {
+        $result = null;
+        $sendError = null;
+        $commentReplied = false;
+
+        // Estrategia 1: Si hay comment_id, responder públicamente en el comentario del post de Instagram
+        if ($commentId) {
+            try {
+                $commentResp = $client->post("https://graph.facebook.com/v21.0/{$commentId}/replies", [
+                    'query' => [
+                        'message' => $validated['body'],
+                        'access_token' => $pageToken,
+                    ],
+                ]);
+                $commentData = json_decode($commentResp->getBody()->getContents(), true);
+                if (!empty($commentData['id'])) {
+                    $result = $commentData;
+                    $commentReplied = true;
+                }
+            } catch (Throwable $e) {
+                $sendError = $e->getMessage();
+            }
+
+            // Si falló responder en el post, intentar como respuesta privada al comentario
+            if (!$commentReplied) {
+                try {
+                    $response = $client->post("https://graph.facebook.com/v21.0/me/messages?access_token={$pageToken}", [
+                        'json' => [
+                            'recipient' => ['comment_id' => $commentId],
+                            'message' => ['text' => $validated['body']],
+                        ],
+                    ]);
+                    $result = json_decode($response->getBody()->getContents(), true);
+                } catch (Throwable $e) {
+                    $sendError = $e->getMessage();
+                }
+            }
+        }
+
+        // Estrategia 2: Mensaje directo estándar (DM) por ID de usuario
+        if (!$result && $recipientId) {
+            try {
+                $response = $client->post("https://graph.facebook.com/v21.0/me/messages?access_token={$pageToken}", [
+                    'json' => [
+                        'recipient' => ['id' => $recipientId],
+                        'message' => ['text' => $validated['body']],
+                    ],
+                ]);
+                $result = json_decode($response->getBody()->getContents(), true);
+            } catch (Throwable $e) {
+                $sendError = $e->getMessage();
+            }
+        }
+
+        if (!$result) {
+            $userFriendly = 'No se pudo enviar el mensaje a través de Instagram.';
+            if (str_contains((string) $sendError, '2018278') || str_contains((string) $sendError, 'período permitido') || str_contains((string) $sendError, 'outside the allowed window') || str_contains((string) $sendError, '24 hour')) {
+                $userFriendly = 'Meta no permite enviar mensajes por Instagram Direct porque han pasado más de 24 horas desde el último mensaje del cliente. Para chatear por privado, el cliente debe escribir primero a tu Instagram (política oficial de 24 horas de Meta).';
+            } elseif (str_contains((string) $sendError, '10900') || str_contains((string) $sendError, 'one private reply')) {
+                $userFriendly = 'Ya se utilizó la respuesta privada inicial permitida por Instagram para este comentario. Para continuar chateando por privado, el cliente debe responder en Instagram Direct.';
+            } elseif (str_contains((string) $sendError, 'instagram_manage_comments') || str_contains((string) $sendError, 'Permissions error') || str_contains((string) $sendError, '"code":200')) {
+                $userFriendly = 'Para responder comentarios de Instagram, tu Token en Meta necesita el permiso "instagram_manage_comments".';
+            } elseif (str_contains((string) $sendError, '230') || str_contains((string) $sendError, 'not allowed to receive messages')) {
+                $userFriendly = 'El usuario no permite mensajes directos o debes activar "Permitir acceso a los mensajes" en la app móvil de Instagram (Configuración > Mensajes y respuestas a historias > Controles de mensajes).';
+            } else {
+                $userFriendly = 'Error de Meta al enviar a Instagram: ' . $sendError;
+            }
+
             return response()->json([
-                'message' => 'Error de Meta al enviar DM: ' . $e->getMessage(),
+                'message' => $userFriendly,
             ], 422);
+        }
+
+        // Si Meta devolvió el ID en recipient_id, persistirlo en el contacto para futuros mensajes
+        $returnedIgId = data_get($result, 'recipient_id');
+        if ($returnedIgId && $contact) {
+            $cf = (array) ($contact->custom_fields ?? []);
+            if (empty($cf['instagram_id']) || $cf['instagram_id'] !== $returnedIgId) {
+                $cf['instagram_id'] = $returnedIgId;
+                $contact->update(['custom_fields' => $cf]);
+            }
         }
 
         // Registrar mensaje saliente en la base de datos

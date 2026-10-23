@@ -544,11 +544,12 @@
     <UserSettingsModal v-model="isSettingsModalOpen" />
     <!-- Modal Interactivo de Guía de Uso del Sistema (Foquito) -->
     <SystemGuideModal v-model="isGuideModalOpen" />
+    <SessionTimeoutModal />
   </q-layout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
@@ -556,6 +557,8 @@ import type { PresenceStatus } from '@/modules/auth/types/auth.types'
 import UserSettingsModal from '@/shared/components/UserSettingsModal.vue'
 import SystemGuideModal from '@/shared/components/SystemGuideModal.vue'
 import NotificationBell from '@/modules/notifications/components/NotificationBell.vue'
+import SessionTimeoutModal from '@/modules/auth/components/SessionTimeoutModal.vue'
+import { useSessionTimeout } from '@/modules/auth/composables/useSessionTimeout'
 import { useAppTheme } from '@/shared/composables/useAppTheme'
 
 const $q = useQuasar()
@@ -569,6 +572,7 @@ const { applyThemeMode, initTheme } = themeStore
 const leftDrawerOpen = ref(!$q.screen.lt.md)
 const isSettingsModalOpen = ref(false)
 const isGuideModalOpen = ref(false)
+const { startMonitoring, stopMonitoring } = useSessionTimeout()
 
 const currentMenuName = computed(() => {
   const p = (route.path || '').toLowerCase()
@@ -650,6 +654,11 @@ async function setQuickPresence(status: PresenceStatus) {
 
 onMounted(() => {
   initTheme(authStore.user?.preferences)
+  startMonitoring()
+})
+
+onUnmounted(() => {
+  stopMonitoring()
 })
 
 function toggleTheme(val: boolean) {

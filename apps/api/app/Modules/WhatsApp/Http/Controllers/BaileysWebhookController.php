@@ -96,6 +96,7 @@ class BaileysWebhookController extends Controller
         $mediaType = $request->input('media_type');
         $mimeType = $request->input('mime_type');
         $durationSeconds = $request->input('media_duration_seconds');
+        $referral = $request->input('referral');
 
         // Deduplicación preventiva: si el mensaje ya fue registrado previamente en el CRM
         // (por ejemplo, enviado desde la interfaz web vía CRM o procesado previamente), no duplicar.
@@ -233,7 +234,7 @@ class BaileysWebhookController extends Controller
 
         // 2. Localización o reactivación unificada de la conversación (Chat Continuo)
         // Concurrencia segura: usamos lockForUpdate sobre el contacto para serializar ráfagas de mensajes simultáneos
-        [$conversation, $wasReopened, $isNewlyCreated] = DB::transaction(function () use ($account, $contact, $lid, $isFromMe) {
+        [$conversation, $wasReopened, $isNewlyCreated] = DB::transaction(function () use ($account, $contact, $lid, $isFromMe, $referral) {
             Contact::where('id', $contact->id)->lockForUpdate()->first();
 
             // 2.1. Buscar conversación activa existente ('pending' u 'open')
@@ -252,8 +253,16 @@ class BaileysWebhookController extends Controller
                 ->first();
 
             if ($activeConv) {
+                $updates = [];
                 if (! $activeConv->whatsapp_account_id) {
-                    $activeConv->update(['whatsapp_account_id' => $account->id]);
+                    $updates['whatsapp_account_id'] = $account->id;
+                }
+                if ($referral && empty($activeConv->origin_referral)) {
+                    $updates['origin_referral'] = $referral;
+                    $updates['metadata'] = array_merge((array) ($activeConv->metadata ?? []), ['origin_referral' => $referral]);
+                }
+                if (!empty($updates)) {
+                    $activeConv->update($updates);
                 }
                 return [$activeConv, false, false];
             }
@@ -274,13 +283,16 @@ class BaileysWebhookController extends Controller
 
             if ($lastClosed) {
                 // Reabrir la conversación existente:
-                // Si el mensaje es entrante del cliente, pasa a 'pending' (En espera) para ser atendido.
-                // Si es un mensaje saliente espejo del asesor, pasa a 'open' (Atendiendo).
-                $lastClosed->update([
+                $updates = [
                     'status' => $isFromMe ? 'open' : 'pending',
                     'closed_at' => null,
                     'whatsapp_account_id' => $account->id,
-                ]);
+                ];
+                if ($referral && empty($lastClosed->origin_referral)) {
+                    $updates['origin_referral'] = $referral;
+                    $updates['metadata'] = array_merge((array) ($lastClosed->metadata ?? []), ['origin_referral' => $referral]);
+                }
+                $lastClosed->update($updates);
 
                 return [$lastClosed, true, false];
             }
@@ -294,6 +306,8 @@ class BaileysWebhookController extends Controller
                 'status' => $isFromMe ? 'open' : 'pending',
                 'unread_count' => 0,
                 'last_message_at' => Carbon::now(),
+                'origin_referral' => $referral,
+                'metadata' => $referral ? ['origin_referral' => $referral] : null,
             ]);
 
             return [$newConv, false, true];
@@ -368,8 +382,15 @@ class BaileysWebhookController extends Controller
             'media_url' => $mediaUrl,
             'media_type' => $mediaType,
             'media_duration_seconds' => filled($durationSeconds) ? (int) $durationSeconds : null,
+            'metadata' => $referral ? ['referral' => $referral] : null,
             'sent_at' => Carbon::now(),
         ]);
+
+        if ($referral) {
+            $cf = (array) ($contact->custom_fields ?? []);
+            $cf['last_ad_referral'] = $referral;
+            $contact->update(['custom_fields' => $cf]);
+        }
 
         // 4. Mapeo de proveedor si existe
         if ($providerMessageId) {

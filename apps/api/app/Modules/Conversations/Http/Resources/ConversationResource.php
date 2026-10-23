@@ -91,6 +91,8 @@ class ConversationResource extends JsonResource
                 fn () => $this->latestMessage ? (new MessageResource($this->latestMessage))->resolve() : null,
             ),
             'messages' => MessageResource::collection($this->whenLoaded('messages')),
+            'origin_referral' => $this->origin_referral ?? data_get($this->metadata, 'origin_referral'),
+            'metadata' => $this->metadata,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

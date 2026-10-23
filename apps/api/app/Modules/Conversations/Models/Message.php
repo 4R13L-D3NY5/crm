@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'is_edited',
     'edited_at',
     'original_body',
+    'metadata',
     'sent_at',
 ])]
 class Message extends Model
@@ -51,6 +52,7 @@ class Message extends Model
             'edited_at' => 'datetime',
             'sent_at' => 'datetime',
             'media_duration_seconds' => 'integer',
+            'metadata' => 'array',
         ];
     }
 

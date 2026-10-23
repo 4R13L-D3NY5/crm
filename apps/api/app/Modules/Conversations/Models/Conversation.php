@@ -37,6 +37,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'closed_at',
     'rating',
     'feedback',
+    'metadata',
+    'origin_referral',
 ])]
 class Conversation extends Model
 {
@@ -56,6 +58,8 @@ class Conversation extends Model
             'rating' => 'integer',
             'last_message_at' => 'datetime',
             'closed_at' => 'datetime',
+            'metadata' => 'array',
+            'origin_referral' => 'array',
         ];
     }
 

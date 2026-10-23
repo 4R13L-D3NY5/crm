@@ -24,6 +24,8 @@
     <div v-if="selectedConversation && (!isMobile || selectedConversationId)" class="inbox-center-area">
       <InboxChatThread
         :conversation="selectedConversation"
+        :all-conversations="allConversations"
+        @select-conversation="selectConversation"
         :is-action-loading="isActionPending"
         :is-sending="mutations.whatsappMessageMutation.isPending.value || mutations.facebookMessageMutation.isPending.value || mutations.instagramMessageMutation.isPending.value || mutations.messageMutation.isPending.value"
         :is-mobile="isMobile"
@@ -99,6 +101,8 @@
         <InboxContactSidebar
           v-if="selectedConversation"
           :conversation="selectedConversation"
+        :all-conversations="allConversations"
+        @select-conversation="selectConversation"
           :is-mobile="true"
           @close="isProfileOpen = false"
           @transfer="isTransferModalOpen = true"
