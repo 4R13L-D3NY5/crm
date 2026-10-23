@@ -37,7 +37,7 @@ const whaticketModuleRoutes: RouteRecordRaw[] = [
   { path: 'users', name: 'users.index', component: UsersManagementPage, meta: { requiresAdmin: true } },
   { path: 'departments', name: 'departments.index', component: DepartmentsPage, meta: { requiresAdmin: true } },
   { path: 'parameters', name: 'parameters.index', component: ParametersPage, meta: { requiresAdmin: true } },
-  { path: 'campaigns', name: 'campaigns.index', component: CampaignsPage, meta: { requiresAdmin: true } },
+  { path: 'campaigns', name: 'campaigns.index', component: CampaignsPage },
   { path: 'settings', name: 'settings.index', component: SettingsPage, meta: { requiresAdmin: true } },
   { path: 'tokens', name: 'tokens.index', component: TokensPage, meta: { requiresAdmin: true } },
   { path: 'docs', name: 'docs.index', component: ApiDocsPage, meta: { requiresAdmin: true } },
@@ -89,4 +89,3 @@ export const routes: RouteRecordRaw[] = [
     redirect: '/app/contacts',
   },
 ]
-

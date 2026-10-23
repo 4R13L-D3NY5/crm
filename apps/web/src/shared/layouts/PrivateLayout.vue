@@ -337,6 +337,19 @@
               </q-item-section>
               <q-item-section>Etiquetas & Segmentos</q-item-section>
             </q-item>
+
+            <!-- 8. Campañas Masivas -->
+            <q-item
+              clickable
+              to="/app/campaigns"
+              class="xf-nav-item"
+              active-class="xf-nav-item--active"
+            >
+              <q-item-section avatar>
+                <q-icon name="sym_r_campaign" size="18px" />
+              </q-item-section>
+              <q-item-section>Campañas Masivas</q-item-section>
+            </q-item>
           </q-list>
 
           <!-- SECCIÓN 2: GESTIÓN & CONFIGURACIÓN (Solo Administradores y Owners) -->
@@ -398,19 +411,6 @@
                   <q-icon name="sym_r_alt_route" size="18px" />
                 </q-item-section>
                 <q-item-section>Filas & Departamentos</q-item-section>
-              </q-item>
-
-              <!-- Campañas Masivas -->
-              <q-item
-                clickable
-                to="/app/campaigns"
-                class="xf-nav-item"
-                active-class="xf-nav-item--active"
-              >
-                <q-item-section avatar>
-                  <q-icon name="sym_r_campaign" size="18px" />
-                </q-item-section>
-                <q-item-section>Campañas Masivas</q-item-section>
               </q-item>
 
               <!-- Envíos Programados -->
