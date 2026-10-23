@@ -162,7 +162,9 @@
           <tr v-for="c in filteredCampaigns" :key="c.id" class="xf-table-row">
             <!-- Nombre, Fecha y Segmento -->
             <td class="text-left">
-              <div class="text-weight-bold text-ink">{{ c.name }}</div>
+              <div class="text-weight-bold text-ink cursor-pointer hover-primary" @click="openDetailDialog(c)">
+                {{ c.name }}
+              </div>
               <div class="row items-center q-gutter-x-xs q-mt-xs">
                 <span class="text-caption text-muted">{{ c.created_at }}</span>
                 <span class="text-muted">•</span>
@@ -179,6 +181,26 @@
                   />
                   {{ c.target_summary || (c.target_type === 'categories' ? 'Categorías' : c.target_type === 'tags' ? 'Etiquetas' : 'Toda la base') }}
                 </q-badge>
+              </div>
+
+              <!-- Vista previa clicable del Mensaje -->
+              <div
+                v-if="c.message_template"
+                class="xf-message-preview-pill q-mt-xs q-px-sm q-py-xs rounded-borders cursor-pointer"
+                @click="openDetailDialog(c)"
+              >
+                <div class="row items-center no-wrap text-caption text-muted">
+                  <q-icon name="sym_r_chat" size="13px" class="q-mr-xs text-primary" />
+                  <span class="ellipsis text-ink" style="max-width: 280px;">
+                    {{ c.message_template }}
+                  </span>
+                  <q-icon name="sym_r_open_in_new" size="12px" class="q-ml-xs text-grey-5" />
+                </div>
+                <q-tooltip class="bg-dark text-white text-caption" style="max-width: 380px; white-space: pre-wrap;">
+                  <strong>Plantilla del mensaje:</strong>
+                  <div>{{ c.message_template }}</div>
+                  <div class="text-grey-4 q-mt-xs">Clic para ver detalle y destinatarios</div>
+                </q-tooltip>
               </div>
             </td>
 
@@ -278,6 +300,18 @@
                   @click="retryFailedCampaign(c.id)"
                 >
                   <q-tooltip>Reintentar {{ c.failed_count }} envíos fallidos</q-tooltip>
+                </q-btn>
+
+                <!-- Ver Detalle y Mensaje -->
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="sym_r_visibility"
+                  color="primary"
+                  @click="openDetailDialog(c)"
+                >
+                  <q-tooltip>Ver detalle y mensaje completo</q-tooltip>
                 </q-btn>
 
                 <!-- Eliminar -->
@@ -616,6 +650,170 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Modal Detalle de Campaña y Mensaje Completo -->
+    <q-dialog v-model="isDetailDialogOpen">
+      <q-card style="width: 780px; max-width: 95vw;" class="xf-modal-card">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="row items-center q-gutter-x-sm">
+            <q-avatar size="38px" color="primary" text-color="white">
+              <q-icon name="sym_r_campaign" size="22px" />
+            </q-avatar>
+            <div>
+              <div class="text-h6 text-bold text-ink">{{ selectedCampaign?.name }}</div>
+              <div class="text-caption text-muted">
+                Creada el {{ selectedCampaign?.created_at }} • Canal: {{ selectedCampaign?.connection }}
+              </div>
+            </div>
+          </div>
+          <div class="row items-center q-gutter-xs">
+            <q-badge
+              :color="getStatusBadgeColor(selectedCampaign?.status || '')"
+              :label="getStatusBadgeLabel(selectedCampaign?.status || '')"
+              class="text-bold q-px-sm q-py-xs text-caption"
+              rounded
+            />
+            <q-btn flat round dense icon="sym_r_close" class="text-muted" v-close-popup />
+          </div>
+        </q-card-section>
+
+        <q-separator class="q-my-md" />
+
+        <q-card-section class="q-gutter-y-md q-pt-none scroll" style="max-height: 75vh;">
+          <!-- KPIs rápidos de la campaña -->
+          <div class="row q-col-gutter-sm">
+            <div class="col-6 col-sm-3">
+              <div class="xf-detail-kpi q-pa-sm rounded-borders text-center">
+                <div class="text-caption text-muted">Destinatarios</div>
+                <div class="text-h6 text-bold text-ink">{{ selectedCampaign?.total_contacts }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-sm-3">
+              <div class="xf-detail-kpi q-pa-sm rounded-borders text-center">
+                <div class="text-caption text-muted">Enviados</div>
+                <div class="text-h6 text-bold text-positive">{{ selectedCampaign?.sent_count }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-sm-3">
+              <div class="xf-detail-kpi q-pa-sm rounded-borders text-center">
+                <div class="text-caption text-muted">Fallidos</div>
+                <div class="text-h6 text-bold text-negative">{{ selectedCampaign?.failed_count }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-sm-3">
+              <div class="xf-detail-kpi q-pa-sm rounded-borders text-center">
+                <div class="text-caption text-muted">Intervalo</div>
+                <div class="text-h6 text-bold text-primary">{{ selectedCampaign?.delay_seconds }}s</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Texto / Plantilla del Mensaje de Difusión -->
+          <div class="xf-section-box q-pa-md rounded-borders">
+            <div class="row items-center justify-between q-mb-sm">
+              <div class="row items-center q-gutter-x-xs">
+                <q-icon name="sym_r_chat" size="18px" color="positive" />
+                <span class="text-subtitle2 text-bold text-ink">Texto del Mensaje Enviado</span>
+              </div>
+              <q-btn
+                flat
+                dense
+                size="sm"
+                icon="sym_r_content_copy"
+                label="Copiar Texto"
+                color="primary"
+                no-caps
+                @click="copyMessageText(selectedCampaign?.message_template || '')"
+              />
+            </div>
+
+            <div class="xf-whatsapp-preview q-pa-md rounded-borders">
+              <div class="text-body2 text-ink" style="white-space: pre-wrap; word-break: break-word;">
+                {{ selectedCampaign?.message_template }}
+              </div>
+              <div class="row items-center justify-between q-mt-sm text-caption text-muted" style="font-size: 11px;">
+                <span>Segmento: <strong>{{ selectedCampaign?.target_summary || 'Toda la base' }}</strong></span>
+                <span>✓✓ Entregado</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista Detallada de Destinatarios -->
+          <div class="xf-section-box q-pa-md rounded-borders">
+            <div class="row items-center justify-between q-mb-sm">
+              <div class="text-subtitle2 text-bold text-ink">
+                Destinatarios de la Campaña ({{ detailRecipients.length }})
+              </div>
+              <q-spinner-dots v-if="loadingRecipients" size="18px" color="primary" />
+            </div>
+
+            <div v-if="detailRecipients.length === 0 && !loadingRecipients" class="text-caption text-muted text-center q-pa-md">
+              No se encontraron registros de destinatarios para esta campaña.
+            </div>
+
+            <q-markup-table v-else flat dense class="xf-recipients-table">
+              <thead>
+                <tr>
+                  <th class="text-left">CONTACTO</th>
+                  <th class="text-left">TELÉFONO</th>
+                  <th class="text-left">ESTADO</th>
+                  <th class="text-left">HORA ENVÍO</th>
+                  <th class="text-right">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in detailRecipients" :key="r.id">
+                  <td class="text-left text-weight-medium text-ink">{{ r.name || 'Sin Nombre' }}</td>
+                  <td class="text-left font-mono text-caption">{{ r.phone }}</td>
+                  <td class="text-left">
+                    <q-badge
+                      :color="r.status === 'sent' ? 'positive' : r.status === 'failed' ? 'negative' : 'amber-8'"
+                      :label="r.status === 'sent' ? 'Enviado' : r.status === 'failed' ? 'Fallido' : 'Pendiente'"
+                      dense
+                      class="text-weight-bold"
+                    />
+                    <div v-if="r.error_message" class="text-caption text-negative q-mt-xs" style="font-size: 10px;">
+                      {{ r.error_message }}
+                    </div>
+                  </td>
+                  <td class="text-left text-caption text-muted">{{ formatDate(r.sent_at) }}</td>
+                  <td class="text-right">
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      icon="sym_r_chat"
+                      color="primary"
+                      size="sm"
+                      :to="getRecipientChatRoute(r)"
+                      @click="isDetailDialogOpen = false"
+                    >
+                      <q-tooltip>Abrir conversación en Bandeja Multicanal</q-tooltip>
+                    </q-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </q-markup-table>
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cerrar" color="grey-7" no-caps v-close-popup />
+          <q-btn
+            v-if="selectedCampaign?.failed_count && selectedCampaign.failed_count > 0 && selectedCampaign.status !== 'processing'"
+            unelevated
+            icon="sym_r_replay"
+            label="Reintentar Fallidos"
+            color="amber-9"
+            no-caps
+            class="text-weight-bold"
+            @click="retryFailedCampaign(selectedCampaign.id)"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -646,6 +844,7 @@ interface CampaignModel {
   status: 'draft' | 'processing' | 'paused' | 'completed'
   target_type?: string
   target_summary?: string
+  message_template?: string
 }
 
 const campaigns = ref<CampaignModel[]>([])
@@ -654,6 +853,11 @@ const rawCategories = ref<any[]>([])
 const categorySearch = ref('')
 const tagOptions = ref<{ label: string; value: string }[]>([])
 const tagSearch = ref('')
+
+const isDetailDialogOpen = ref(false)
+const selectedCampaign = ref<CampaignModel | null>(null)
+const detailRecipients = ref<any[]>([])
+const loadingRecipients = ref(false)
 
 const previewLoading = ref(false)
 const previewCount = ref<number | null>(null)
@@ -711,6 +915,7 @@ async function loadCampaigns() {
         status: c.status || 'draft',
         target_type: c.target_type || 'all',
         target_summary: c.target_summary || '',
+        message_template: c.message_template || '',
       }))
       checkPollingState()
     }
@@ -1068,6 +1273,53 @@ function startPolling() {
   }
 }
 
+async function openDetailDialog(c: CampaignModel) {
+  selectedCampaign.value = c
+  isDetailDialogOpen.value = true
+  loadingRecipients.value = true
+  detailRecipients.value = []
+  try {
+    const res = await http.get(`/campaigns/${c.id}`)
+    if (res.data?.data) {
+      if (res.data.data.recipients) {
+        detailRecipients.value = res.data.data.recipients
+      }
+      if (res.data.data.message_template) {
+        selectedCampaign.value = {
+          ...selectedCampaign.value!,
+          message_template: res.data.data.message_template,
+          sent_count: res.data.data.sent_count,
+          failed_count: res.data.data.failed_count,
+          total_contacts: res.data.data.total_contacts,
+          status: res.data.data.status,
+          target_summary: res.data.data.target_summary || selectedCampaign.value?.target_summary,
+        }
+      }
+    }
+  } catch {
+    // Mantener datos previos si falla la llamada
+  } finally {
+    loadingRecipients.value = false
+  }
+}
+
+function copyMessageText(text: string) {
+  if (!text) return
+  navigator.clipboard.writeText(text)
+  notify.success({ message: 'Texto de la campaña copiado al portapapeles.' })
+}
+
+function getRecipientChatRoute(r: any) {
+  const convId = r.conversation_id || r.contact?.conversations?.[0]?.id
+  if (convId) {
+    return { path: '/app/conversations', query: { id: convId } }
+  }
+  if (r.phone) {
+    return { path: '/app/conversations', query: { search: r.phone } }
+  }
+  return { path: '/app/conversations' }
+}
+
 onUnmounted(() => {
   if (pollingInterval) {
     clearInterval(pollingInterval)
@@ -1230,6 +1482,59 @@ function formatDate(isoDate?: string) {
 .xf-anti-ban-box {
   background: rgba(16, 185, 129, 0.05);
   border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.xf-message-preview-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--crm-color-border);
+  transition: all 0.2s ease;
+  display: inline-block;
+
+  &:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.4);
+  }
+}
+
+.body--light .xf-message-preview-pill {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+
+  &:hover {
+    background: #e0f2fe;
+    border-color: #38bdf8;
+  }
+}
+
+.xf-detail-kpi {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--crm-color-border);
+}
+
+.body--light .xf-detail-kpi {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.xf-recipients-table {
+  background: transparent;
+
+  thead tr th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--crm-color-muted);
+    border-bottom: 1px solid var(--crm-color-border);
+    padding: 8px 12px;
+  }
+
+  tbody tr td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--crm-color-border);
+  }
+}
+
+.hover-primary:hover {
+  color: var(--crm-color-primary) !important;
 }
 
 .letter-spacing-wide {
