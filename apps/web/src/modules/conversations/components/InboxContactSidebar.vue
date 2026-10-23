@@ -167,7 +167,7 @@
             size="xs"
             color="teal-4"
             icon="sym_r_add"
-            @click="isTagDialogOpen = true"
+            @click="openTagDialog"
           >
             <q-tooltip>Asignar etiqueta al contacto</q-tooltip>
           </q-btn>
@@ -195,27 +195,58 @@
         </div>
       </div>
 
-      <!-- Diálogo Asignar Etiqueta al Contacto -->
+      <!-- Diálogo Asignar Etiquetas al Contacto (Selección Múltiple & Checkboxes) -->
       <q-dialog v-model="isTagDialogOpen">
-        <q-card style="width: 380px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
+        <q-card style="width: 440px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
           <q-card-section>
-            <div class="text-subtitle1 text-bold text-white">Asignar Etiqueta al Contacto</div>
-            <div class="text-caption text-grey-4">Selecciona una etiqueta existente o escribe una nueva.</div>
+            <div class="text-subtitle1 text-bold text-white">Asignar Etiquetas al Contacto</div>
+            <div class="text-caption text-grey-4">Marca una o más etiquetas existentes, o escribe nuevas (presiona Enter para agregar).</div>
           </q-card-section>
 
           <q-card-section class="q-gutter-y-sm">
             <q-select
-              v-model="selectedTagToAssign"
-              :options="availableTagOptions"
+              v-model="selectedTagsToAssign"
+              :options="filteredTagOptions"
+              multiple
+              use-chips
               use-input
               new-value-mode="add-unique"
               outlined
               dark
               dense
-              label="Escribe o selecciona etiqueta"
+              label="Escribe o checkea etiquetas..."
+              @filter="filterTagOptions"
             >
               <template #prepend>
                 <q-icon name="sym_r_label" size="18px" class="text-teal-4" />
+              </template>
+
+              <!-- Checkbox en cada opción de tag -->
+              <template #option="{ itemProps, opt, selected, toggleOption }">
+                <q-item v-bind="itemProps" dense dark class="q-py-xs cursor-pointer" @click="toggleOption(opt)">
+                  <q-item-section side>
+                    <q-checkbox :model-value="selected" dense color="teal-4" @update:model-value="toggleOption(opt)" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-body2 text-white">
+                      #{{ typeof opt === 'string' ? opt : (opt.label || opt.name || opt.value) }}
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </template>
+
+              <template #selected-item="scope">
+                <q-chip
+                  dense
+                  dark
+                  removable
+                  color="teal-9"
+                  text-color="teal-2"
+                  class="q-ma-none q-mr-xs q-my-xs"
+                  @remove="scope.removeAtIndex(scope.index)"
+                >
+                  <span class="text-caption">#{{ typeof scope.opt === 'string' ? scope.opt : (scope.opt.label || scope.opt.name || scope.opt.value) }}</span>
+                </q-chip>
               </template>
             </q-select>
           </q-card-section>
@@ -224,29 +255,31 @@
             <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
             <q-btn
               unelevated
-              label="Asignar"
+              :label="selectedTagsToAssign.length > 1 ? `Asignar (${selectedTagsToAssign.length})` : 'Asignar'"
               color="primary"
               no-caps
               :loading="assigningTag"
-              :disable="!selectedTagToAssign"
+              :disable="selectedTagsToAssign.length === 0"
               @click="addTagToContact"
             />
           </q-card-actions>
         </q-card>
       </q-dialog>
 
-      <!-- Diálogo Asignar Categoría al Chat -->
+      <!-- Diálogo Asignar Categoría al Chat (Selección Múltiple & Checkboxes) -->
       <q-dialog v-model="isAssignDialogOpen">
-        <q-card style="width: 540px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
+        <q-card style="width: 560px; max-width: 95vw; background: var(--crm-bg-card); border: 1px solid var(--crm-color-border);" class="q-pa-md" dark>
           <q-card-section>
             <div class="text-subtitle1 text-bold text-white">Asignar Clasificación al Chat</div>
-            <div class="text-caption text-grey-4">Busca o selecciona la carrera, área o programa de interés del contacto.</div>
+            <div class="text-caption text-grey-4">Busca y checkea una o más carreras, áreas o programas de interés del contacto.</div>
           </q-card-section>
 
           <q-card-section class="q-gutter-y-sm">
             <q-select
-              v-model="selectedCategoryIdToAssign"
+              v-model="selectedCategoryIdsToAssign"
               :options="filteredCategoryOptions"
+              multiple
+              use-chips
               emit-value
               map-options
               outlined
@@ -255,7 +288,7 @@
               use-input
               input-debounce="0"
               clearable
-              label="Escribe para buscar categoría..."
+              label="Escribe para buscar y checkear categorías..."
               class="xf-category-select"
               @filter="filterCategoryOptions"
             >
@@ -263,20 +296,30 @@
                 <q-icon name="sym_r_search" size="18px" class="text-teal-4" />
               </template>
 
-              <!-- Vista seleccionada -->
+              <!-- Vista de elementos seleccionados (chips) -->
               <template #selected-item="scope">
-                <div class="row items-center no-wrap ellipsis text-caption text-white q-py-xs">
-                  <span
-                    class="filter-dot q-mr-xs"
-                    :style="{ backgroundColor: scope.opt.color || '#10b981' }"
-                  ></span>
-                  <span class="text-weight-bold text-teal-3 ellipsis">{{ scope.opt.label }}</span>
-                </div>
+                <q-chip
+                  dense
+                  dark
+                  removable
+                  color="dark"
+                  text-color="teal-3"
+                  class="q-ma-none q-mr-xs q-my-xs"
+                  @remove="scope.removeAtIndex(scope.index)"
+                >
+                  <q-avatar size="16px" :style="{ backgroundColor: scope.opt.color || '#10b981' }" text-color="white">
+                    <q-icon :name="scope.opt.icon || 'sym_r_sell'" size="10px" />
+                  </q-avatar>
+                  <span class="text-caption text-weight-medium q-ml-xs">{{ scope.opt.name }}</span>
+                </q-chip>
               </template>
 
-              <!-- Opciones en dropdown -->
-              <template #option="{ itemProps, opt }">
-                <q-item v-bind="itemProps" dense dark class="q-py-sm cursor-pointer category-select-item">
+              <!-- Opciones en dropdown con Checkbox -->
+              <template #option="{ itemProps, opt, selected, toggleOption }">
+                <q-item v-bind="itemProps" dense dark class="q-py-sm cursor-pointer category-select-item" @click="toggleOption(opt)">
+                  <q-item-section side>
+                    <q-checkbox :model-value="selected" dense color="teal-4" @update:model-value="toggleOption(opt)" />
+                  </q-item-section>
                   <q-item-section avatar style="min-width: 28px" class="q-pr-xs">
                     <q-avatar size="24px" :style="{ backgroundColor: opt.color ? opt.color + '22' : 'rgba(16,185,129,0.15)', border: `1px solid ${opt.color || '#10b981'}` }">
                       <q-icon :name="opt.icon || 'sym_r_sell'" size="13px" :style="{ color: opt.color || '#10b981' }" />
@@ -307,11 +350,11 @@
             <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup />
             <q-btn
               unelevated
-              label="Asignar al Chat"
+              :label="selectedCategoryIdsToAssign.length > 1 ? `Asignar al Chat (${selectedCategoryIdsToAssign.length})` : 'Asignar al Chat'"
               color="primary"
               no-caps
               :loading="assigning"
-              :disable="!selectedCategoryIdToAssign"
+              :disable="selectedCategoryIdsToAssign.length === 0"
               @click="assignCategory"
             />
           </q-card-actions>
@@ -569,18 +612,37 @@ const allCategories = ref<any[]>([])
 const loadingCategories = ref(false)
 const assigning = ref(false)
 const isAssignDialogOpen = ref(false)
-const selectedCategoryIdToAssign = ref<string | null>(null)
+const selectedCategoryIdsToAssign = ref<string[]>([])
 
 // Etiquetas (Tags) del Contacto
 const assignedTags = ref<any[]>([])
 const allAvailableTags = ref<any[]>([])
 const isTagDialogOpen = ref(false)
-const selectedTagToAssign = ref<string | null>(null)
+const selectedTagsToAssign = ref<any[]>([])
 const assigningTag = ref(false)
+const tagFilterQuery = ref('')
 
 const availableTagOptions = computed(() => {
   return allAvailableTags.value.map((t) => t.name)
 })
+
+const filteredTagOptions = computed(() => {
+  const query = tagFilterQuery.value.trim().toLowerCase()
+  if (!query) return availableTagOptions.value
+  return availableTagOptions.value.filter((name) => name.toLowerCase().includes(query))
+})
+
+function filterTagOptions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    tagFilterQuery.value = val
+  })
+}
+
+function openTagDialog() {
+  selectedTagsToAssign.value = []
+  tagFilterQuery.value = ''
+  isTagDialogOpen.value = true
+}
 
 async function fetchContactTags() {
   const contactId = props.conversation?.contact?.id
@@ -626,16 +688,22 @@ async function fetchAllTags() {
 
 async function addTagToContact() {
   const contact = props.conversation?.contact as any
-  if (!contact?.id || !selectedTagToAssign.value) return
-  const rawVal = selectedTagToAssign.value as any
-  const tagName = (typeof rawVal === 'string' ? rawVal : rawVal?.value || '').trim()
-  if (!tagName) return
+  if (!contact?.id || selectedTagsToAssign.value.length === 0) return
 
   assigningTag.value = true
   try {
     const currentTagNames = assignedTags.value.map((t) => t.name)
-    if (!currentTagNames.includes(tagName)) {
-      currentTagNames.push(tagName)
+    const newTagNamesToAdd: string[] = selectedTagsToAssign.value
+      .map((t: any) => {
+        const raw = typeof t === 'string' ? t : (t.value || t.name || t.label || '')
+        return String(raw).trim()
+      })
+      .filter(Boolean)
+
+    for (const name of newTagNamesToAdd) {
+      if (!currentTagNames.includes(name)) {
+        currentTagNames.push(name)
+      }
     }
 
     const payload = {
@@ -653,15 +721,15 @@ async function addTagToContact() {
     } else {
       assignedTags.value = currentTagNames.map((n) => ({ name: n }))
     }
-    selectedTagToAssign.value = null
+    selectedTagsToAssign.value = []
     isTagDialogOpen.value = false
-    notify.success({ message: `Etiqueta #${tagName} asignada.` })
+    notify.success({ message: `Etiquetas asignadas al contacto.` })
     fetchAllTags()
     queryClient.invalidateQueries({ queryKey: ['conversation', props.conversation.id] })
     queryClient.invalidateQueries({ queryKey: ['conversations'] })
     queryClient.invalidateQueries({ queryKey: ['contacts'] })
   } catch (error: any) {
-    notify.error({ message: 'Error al asignar etiqueta: ' + (error?.response?.data?.message || error?.message) })
+    notify.error({ message: 'Error al asignar etiquetas: ' + (error?.response?.data?.message || error?.message) })
   } finally {
     assigningTag.value = false
   }
@@ -757,22 +825,27 @@ async function fetchAllCategories() {
 }
 
 function openAssignDialog() {
-  selectedCategoryIdToAssign.value = null
+  selectedCategoryIdsToAssign.value = []
   categorySearchQuery.value = ''
   isAssignDialogOpen.value = true
 }
 
 async function assignCategory() {
-  if (!selectedCategoryIdToAssign.value || !props.conversation?.id) return
+  if (selectedCategoryIdsToAssign.value.length === 0 || !props.conversation?.id) return
   assigning.value = true
   try {
     const res = await http.post(`/conversations/${props.conversation.id}/categories`, {
-      category_id: selectedCategoryIdToAssign.value,
+      category_ids: selectedCategoryIdsToAssign.value,
     })
     assignedCategories.value = res.data.data || []
+    selectedCategoryIdsToAssign.value = []
     isAssignDialogOpen.value = false
-  } catch (error) {
+    notify.success({ message: 'Clasificación asignada al chat.' })
+    queryClient.invalidateQueries({ queryKey: ['conversation', props.conversation.id] })
+    queryClient.invalidateQueries({ queryKey: ['conversations'] })
+  } catch (error: any) {
     console.error('Error assigning category', error)
+    notify.error({ message: 'Error al asignar categorías: ' + (error?.response?.data?.message || error?.message) })
   } finally {
     assigning.value = false
   }
