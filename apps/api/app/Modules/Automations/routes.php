@@ -14,10 +14,13 @@ Route::delete('scheduled-messages/{id}', [ScheduledMessageController::class, 'de
 
 // Campañas de Disparo Masivo
 Route::get('campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
+Route::get('campaigns/{id}', [CampaignController::class, 'show'])->name('campaigns.show');
 Route::post('campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
+Route::post('campaigns/preview-recipients', [CampaignController::class, 'previewRecipients'])->name('campaigns.preview-recipients');
 Route::post('campaigns/{id}/start', [CampaignController::class, 'start'])->name('campaigns.start');
 Route::post('campaigns/{id}/pause', [CampaignController::class, 'pause'])->name('campaigns.pause');
 Route::post('campaigns/{id}/resume', [CampaignController::class, 'resume'])->name('campaigns.resume');
+Route::post('campaigns/{id}/retry-failed', [CampaignController::class, 'retryFailed'])->name('campaigns.retry-failed');
 Route::delete('campaigns/{id}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
 
 // Reglas de Automatización

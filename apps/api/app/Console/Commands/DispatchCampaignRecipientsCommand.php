@@ -67,7 +67,7 @@ class DispatchCampaignRecipientsCommand extends Command
                 continue;
             }
 
-            foreach ($pendingRecipients as $recipient) {
+            foreach ($pendingRecipients as $index => $recipient) {
                 try {
                     // Contacto
                     $contact = $recipient->contact;
@@ -87,24 +87,58 @@ class DispatchCampaignRecipientsCommand extends Command
                     // Reemplazo dinámico de variables
                     $body = $campaign->message_template;
                     $recipientName = $recipient->name ?: ($contact->first_name ?: 'Estimado/a');
+                    $recipientLastName = $contact->last_name ?: '';
+                    $recipientEmail = $contact->email ?: '';
+
                     $body = str_replace(
-                        ['{{name}}', '{{nombre}}', '{name}', '{nombre}', '{{phone}}', '{{telefono}}'],
-                        [$recipientName, $recipientName, $recipientName, $recipientName, $recipient->phone, $recipient->phone],
+                        [
+                            '{{name}}', '{{nombre}}', '{name}', '{nombre}',
+                            '{{phone}}', '{{telefono}}', '{phone}', '{telefono}',
+                            '{{last_name}}', '{{apellido}}', '{last_name}', '{apellido}',
+                            '{{email}}', '{email}',
+                        ],
+                        [
+                            $recipientName, $recipientName, $recipientName, $recipientName,
+                            $recipient->phone, $recipient->phone, $recipient->phone, $recipient->phone,
+                            $recipientLastName, $recipientLastName, $recipientLastName, $recipientLastName,
+                            $recipientEmail, $recipientEmail,
+                        ],
                         $body
                     );
 
-                    // Conversación
-                    $conversation = Conversation::firstOrCreate(
-                        [
+                    // Resolver Spintax: {opcion1|opcion2|opcion3}
+                    $body = preg_replace_callback('/\{([^{}]+)\}/', function ($matches) {
+                        if (str_contains($matches[1], '|')) {
+                            $parts = explode('|', $matches[1]);
+                            return trim($parts[array_rand($parts)]);
+                        }
+                        return $matches[0];
+                    }, $body);
+
+                    // Encontrar la conversación más reciente o crear una nueva
+                    $conversation = Conversation::where('organization_id', $campaign->organization_id)
+                        ->where('contact_id', $contact->id)
+                        ->where('channel', 'whatsapp')
+                        ->orderByDesc('last_message_at')
+                        ->orderByDesc('created_at')
+                        ->first();
+
+                    if (! $conversation) {
+                        $conversation = Conversation::create([
                             'organization_id' => $campaign->organization_id,
                             'contact_id' => $contact->id,
                             'channel' => 'whatsapp',
-                        ],
-                        [
+                            'whatsapp_account_id' => $campaign->whatsapp_account_id,
                             'status' => 'open',
                             'last_message_at' => now(),
-                        ]
-                    );
+                        ]);
+                    } else {
+                        $updateData = ['last_message_at' => now()];
+                        if ($campaign->whatsapp_account_id && empty($conversation->whatsapp_account_id)) {
+                            $updateData['whatsapp_account_id'] = $campaign->whatsapp_account_id;
+                        }
+                        $conversation->update($updateData);
+                    }
 
                     // Mensaje
                     $message = Message::create([
@@ -124,12 +158,18 @@ class DispatchCampaignRecipientsCommand extends Command
                             'conversation_id' => $conversation->id,
                             'whatsapp_account_id' => $campaign->whatsapp_account_id,
                             'message_id' => $message->id,
+                            'provider_message_id' => 'camp_' . $message->id,
                             'direction' => 'outbound',
                             'status' => 'pending',
                         ]);
                     }
 
-                    SendWhatsAppMessageJob::dispatch($message->id);
+                    $delaySeconds = max(3, (int) ($campaign->delay_seconds ?? 15));
+                    $job = new SendWhatsAppMessageJob($message->id);
+                    if ($index > 0 && config('queue.default') !== 'sync') {
+                        $job->delay(now()->addSeconds($index * $delaySeconds));
+                    }
+                    dispatch($job);
 
                     $recipient->update([
                         'status' => 'sent',

@@ -118,23 +118,39 @@ class SendWhatsAppMessageJob implements ShouldQueue
             ])->save();
 
             if ($providerMessageId) {
-                WhatsAppMessageMapping::query()->updateOrCreate(
-                    [
+                $existingMapping = WhatsAppMessageMapping::query()
+                    ->where('message_id', $message->getKey())
+                    ->first();
+
+                if ($existingMapping) {
+                    $existingMapping->update([
                         'provider_message_id' => $providerMessageId,
-                    ],
-                    [
-                        'organization_id' => $message->organization_id,
                         'whatsapp_account_id' => $account->getKey(),
                         'contact_id' => $message->conversation?->contact_id,
-                        'conversation_id' => $message->conversation_id,
-                        'message_id' => $message->getKey(),
-                        'direction' => 'outbound',
                         'status' => 'sent',
                         'from_phone' => $to,
                         'to_phone_number_id' => $account->phone_number_id,
                         'payload' => $response,
-                    ],
-                );
+                    ]);
+                } else {
+                    WhatsAppMessageMapping::query()->updateOrCreate(
+                        [
+                            'provider_message_id' => $providerMessageId,
+                        ],
+                        [
+                            'organization_id' => $message->organization_id,
+                            'whatsapp_account_id' => $account->getKey(),
+                            'contact_id' => $message->conversation?->contact_id,
+                            'conversation_id' => $message->conversation_id,
+                            'message_id' => $message->getKey(),
+                            'direction' => 'outbound',
+                            'status' => 'sent',
+                            'from_phone' => $to,
+                            'to_phone_number_id' => $account->phone_number_id,
+                            'payload' => $response,
+                        ],
+                    );
+                }
             }
         } catch (Throwable $exception) {
             $message->forceFill([

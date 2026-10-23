@@ -26,6 +26,17 @@ class CampaignRecipient extends Model
         'sent_at' => 'datetime',
     ];
 
+    protected $appends = ['conversation_id'];
+
+    public function getConversationIdAttribute(): ?string
+    {
+        if ($this->relationLoaded('contact') && $this->contact && $this->contact->relationLoaded('conversations')) {
+            return $this->contact->conversations->first()?->id;
+        }
+
+        return null;
+    }
+
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);

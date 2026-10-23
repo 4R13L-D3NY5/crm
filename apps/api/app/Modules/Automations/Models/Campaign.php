@@ -19,6 +19,9 @@ class Campaign extends Model
         'whatsapp_account_id',
         'name',
         'status',
+        'target_type',
+        'target_summary',
+        'target_criteria',
         'total_contacts',
         'sent_count',
         'failed_count',
@@ -29,6 +32,7 @@ class Campaign extends Model
     ];
 
     protected $casts = [
+        'target_criteria' => 'array',
         'total_contacts' => 'integer',
         'sent_count' => 'integer',
         'failed_count' => 'integer',

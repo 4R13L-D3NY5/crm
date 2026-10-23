@@ -87,6 +87,7 @@ class ScheduledMessageDispatcher
                     'conversation_id' => $conversation->id,
                     'whatsapp_account_id' => $scheduled->whatsapp_account_id,
                     'message_id' => $message->id,
+                    'provider_message_id' => 'sched_' . $message->id,
                     'direction' => 'outbound',
                     'status' => 'pending',
                     'to_phone_number_id' => $scheduled->whatsappAccount?->phone_number_id,
