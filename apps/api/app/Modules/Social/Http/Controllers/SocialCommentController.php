@@ -68,9 +68,29 @@ class SocialCommentController extends Controller
             $entry = $request->input('entry.0', []);
             $pageId = (string) data_get($entry, 'id');
 
-            $account = WhatsAppAccount::where('phone_number_id', $pageId)
-                ->orWhere('business_account_id', $pageId)
-                ->first();
+            $isPage = $request->input('object') === 'page';
+            $isInstagram = $request->input('object') === 'instagram'
+                || str_starts_with((string) data_get($entry, 'id'), '17841');
+
+            if ($isPage) {
+                $account = WhatsAppAccount::where('session_type', 'facebook')
+                    ->where(function ($q) use ($pageId) {
+                        $q->where('phone_number_id', $pageId)
+                          ->orWhere('business_account_id', $pageId);
+                    })
+                    ->first();
+            } elseif ($isInstagram) {
+                $account = WhatsAppAccount::where('session_type', 'instagram')
+                    ->where(function ($q) use ($pageId) {
+                        $q->where('phone_number_id', $pageId)
+                          ->orWhere('business_account_id', $pageId);
+                    })
+                    ->first();
+            } else {
+                $account = WhatsAppAccount::where('phone_number_id', $pageId)
+                    ->orWhere('business_account_id', $pageId)
+                    ->first();
+            }
 
             $orgId = $account?->organization_id ?? Organization::first()?->id;
 
@@ -81,9 +101,11 @@ class SocialCommentController extends Controller
                     ->first();
             }
 
-            $isInstagram = $request->input('object') === 'instagram'
-                || ($account && $account->session_type === 'instagram')
-                || str_starts_with((string) data_get($entry, 'id'), '17841');
+            if (!$isInstagram && $account && $account->session_type === 'instagram' && !$isPage) {
+                $isInstagram = true;
+            }
+
+            $platform = $isInstagram ? 'instagram' : 'facebook';
 
             // A. Mensajería Directa (Facebook Messenger / Instagram DM)
             if ($messaging = data_get($entry, 'messaging.0')) {
