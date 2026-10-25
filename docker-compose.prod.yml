@@ -68,7 +68,9 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - crm-internal
+      crm-internal:
+        aliases:
+          - crm-backend-api
 
   social-sync:
     image: ${CRM_INSTANCE_NAME:-crm}-api:production
@@ -123,7 +125,9 @@ services:
     depends_on:
       - api
     networks:
-      - crm-internal
+      crm-internal:
+        aliases:
+          - crm-frontend-web
 
   nginx:
     image: ${CRM_INSTANCE_NAME:-crm}-nginx:production
