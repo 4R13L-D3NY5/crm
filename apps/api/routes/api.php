@@ -23,7 +23,29 @@ Route::get('social/comments/webhook', [\App\Modules\Social\Http\Controllers\Soci
 Route::post('social/comments/webhook', [\App\Modules\Social\Http\Controllers\SocialCommentController::class, 'handleWebhook'])->name('social.comments.webhook');
 
 Route::middleware('web')->group(function (): void {
-    Route::get('/login', static function () {
+    Route::get('/login', static function (\Illuminate\Http\Request $request) {
+        $cookieName = config('session.cookie');
+        $cookieSessionId = $request->cookies->get($cookieName);
+        $sessionId = $request->hasSession() ? $request->session()->getId() : $cookieSessionId;
+
+        if ($cookieSessionId && \Illuminate\Support\Facades\Cache::has("revoked_session:{$cookieSessionId}")) {
+            \Illuminate\Support\Facades\Cache::forget("revoked_session:{$cookieSessionId}");
+
+            return response()->json([
+                'message' => 'Tu sesión ha sido cerrada porque se inició sesión en otro dispositivo.',
+                'code' => 'SESSION_REVOKED_ANOTHER_DEVICE',
+            ], 401);
+        }
+
+        if ($sessionId && \Illuminate\Support\Facades\Cache::has("revoked_session:{$sessionId}")) {
+            \Illuminate\Support\Facades\Cache::forget("revoked_session:{$sessionId}");
+
+            return response()->json([
+                'message' => 'Tu sesión ha sido cerrada porque se inició sesión en otro dispositivo.',
+                'code' => 'SESSION_REVOKED_ANOTHER_DEVICE',
+            ], 401);
+        }
+
         return response()->json(['message' => 'Unauthenticated.'], 401);
     })->name('login');
 
@@ -32,6 +54,13 @@ Route::middleware('web')->group(function (): void {
         ->name('api.login');
 
     Route::middleware(['auth:sanctum', 'current.organization'])->group(function (): void {
+        Route::get('/auth/session-status', static function () {
+            return response()->json([
+                'status' => 'active',
+                'session_id' => session()->getId(),
+            ]);
+        })->name('api.auth.session-status');
+
         Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('api.logout');
         Route::get('/me', [CurrentUserController::class, 'show'])->name('api.me');
         Route::put('/me/profile', [\App\Modules\Auth\Http\Controllers\UserProfileController::class, 'updateProfile'])->name('api.me.profile');

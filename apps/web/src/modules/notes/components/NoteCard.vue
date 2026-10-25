@@ -59,6 +59,21 @@
       </q-badge>
     </div>
 
+    <!-- Imagen de la Nota si existe -->
+    <div
+      v-if="note.image_url"
+      class="xf-keep-card__image-container q-mb-sm cursor-pointer rounded-borders overflow-hidden"
+      @click.stop="isZoomOpen = true"
+    >
+      <img
+        :src="note.image_url"
+        alt="Adjunto"
+        class="xf-keep-card__image"
+        loading="lazy"
+      />
+      <q-tooltip>Clic para ampliar imagen</q-tooltip>
+    </div>
+
     <!-- Contenido de la Nota -->
     <div class="xf-keep-card__body q-mb-sm" @click="canEdit ? emit('edit', note) : undefined">
       <p class="xf-keep-card__text">{{ note.content }}</p>
@@ -196,13 +211,28 @@
         </q-btn>
       </div>
     </div>
+    <!-- Modal Zoom Imagen -->
+    <q-dialog v-model="isZoomOpen">
+      <q-card class="bg-dark text-white" style="max-width: 90vw; max-height: 90vh;">
+        <q-card-section class="row items-center justify-between q-py-xs q-px-sm">
+          <div class="text-caption ellipsis text-grey-3">{{ note.title || 'Imagen adjunta' }}</div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+        <q-separator dark />
+        <q-card-section class="q-pa-xs flex flex-center">
+          <img :src="note.image_url" style="max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px;" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { copyToClipboard, useQuasar } from 'quasar'
 import type { Note } from '../types/note.types'
+
+const isZoomOpen = ref(false)
 
 const props = defineProps<{
   note: Note
@@ -332,6 +362,28 @@ async function copyContent() {
   &__title {
     color: #ffffff;
     letter-spacing: -0.01em;
+  }
+
+  &__image-container {
+    width: 100%;
+    max-height: 180px;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  &__image {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: scale(1.02);
+    }
   }
 
   &__body {

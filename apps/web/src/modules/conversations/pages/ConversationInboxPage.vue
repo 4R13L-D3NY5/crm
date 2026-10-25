@@ -468,11 +468,13 @@ function handleSendMessage({
   body,
   is_internal,
   file,
+  media_url,
   media_type,
 }: {
   body: string
   is_internal: boolean
   file?: File | null
+  media_url?: string | null
   media_type?: string | null
 }) {
   if (!selectedConversationId.value) return
@@ -531,6 +533,13 @@ function handleSendMessage({
       mutations.whatsappMessageMutation.mutate({
         id: convId,
         payload: formData,
+      }, {
+        onError: onErrorHandler,
+      })
+    } else if (media_url) {
+      mutations.whatsappMessageMutation.mutate({
+        id: convId,
+        payload: { body, media_url, media_type: media_type || 'image' },
       }, {
         onError: onErrorHandler,
       })

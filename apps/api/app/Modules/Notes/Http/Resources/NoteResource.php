@@ -26,6 +26,7 @@ class NoteResource extends JsonResource
             'author_name' => $this->user?->name ?? 'Usuario',
             'title' => $this->title,
             'content' => $this->content,
+            'image_url' => $this->image_url ?? data_get($this->metadata, 'image_url'),
             'color' => $this->color ?? '#1e293b',
             'is_pinned' => (bool) $this->is_pinned,
             'is_archived' => (bool) $this->is_archived,

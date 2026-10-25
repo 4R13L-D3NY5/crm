@@ -14,13 +14,14 @@ class BaileysWhatsAppClient implements WhatsAppClient
         $baseUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
 
         $cleanPhone = preg_replace('/[^0-9]/', '', $to);
+        $cleanBody = preg_replace("/\r\n|\r/", "\n", $body);
 
         $response = Http::baseUrl($baseUrl)
             ->timeout(10)
             ->acceptJson()
             ->post("/sessions/{$account->id}/send-message", [
                 'to' => $cleanPhone,
-                'text' => $body,
+                'text' => $cleanBody,
             ]);
 
         if ($response->failed()) {
@@ -51,11 +52,12 @@ class BaileysWhatsAppClient implements WhatsAppClient
         $baseUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
 
         $cleanPhone = preg_replace('/[^0-9]/', '', $to);
+        $cleanCaption = $caption !== null ? preg_replace("/\r\n|\r/", "\n", $caption) : null;
 
         $payload = [
             'to' => $cleanPhone,
             'media_type' => $mediaType,
-            'caption' => $caption,
+            'caption' => $cleanCaption,
         ];
 
         // Si el archivo reside localmente en el almacenamiento del CRM (storage público),
@@ -108,6 +110,7 @@ class BaileysWhatsAppClient implements WhatsAppClient
         $baseUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
 
         $cleanPhone = preg_replace('/[^0-9]/', '', $to);
+        $cleanBody = preg_replace("/\r\n|\r/", "\n", $newBody);
 
         $response = Http::baseUrl($baseUrl)
             ->timeout(10)
@@ -115,7 +118,7 @@ class BaileysWhatsAppClient implements WhatsAppClient
             ->post("/sessions/{$account->id}/edit-message", [
                 'to' => $cleanPhone,
                 'messageId' => $messageId,
-                'text' => $newBody,
+                'text' => $cleanBody,
             ]);
 
         if ($response->failed()) {

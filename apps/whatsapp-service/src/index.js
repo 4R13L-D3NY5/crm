@@ -708,7 +708,8 @@ app.post('/sessions/:sessionId/send-message', async (req, res) => {
       jid = `${cleanTo}@s.whatsapp.net`;
     }
 
-    console.log(`[Sending Outbound Message] account=${sessionId} to=${jid} text=${text}`);
+    const cleanText = typeof text === 'string' ? text.replace(/\r\n/g, '\n').replace(/\r/g, '\n') : text;
+    console.log(`[Sending Outbound Message] account=${sessionId} to=${jid} text=${cleanText}`);
     const customMessageId = (baileys.generateMessageID && typeof baileys.generateMessageID === 'function')
       ? baileys.generateMessageID()
       : undefined;
@@ -717,7 +718,7 @@ app.post('/sessions/:sessionId/send-message', async (req, res) => {
       trackSentByCrm(customMessageId);
     }
 
-    const sent = await session.sock.sendMessage(jid, { text }, customMessageId ? { messageId: customMessageId } : undefined);
+    const sent = await session.sock.sendMessage(jid, { text: cleanText }, customMessageId ? { messageId: customMessageId } : undefined);
     const finalId = sent?.key?.id || customMessageId;
     if (finalId) {
       trackSentByCrm(finalId);
@@ -757,13 +758,14 @@ app.post('/sessions/:sessionId/edit-message', async (req, res) => {
       jid = `${cleanTo}@s.whatsapp.net`;
     }
 
-    console.log(`[Editing Outbound Message] account=${sessionId} to=${jid} messageId=${messageId} text=${text}`);
+    const cleanText = typeof text === 'string' ? text.replace(/\r\n/g, '\n').replace(/\r/g, '\n') : text;
+    console.log(`[Editing Outbound Message] account=${sessionId} to=${jid} messageId=${messageId} text=${cleanText}`);
     const key = {
       remoteJid: jid,
       id: messageId,
       fromMe: true,
     };
-    const edited = await session.sock.sendMessage(jid, { text, edit: key });
+    const edited = await session.sock.sendMessage(jid, { text: cleanText, edit: key });
     const finalEditId = edited?.key?.id || messageId;
     if (finalEditId) {
       trackSentByCrm(finalEditId);
@@ -820,7 +822,8 @@ app.post('/sessions/:sessionId/send-media', async (req, res) => {
     }
 
     let messagePayload;
-    const cleanCaption = (caption && caption !== '[Imagen]' && caption !== '[Nota de voz / Audio]' && caption !== '[Documento]' && caption !== '[Sticker]') ? caption : '';
+    const rawCaption = (caption && caption !== '[Imagen]' && caption !== '[Nota de voz / Audio]' && caption !== '[Documento]' && caption !== '[Sticker]') ? caption : '';
+    const cleanCaption = typeof rawCaption === 'string' ? rawCaption.replace(/\r\n/g, '\n').replace(/\r/g, '\n') : rawCaption;
 
     if (media_type === 'image') {
       messagePayload = {

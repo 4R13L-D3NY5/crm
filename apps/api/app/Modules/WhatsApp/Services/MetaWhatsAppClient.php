@@ -11,6 +11,7 @@ class MetaWhatsAppClient implements WhatsAppClient
     public function sendTextMessage(WhatsAppAccount $account, string $to, string $body): array
     {
         $baseUrl = rtrim((string) config('services.whatsapp.base_url', 'https://graph.facebook.com/v23.0'), '/');
+        $cleanBody = preg_replace("/\r\n|\r/", "\n", $body);
 
         $response = Http::baseUrl($baseUrl)
             ->withToken((string) $account->access_token)
@@ -22,7 +23,7 @@ class MetaWhatsAppClient implements WhatsAppClient
                 'type' => 'text',
                 'text' => [
                     'preview_url' => false,
-                    'body' => $body,
+                    'body' => $cleanBody,
                 ],
             ]);
 
@@ -44,9 +45,10 @@ class MetaWhatsAppClient implements WhatsAppClient
             default => 'image',
         };
 
+        $cleanCaption = $caption !== null ? preg_replace("/\r\n|\r/", "\n", $caption) : null;
         $mediaPayload = ['link' => $mediaUrl];
-        if ($caption && in_array($typeKey, ['image', 'document'])) {
-            $mediaPayload['caption'] = $caption;
+        if ($cleanCaption && in_array($typeKey, ['image', 'document'])) {
+            $mediaPayload['caption'] = $cleanCaption;
         }
 
         $response = Http::baseUrl($baseUrl)

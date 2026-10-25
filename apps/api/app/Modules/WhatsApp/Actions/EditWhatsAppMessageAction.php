@@ -21,6 +21,9 @@ class EditWhatsAppMessageAction
         abort_unless($message->direction === 'outbound', 422, 'Solo se pueden editar mensajes salientes.');
         abort_unless($message->message_type === 'text', 422, 'Solo se pueden editar mensajes de texto.');
 
+        // Normalizar saltos de línea Windows CRLF a \n puro para WhatsApp
+        $newBody = preg_replace("/\r\n|\r/", "\n", $newBody);
+
         // 2. Validar ventana de tiempo de 15 minutos
         $diffMinutes = $message->created_at->diffInMinutes(now());
         abort_if($diffMinutes > 15, 422, 'El límite de 15 minutos para editar este mensaje ha expirado.');

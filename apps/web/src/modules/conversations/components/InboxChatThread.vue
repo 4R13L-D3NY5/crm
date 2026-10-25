@@ -206,6 +206,37 @@
 
 
 
+          <!-- Acceso directo entre Chat Privado (Messenger) y Post de Facebook -->
+          <q-btn
+            v-if="messengerConversation"
+            flat
+            dense
+            size="sm"
+            color="indigo-3"
+            icon="sym_r_forum"
+            :label="isMobile ? '' : 'Chat Privado'"
+            :round="isMobile"
+            class="q-px-xs text-weight-bold"
+            @click="emit('select-conversation', messengerConversation)"
+          >
+            <q-tooltip>Abrir chat privado de Messenger con este cliente</q-tooltip>
+          </q-btn>
+
+          <q-btn
+            v-else-if="postConversation"
+            flat
+            dense
+            size="sm"
+            color="teal-3"
+            icon="sym_r_push_pin"
+            :label="isMobile ? '' : 'Ver Post'"
+            :round="isMobile"
+            class="q-px-xs text-weight-bold"
+            @click="emit('select-conversation', postConversation)"
+          >
+            <q-tooltip>Ir a la publicación de Facebook donde comentó este cliente</q-tooltip>
+          </q-btn>
+
           <q-btn
 
             v-if="conversation.status !== 'closed'"
@@ -1306,7 +1337,7 @@
 
       <!-- Chip / Preview de archivo adjunto pendiente de envío -->
 
-      <div v-if="pendingFile" class="pending-media-chip row items-center justify-between q-pa-xs q-mb-xs">
+      <div v-if="pendingFile || pendingMediaUrl" class="pending-media-chip row items-center justify-between q-pa-xs q-mb-xs">
 
         <div class="row items-center q-gutter-x-sm">
 
@@ -1342,7 +1373,7 @@
 
               <span class="text-caption text-weight-bold text-white ellipsis" style="max-width: 200px">
 
-                {{ pendingFile.name }}
+                {{ pendingFile?.name || 'Imagen de Nota adjunta' }}
 
               </span>
 
@@ -1732,7 +1763,9 @@
 
             dark
 
-            placeholder="Buscar por #atajo, título o palabras clave..."
+            autofocus
+
+            placeholder="Buscar por #atajo, título o palabras clave (ej: medi cocha)..."
 
             class="q-mt-sm"
 
@@ -1814,8 +1847,19 @@
 
                   </q-badge>
 
-                  <q-badge
 
+                  <q-badge
+                    v-if="note.image_url"
+                    rounded
+                    color="cyan-9"
+                    text-color="cyan-1"
+                    class="text-caption text-weight-bold"
+                  >
+                    <q-icon name="sym_r_image" size="12px" class="q-mr-xs" />
+                    Con Imagen
+                  </q-badge>
+
+                  <q-badge
                     v-if="isNoteRecommended(note)"
 
                     rounded
@@ -1862,10 +1906,17 @@
 
 
 
-              <div class="text-caption text-grey-3 ellipsis-3-lines" style="line-height: 1.4;">
 
-                {{ note.content }}
-
+              <div class="row no-wrap items-start q-gutter-x-sm">
+                <img
+                  v-if="note.image_url"
+                  :src="note.image_url"
+                  alt="Adjunto"
+                  style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0;"
+                />
+                <div class="text-caption text-grey-3 ellipsis-3-lines" style="line-height: 1.4;">
+                  {{ note.content }}
+                </div>
               </div>
 
 
@@ -2332,6 +2383,8 @@ import { getNotes } from '@/modules/notes/api/notes.api'
 
 import type { Note } from '@/modules/notes/types/note.types'
 
+import { matchesNoteSearch, computeNoteSearchScore } from '@/modules/notes/utils/note-search'
+
 import { getHentleAiSuggestion, editMessage } from '../api/conversations.api'
 
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
@@ -2417,6 +2470,8 @@ const emit = defineEmits<{
     is_internal: boolean
 
     file?: File | null
+
+    media_url?: string | null
 
     media_type?: string | null
 
@@ -2651,6 +2706,8 @@ const pendingFile = ref<File | null>(null)
 const pendingFileType = ref<'image' | 'audio' | 'document' | 'sticker' | null>(null)
 
 const pendingFilePreview = ref<string>('')
+
+const pendingMediaUrl = ref<string | null>(null)
 
 
 
@@ -2947,20 +3004,16 @@ function handleFileSelected(event: Event) {
 
 
 function clearPendingFile() {
-
-  if (pendingFilePreview.value) {
-
+  if (pendingFilePreview.value && pendingFilePreview.value.startsWith('blob:')) {
     URL.revokeObjectURL(pendingFilePreview.value)
-
   }
-
   pendingFile.value = null
-
+  pendingMediaUrl.value = null
   pendingFileType.value = null
-
   pendingFilePreview.value = ''
-
+  if (fileInputRef.value) fileInputRef.value.value = ''
 }
+
 
 
 
@@ -3638,9 +3691,12 @@ const loadingKeepNotes = ref(false)
 
 
 
-async function openKeepNotesPicker() {
-
+async function openKeepNotesPicker(initialSearch = '') {
   showKeepNotesModal.value = true
+  if (initialSearch) {
+    keepNotesSearch.value = initialSearch
+  }
+
 
   loadingKeepNotes.value = true
 
@@ -3687,52 +3743,55 @@ function isNoteRecommended(note: Note): boolean {
 
 
 const prioritizedKeepNotes = computed(() => {
-
   let list = keepNotesList.value
+  const query = keepNotesSearch.value.trim()
 
-  if (keepNotesSearch.value.trim()) {
-
-    const term = keepNotesSearch.value.trim().toLowerCase().replace(/^#+/, '')
-
-    list = list.filter((n) =>
-
-      (n.shortcut && n.shortcut.toLowerCase().includes(term)) ||
-
-      (n.title && n.title.toLowerCase().includes(term)) ||
-
-      n.content.toLowerCase().includes(term)
-
-    )
-
+  if (query) {
+    list = list.filter((n) => matchesNoteSearch(n, query))
   }
 
-
-
   return [...list].sort((a, b) => {
+    // Si hay búsqueda activa, ordenar por relevancia de tokens y atajos primero
+    if (query) {
+      const scoreA = computeNoteSearchScore(a, query)
+      const scoreB = computeNoteSearchScore(b, query)
+      if (scoreA !== scoreB) return scoreB - scoreA
+    }
 
     const aRec = isNoteRecommended(a) ? 1 : 0
-
     const bRec = isNoteRecommended(b) ? 1 : 0
-
     if (aRec !== bRec) return bRec - aRec
 
-
-
     const aPin = a.is_pinned ? 1 : 0
-
     const bPin = b.is_pinned ? 1 : 0
-
     if (aPin !== bPin) return bPin - aPin
 
-
-
     return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime()
-
   })
-
 })
 
-
+let keepNotesSearchTimeout: any = null
+watch(keepNotesSearch, (val) => {
+  if (keepNotesSearchTimeout) clearTimeout(keepNotesSearchTimeout)
+  const q = val.trim().replace(/^#+/, '')
+  if (q.length >= 2) {
+    keepNotesSearchTimeout = setTimeout(async () => {
+      try {
+        const results = await getNotes({ search: q, is_archived: false, permissive: true })
+        if (results && results.length > 0) {
+          const currentIds = new Set(keepNotesList.value.map((n) => n.id))
+          for (const item of results) {
+            if (!currentIds.has(item.id)) {
+              keepNotesList.value.push(item)
+            }
+          }
+        }
+      } catch (_) {
+        // Fallback al filtro instantáneo en memoria
+      }
+    }, 350)
+  }
+})
 
 function applyKeepNote(note: Note) {
 
@@ -3776,6 +3835,13 @@ function applyKeepNote(note: Note) {
 
 
 
+  if (note.image_url) {
+    pendingMediaUrl.value = note.image_url
+    pendingFilePreview.value = note.image_url
+    pendingFileType.value = 'image'
+    pendingFile.value = null
+  }
+
   showKeepNotesModal.value = false
 
 }
@@ -3792,10 +3858,12 @@ watch(
 
       showQuickMessagesModal.value = true
 
-    } else if (val === '#' || val === ' #' || (typeof val === 'string' && val.endsWith(' #'))) {
-
-      openKeepNotesPicker()
-
+    } else if (typeof val === 'string') {
+      if (val === '#' || val === ' #' || val.endsWith(' #')) {
+        openKeepNotesPicker()
+      } else if (val.startsWith('#') && val.length >= 2 && !showKeepNotesModal.value) {
+        openKeepNotesPicker(val.replace(/^#+/, ''))
+      }
     }
 
   },
@@ -3911,38 +3979,25 @@ function getChannelLabel(channel?: string) {
 
 
 function handleSend() {
-
-  if (!composerText.value.trim() && !pendingFile.value) return
-
+  if (!composerText.value.trim() && !pendingFile.value && !pendingMediaUrl.value) return
   const text = composerText.value.trim()
-
   const isInternal = composerMode.value === 'internal'
-
   const file = pendingFile.value
-
   const mediaType = pendingFileType.value
-
-
+  const mediaUrl = pendingMediaUrl.value
 
   composerText.value = ''
-
   clearPendingFile()
 
-
-
   emit('send-message', {
-
     body: text,
-
     is_internal: isInternal,
-
     file,
-
+    media_url: mediaUrl,
     media_type: mediaType,
-
   })
-
 }
+
 
 
 

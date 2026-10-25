@@ -111,6 +111,80 @@
         <span>Suite Omnicanal Enterprise</span>
       </div>
     </div>
+
+    <!-- Modal de Conflicto de Sesión (Toma de Control / Monosesión) -->
+    <q-dialog
+      v-model="showConflictDialog"
+      persistent
+      transition-show="scale"
+      transition-hide="scale"
+    >
+      <q-card class="session-conflict-card text-white">
+        <q-linear-progress :value="1" color="amber-7" size="4px" />
+
+        <q-card-section class="q-pt-lg text-center">
+          <div class="row justify-center q-mb-md">
+            <div class="session-conflict-halo">
+              <q-avatar size="56px" color="amber-10" text-color="amber-1">
+                <q-icon name="sym_r_devices" size="32px" />
+              </q-avatar>
+            </div>
+          </div>
+
+          <div class="text-h6 text-weight-bold text-white q-mb-xs">
+            Sesión activa en otro dispositivo
+          </div>
+          <p class="text-caption text-grey-4 q-px-sm">
+            Tu cuenta actualmente se encuentra abierta en otro equipo. Por políticas de licencia y seguridad de ventas, <strong>solo se permite un dispositivo activo a la vez</strong>.
+          </p>
+
+          <!-- Tarjeta de información del dispositivo activo -->
+          <div v-if="activeSessionData" class="active-device-card q-my-md q-pa-sm text-left">
+            <div class="row items-center q-gutter-x-sm q-mb-xs">
+              <q-icon name="sym_r_computer" size="18px" color="amber-4" />
+              <span class="text-caption text-weight-bold text-white">
+                {{ activeSessionData.device }}
+              </span>
+            </div>
+            <div class="row items-center justify-between text-caption text-grey-4" style="font-size: 0.75rem;">
+              <span><strong>IP:</strong> {{ activeSessionData.ip }}</span>
+              <span><strong>Actividad:</strong> {{ activeSessionData.last_active }}</span>
+            </div>
+          </div>
+
+          <p class="text-caption text-grey-4 q-px-xs q-mb-none" style="font-size: 0.78rem;">
+            ¿Deseas transferir tu sesión a este equipo? La sesión en el otro dispositivo se cerrará automáticamente.
+          </p>
+        </q-card-section>
+
+        <q-card-actions align="between" class="q-px-md q-pb-md q-pt-none">
+          <q-btn
+            flat
+            no-caps
+            color="grey-4"
+            label="Cancelar"
+            class="q-px-md"
+            :disable="isTakingOver"
+            @click="showConflictDialog = false"
+          />
+
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            icon="sym_r_login"
+            label="Continuar trabajando aquí"
+            class="q-px-md text-weight-bold"
+            :loading="isTakingOver"
+            @click="confirmTakeover"
+          >
+            <template #loading>
+              <q-spinner-dots size="18px" />
+            </template>
+          </q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -118,6 +192,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
+import type { ActiveDeviceInfo } from '@/modules/auth/types/auth.types'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -126,14 +201,41 @@ const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 
+const showConflictDialog = ref(false)
+const activeSessionData = ref<ActiveDeviceInfo | null>(null)
+const isTakingOver = ref(false)
+
 async function submit() {
   try {
-    await authStore.login(email.value, password.value)
+    await authStore.login(email.value, password.value, false)
     await router.replace('/app/contacts')
   } catch (error: any) {
+    if (error?.response?.status === 409 && error?.response?.data?.status === 'session_conflict') {
+      activeSessionData.value = error.response.data.active_session
+      showConflictDialog.value = true
+      authStore.errorMessage = null
+      return
+    }
     if (!authStore.errorMessage) {
       authStore.errorMessage = error?.message || 'Error al conectar o iniciar sesión.'
     }
+  }
+}
+
+async function confirmTakeover() {
+  isTakingOver.value = true
+  try {
+    await authStore.login(email.value, password.value, true)
+    showConflictDialog.value = false
+    await router.replace('/app/contacts')
+  } catch (error: any) {
+    showConflictDialog.value = false
+    if (!authStore.errorMessage) {
+      authStore.errorMessage =
+        error?.response?.data?.message || error?.message || 'Error al transferir la sesión.'
+    }
+  } finally {
+    isTakingOver.value = false
   }
 }
 </script>
@@ -216,5 +318,29 @@ async function submit() {
   height: 6px;
   border-radius: 50%;
   background: var(--crm-color-primary);
+}
+
+.session-conflict-card {
+  width: 440px;
+  max-width: 95vw;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.session-conflict-halo {
+  padding: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+  background: rgba(245, 158, 11, 0.15);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+.active-device-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 10px;
 }
 </style>

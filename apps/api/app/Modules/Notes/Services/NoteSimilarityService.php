@@ -48,7 +48,10 @@ class NoteSimilarityService
             $candidatesQuery->where(function ($q) use ($keywords) {
                 foreach (array_slice($keywords, 0, 6) as $kw) {
                     $q->orWhere('title', 'ilike', "%{$kw}%")
-                      ->orWhere('content', 'ilike', "%{$kw}%");
+                      ->orWhere('content', 'ilike', "%{$kw}%")
+                      ->orWhere('shortcut', 'ilike', "%{$kw}%")
+                      ->orWhereHas('categories', fn ($catQ) => $catQ->where('name', 'ilike', "%{$kw}%"))
+                      ->orWhereHas('tags', fn ($tagQ) => $tagQ->where('name', 'ilike', "%{$kw}%"));
                 }
             });
         }
@@ -370,7 +373,10 @@ PROMPT;
             $query->where(function ($q) use ($keywords) {
                 foreach (array_slice($keywords, 0, 6) as $kw) {
                     $q->orWhere('title', 'ilike', "%{$kw}%")
-                      ->orWhere('content', 'ilike', "%{$kw}%");
+                      ->orWhere('content', 'ilike', "%{$kw}%")
+                      ->orWhere('shortcut', 'ilike', "%{$kw}%")
+                      ->orWhereHas('categories', fn ($catQ) => $catQ->where('name', 'ilike', "%{$kw}%"))
+                      ->orWhereHas('tags', fn ($tagQ) => $tagQ->where('name', 'ilike', "%{$kw}%"));
                 }
             });
         }

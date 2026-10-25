@@ -66,7 +66,7 @@
             v-model="searchQuery"
             dense
             outlined
-            placeholder="Buscar por texto, título o #atajo..."
+            placeholder="Buscar por texto, título, categorías o palabras parciales (ej: medi cocha)..."
             class="xf-search-input"
             debounce="300"
             @update:model-value="onSearchInput"
@@ -329,6 +329,7 @@ import { http } from '@/shared/api/http'
 import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import { useNotes } from '../composables/useNotes'
 import type { Note } from '../types/note.types'
+import { matchesNoteSearch } from '../utils/note-search'
 import NoteCard from '../components/NoteCard.vue'
 import NoteEditDialog from '../components/NoteEditDialog.vue'
 import SimilarNotesDialog from '../components/SimilarNotesDialog.vue'
@@ -424,10 +425,16 @@ function filterCategories(val: string, update: (fn: () => void) => void) {
 const isDialogOpen = ref(false)
 const selectedNote = ref<Note | null>(null)
 
-const pinnedNotes = computed(() => notes.value.filter((n) => n.is_pinned))
+const filteredNotesList = computed(() => {
+  const q = searchQuery.value.trim()
+  if (!q) return notes.value
+  return notes.value.filter((n) => matchesNoteSearch(n, q))
+})
+
+const pinnedNotes = computed(() => filteredNotesList.value.filter((n) => n.is_pinned))
 const otherNotes = computed(() => {
-  if (activeTab.value === 'pinned') return notes.value.filter((n) => n.is_pinned)
-  return notes.value.filter((n) => !n.is_pinned)
+  if (activeTab.value === 'pinned') return filteredNotesList.value.filter((n) => n.is_pinned)
+  return filteredNotesList.value.filter((n) => !n.is_pinned)
 })
 
 onMounted(async () => {

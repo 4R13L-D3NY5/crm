@@ -39,7 +39,7 @@ class NoteController extends Controller
             $query->where('is_pinned', filter_var($request->query('is_pinned'), FILTER_VALIDATE_BOOLEAN));
         }
 
-        // Búsqueda de texto o atajo: por defecto Búsqueda Permisiva Inteligente (todas las palabras no correlativas)
+        // Búsqueda de texto o atajo: por defecto Búsqueda Permisiva Inteligente (palabras y fragmentos parciales no correlativos)
         if ($search = $request->query('search')) {
             $isPgsql = DB::getDriverName() === 'pgsql';
 
@@ -52,34 +52,52 @@ class NoteController extends Controller
             if ($isExactPhrase) {
                 // Modo frase exacta correlativa
                 $phrase = trim($trimmedSearch, "\"' \t\n\r\0\x0B");
-                $query->where(function ($q) use ($phrase, $isPgsql) {
+                $phraseClean = ltrim($phrase, '#');
+                $query->where(function ($q) use ($phrase, $phraseClean, $isPgsql) {
                     if ($isPgsql) {
                         $q->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$phrase}%"])
                             ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$phrase}%"])
-                            ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$phrase}%"]);
+                            ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$phraseClean}%"])
+                            ->orWhereHas('categories', fn ($catQ) => $catQ->whereRaw('unaccent(name) ILIKE unaccent(?)', ["%{$phraseClean}%"]))
+                            ->orWhereHas('tags', fn ($tagQ) => $tagQ->whereRaw('unaccent(name) ILIKE unaccent(?)', ["%{$phraseClean}%"]))
+                            ->orWhereHas('customStatuses', fn ($stQ) => $stQ->whereRaw('unaccent(name) ILIKE unaccent(?)', ["%{$phraseClean}%"]));
                     } else {
                         $q->where('title', 'like', "%{$phrase}%")
                             ->orWhere('content', 'like', "%{$phrase}%")
-                            ->orWhere('shortcut', 'like', "%{$phrase}%");
+                            ->orWhere('shortcut', 'like', "%{$phraseClean}%")
+                            ->orWhereHas('categories', fn ($catQ) => $catQ->where('name', 'like', "%{$phraseClean}%"))
+                            ->orWhereHas('tags', fn ($tagQ) => $tagQ->where('name', 'like', "%{$phraseClean}%"))
+                            ->orWhereHas('customStatuses', fn ($stQ) => $stQ->where('name', 'like', "%{$phraseClean}%"));
                     }
                 });
             } else {
-                // Búsqueda Permisiva (POR DEFECTO): Todas las palabras ingresadas deben coincidir en cualquier orden
-                $words = array_filter(preg_split('/\s+/', $trimmedSearch));
+                // Búsqueda Permisiva por Tokens Parciales (POR DEFECTO):
+                // Cada palabra o fragmento ingresado (ej: "medi cocha") debe coincidir como prefijo o subcadena
+                // en título, contenido, atajo, categorías, etiquetas o estados de la nota.
+                $words = array_filter(preg_split('/[\s,;+]+/', $trimmedSearch));
 
                 if (!empty($words)) {
                     $query->where(function ($mainQ) use ($words, $isPgsql) {
                         foreach ($words as $word) {
                             $wordClean = ltrim($word, '#');
-                            $mainQ->where(function ($subQ) use ($word, $wordClean, $isPgsql) {
+                            if (blank($wordClean)) {
+                                continue;
+                            }
+                            $mainQ->where(function ($subQ) use ($wordClean, $isPgsql) {
                                 if ($isPgsql) {
-                                    $subQ->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$word}%"])
-                                        ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$word}%"])
-                                        ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$wordClean}%"]);
+                                    $subQ->whereRaw('unaccent(title) ILIKE unaccent(?)', ["%{$wordClean}%"])
+                                        ->orWhereRaw('unaccent(content) ILIKE unaccent(?)', ["%{$wordClean}%"])
+                                        ->orWhereRaw('unaccent(shortcut) ILIKE unaccent(?)', ["%{$wordClean}%"])
+                                        ->orWhereHas('categories', fn ($catQ) => $catQ->whereRaw('unaccent(name) ILIKE unaccent(?)', ["%{$wordClean}%"]))
+                                        ->orWhereHas('tags', fn ($tagQ) => $tagQ->whereRaw('unaccent(name) ILIKE unaccent(?)', ["%{$wordClean}%"]))
+                                        ->orWhereHas('customStatuses', fn ($stQ) => $stQ->whereRaw('unaccent(name) ILIKE unaccent(?)', ["%{$wordClean}%"]));
                                 } else {
-                                    $subQ->where('title', 'like', "%{$word}%")
-                                        ->orWhere('content', 'like', "%{$word}%")
-                                        ->orWhere('shortcut', 'like', "%{$wordClean}%");
+                                    $subQ->where('title', 'like', "%{$wordClean}%")
+                                        ->orWhere('content', 'like', "%{$wordClean}%")
+                                        ->orWhere('shortcut', 'like', "%{$wordClean}%")
+                                        ->orWhereHas('categories', fn ($catQ) => $catQ->where('name', 'like', "%{$wordClean}%"))
+                                        ->orWhereHas('tags', fn ($tagQ) => $tagQ->where('name', 'like', "%{$wordClean}%"))
+                                        ->orWhereHas('customStatuses', fn ($stQ) => $stQ->where('name', 'like', "%{$wordClean}%"));
                                 }
                             });
                         }
@@ -103,9 +121,24 @@ class NoteController extends Controller
             $query->whereHas('tags', fn ($q) => $q->where('tags.id', $tagId));
         }
 
-        $notes = $query->orderByDesc('is_pinned')
-            ->orderByDesc('updated_at')
-            ->get();
+        $query->orderByDesc('is_pinned');
+
+        if ($search) {
+            $searchClean = ltrim(trim($search), '#');
+            if ($isPgsql) {
+                $query->orderByRaw(
+                    "CASE 
+                        WHEN unaccent(coalesce(shortcut, '')) = unaccent(?) THEN 1 
+                        WHEN unaccent(coalesce(shortcut, '')) ILIKE unaccent(?) THEN 2 
+                        WHEN unaccent(coalesce(title, '')) ILIKE unaccent(?) THEN 3 
+                        ELSE 4 
+                     END ASC",
+                    [$searchClean, "{$searchClean}%", "%{$searchClean}%"]
+                );
+            }
+        }
+
+        $notes = $query->orderByDesc('updated_at')->get();
 
         return NoteResource::collection($notes);
     }
@@ -117,11 +150,20 @@ class NoteController extends Controller
 
         $validated = $request->validated();
 
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $storedPath = $request->file('image')->store('notes_media', 'public');
+            $imageUrl = '/storage/' . $storedPath;
+        } elseif (!empty($validated['image_url'])) {
+            $imageUrl = $validated['image_url'];
+        }
+
         $note = Note::create([
             'organization_id' => $organizationId,
             'user_id' => $user->id,
             'title' => $validated['title'] ?? null,
             'content' => $validated['content'],
+            'image_url' => $imageUrl,
             'color' => $validated['color'] ?? '#1e293b',
             'is_pinned' => $validated['is_pinned'] ?? false,
             'is_archived' => $validated['is_archived'] ?? false,
@@ -176,6 +218,12 @@ class NoteController extends Controller
         $fillData = [];
         if (array_key_exists('title', $validated)) $fillData['title'] = $validated['title'];
         if (array_key_exists('content', $validated)) $fillData['content'] = $validated['content'];
+        if ($request->hasFile('image')) {
+            $storedPath = $request->file('image')->store('notes_media', 'public');
+            $fillData['image_url'] = '/storage/' . $storedPath;
+        } elseif (array_key_exists('image_url', $validated)) {
+            $fillData['image_url'] = $validated['image_url'];
+        }
         if (array_key_exists('color', $validated)) $fillData['color'] = $validated['color'];
         if (array_key_exists('is_pinned', $validated)) $fillData['is_pinned'] = $validated['is_pinned'];
         if (array_key_exists('is_archived', $validated)) $fillData['is_archived'] = $validated['is_archived'];
@@ -363,5 +411,21 @@ class NoteController extends Controller
             'message' => 'Documento procesado e importado como nota y base de conocimiento.',
             'data' => new NoteResource($note),
         ], 201);
+    }
+
+    public function uploadImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'image' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
+        ]);
+
+        $file = $request->file('image');
+        $storedPath = $file->store('notes_media', 'public');
+        $imageUrl = '/storage/' . $storedPath;
+
+        return response()->json([
+            'image_url' => $imageUrl,
+            'message' => 'Imagen subida exitosamente.',
+        ]);
     }
 }

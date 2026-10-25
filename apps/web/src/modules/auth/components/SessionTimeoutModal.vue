@@ -190,6 +190,54 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- 3. Modal de Sesión Cerrada por Inicio en Otro Dispositivo (Monosesión) -->
+    <q-dialog
+      v-model="isRevokedByAnotherDeviceOpen"
+      persistent
+      transition-show="scale"
+      transition-hide="scale"
+    >
+      <q-card class="session-modal-card text-white">
+        <q-linear-progress
+          :value="1"
+          color="warning"
+          size="4px"
+        />
+
+        <q-card-section class="q-pt-lg q-pb-md text-center">
+          <div class="row justify-center q-mb-md">
+            <div class="session-icon-halo session-icon-halo--warning">
+              <q-avatar size="56px" color="amber-10" text-color="amber-1">
+                <q-icon name="sym_r_devices_off" size="32px" />
+              </q-avatar>
+            </div>
+          </div>
+
+          <div class="text-h6 text-weight-bold text-white q-mb-xs">
+            Sesión finalizada en este dispositivo
+          </div>
+          <p class="text-body2 text-grey-3 q-px-sm q-mt-sm">
+            Se ha iniciado sesión con tu cuenta desde <strong>otro equipo o navegador</strong>.
+          </p>
+          <p class="text-caption text-grey-4 q-px-sm">
+            Por políticas de uso y licencias de usuario, <strong>solo se permite un dispositivo activo a la vez</strong> para esta cuenta.
+          </p>
+        </q-card-section>
+
+        <q-card-actions align="center" class="q-px-lg q-pb-lg q-pt-none">
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            icon="sym_r_login"
+            label="Volver a Iniciar Sesión"
+            class="full-width text-weight-bold"
+            @click="onRevokedLoginRedirect"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -204,6 +252,7 @@ const authStore = useAuthStore()
 const {
   isWarningOpen,
   isExpiredOpen,
+  isRevokedByAnotherDeviceOpen,
   remainingSeconds,
   formattedRemainingTime,
   isExtending,
@@ -256,6 +305,12 @@ async function onReauthSubmit() {
 
 async function onFullLoginRedirect() {
   isExpiredOpen.value = false
+  await authStore.logout()
+  router.push('/login')
+}
+
+async function onRevokedLoginRedirect() {
+  isRevokedByAnotherDeviceOpen.value = false
   await authStore.logout()
   router.push('/login')
 }

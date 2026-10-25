@@ -308,6 +308,10 @@ class SocialCommentController extends Controller
             $conversation = Conversation::where('organization_id', $orgId)
                 ->where('contact_id', $contact->id)
                 ->where('channel', $validated['platform'])
+                ->where(function ($q) {
+                    $q->whereNotNull('origin_referral')
+                      ->orWhereNotNull('metadata->origin_referral');
+                })
                 ->whereIn('status', ['pending', 'open'])
                 ->latest('last_message_at')
                 ->first();
@@ -590,6 +594,10 @@ class SocialCommentController extends Controller
                     $conversation = Conversation::where('organization_id', $organization->id)
                         ->where('contact_id', $contact->id)
                         ->where('channel', 'facebook')
+                        ->where(function ($q) {
+                            $q->whereNotNull('origin_referral')
+                              ->orWhereNotNull('metadata->origin_referral');
+                        })
                         ->latest('last_message_at')
                         ->first();
 
@@ -619,11 +627,6 @@ class SocialCommentController extends Controller
                             'last_message_at' => $commentTime,
                             'origin_referral' => $postReferral,
                             'metadata' => ['origin_referral' => $postReferral],
-                        ]);
-                    } elseif (empty($conversation->origin_referral)) {
-                        $conversation->update([
-                            'origin_referral' => $postReferral,
-                            'metadata' => array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $postReferral]),
                         ]);
                     }
 

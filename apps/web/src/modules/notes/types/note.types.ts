@@ -10,6 +10,7 @@ export interface Note {
   author_name?: string
   title: string | null
   content: string
+  image_url?: string | null
   color: string
   is_pinned: boolean
   is_archived: boolean
@@ -55,6 +56,7 @@ export interface Note {
 export interface NotePayload {
   title?: string | null
   content: string
+  image_url?: string | null
   color?: string
   is_pinned?: boolean
   is_archived?: boolean
@@ -109,6 +111,7 @@ export interface KeepParsedNote {
   temp_id: string
   title: string
   content: string
+  image_url?: string | null
   color: string
   keep_color: string
   is_pinned: boolean
@@ -152,6 +155,7 @@ export interface SimilarMatrixResponse {
 export interface SuggestEntitiesPayload {
   title?: string
   content: string
+  image_url?: string | null
   mode?: 'heuristic' | 'ai'
 }
 

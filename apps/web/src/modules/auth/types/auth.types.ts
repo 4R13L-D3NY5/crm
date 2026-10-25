@@ -41,5 +41,18 @@ export interface AuthUser {
 export interface LoginPayload {
   email: string
   password: string
+  force?: boolean
 }
 
+export interface ActiveDeviceInfo {
+  device: string
+  ip: string
+  last_active: string
+  last_activity_timestamp?: number | null
+}
+
+export interface SessionConflictData {
+  status: 'session_conflict'
+  message: string
+  active_session: ActiveDeviceInfo
+}

@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useAuthStore } from '../stores/auth.store'
+import { http } from '@/shared/api/http'
 
 // 2 horas en milisegundos (120 minutos)
 export const INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000
@@ -13,6 +14,7 @@ const SESSION_EXTEND_KEY = 'xf_crm_session_extended'
 // Estado global compartido (singleton) para sincronizar entre layout, modal e interceptores
 const isWarningOpen = ref(false)
 const isExpiredOpen = ref(false)
+const isRevokedByAnotherDeviceOpen = ref(false)
 const remainingSeconds = ref(WARNING_BEFORE_TIMEOUT_MS / 1000)
 const isExtending = ref(false)
 const isReauthenticating = ref(false)
@@ -22,6 +24,7 @@ const cachedUserName = ref('')
 
 let timerInterval: ReturnType<typeof setInterval> | null = null
 let lastRecordedActivity = Date.now()
+let lastHeartbeat = Date.now()
 let isMonitoring = false
 
 function getLastActivity(): number {
@@ -57,12 +60,27 @@ export function notifySessionExpired() {
 
   isWarningOpen.value = false
   isExpiredOpen.value = true
+  isRevokedByAnotherDeviceOpen.value = false
+  reauthError.value = null
+}
+
+export function notifySessionRevokedByAnotherDevice() {
+  const authStore = useAuthStore()
+
+  if (authStore.user) {
+    cachedUserEmail.value = authStore.user.email
+    cachedUserName.value = authStore.user.name
+  }
+
+  isWarningOpen.value = false
+  isExpiredOpen.value = false
+  isRevokedByAnotherDeviceOpen.value = true
   reauthError.value = null
 }
 
 export function resetActivityTimer() {
-  // Si la advertencia o expiración ya están en pantalla, no resetear silenciosamente
-  if (isWarningOpen.value || isExpiredOpen.value) {
+  // Si la advertencia, revocación o expiración ya están en pantalla, no resetear silenciosamente
+  if (isWarningOpen.value || isExpiredOpen.value || isRevokedByAnotherDeviceOpen.value) {
     return
   }
   updateLocalActivity(Date.now())
@@ -85,9 +103,8 @@ export function useSessionTimeout() {
   })
 
   function onUserInteraction() {
-    // Si la advertencia ya está abierta, no resetear por simple movimiento del mouse;
-    // el usuario debe hacer clic explícitamente en el botón para renovar sesión en el backend.
-    if (isWarningOpen.value || isExpiredOpen.value) {
+    // Si algún modal bloqueante ya está abierto, ignorar interacciones del ratón
+    if (isWarningOpen.value || isExpiredOpen.value || isRevokedByAnotherDeviceOpen.value) {
       return
     }
 
@@ -98,13 +115,34 @@ export function useSessionTimeout() {
     }
   }
 
+  async function checkSessionStatusHeartbeat() {
+    if (!authStore.isAuthenticated || isExpiredOpen.value || isRevokedByAnotherDeviceOpen.value) {
+      return
+    }
+
+    try {
+      await http.get('/auth/session-status')
+    } catch (err: any) {
+      if (err?.response?.data?.code === 'SESSION_REVOKED_ANOTHER_DEVICE') {
+        notifySessionRevokedByAnotherDevice()
+      }
+    }
+  }
+
   function checkInactivityLoop() {
     if (!authStore.isAuthenticated) {
       return
     }
 
-    if (isExpiredOpen.value) {
+    if (isExpiredOpen.value || isRevokedByAnotherDeviceOpen.value) {
       return
+    }
+
+    // Heartbeat ligero cada 30 segundos para detectar si otro dispositivo tomó control
+    const now = Date.now()
+    if (now - lastHeartbeat >= 30000) {
+      lastHeartbeat = now
+      checkSessionStatusHeartbeat()
     }
 
     // Si la advertencia preventiva está abierta, restar 1 segundo en cada tick
@@ -117,7 +155,6 @@ export function useSessionTimeout() {
       return
     }
 
-    const now = Date.now()
     const lastActivity = getLastActivity()
     const elapsed = now - lastActivity
 
@@ -148,8 +185,9 @@ export function useSessionTimeout() {
   }
 
   function onVisibilityChange() {
-    if (document.visibilityState === 'visible' && !isWarningOpen.value && !isExpiredOpen.value) {
+    if (document.visibilityState === 'visible' && !isWarningOpen.value && !isExpiredOpen.value && !isRevokedByAnotherDeviceOpen.value) {
       checkInactivityLoop()
+      checkSessionStatusHeartbeat()
     }
   }
 
@@ -158,6 +196,7 @@ export function useSessionTimeout() {
     isMonitoring = true
 
     updateLocalActivity(Date.now())
+    lastHeartbeat = Date.now()
 
     // Eventos de interacción del usuario
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
@@ -177,11 +216,16 @@ export function useSessionTimeout() {
         remainingSeconds.value = seconds
         isWarningOpen.value = true
         isExpiredOpen.value = false
+        isRevokedByAnotherDeviceOpen.value = false
         console.log(`[SessionTimeout] Modal de advertencia activado con ${seconds}s restantes.`)
       }
       ;(window as any).__testSessionExpired = () => {
         notifySessionExpired()
         console.log('[SessionTimeout] Modal de sesión expirada activado.')
+      }
+      ;(window as any).__testSessionRevoked = () => {
+        notifySessionRevokedByAnotherDevice()
+        console.log('[SessionTimeout] Modal de sesión revocada por otro dispositivo activado.')
       }
     }
   }
@@ -204,10 +248,9 @@ export function useSessionTimeout() {
     document.removeEventListener('visibilitychange', onVisibilityChange)
   }
 
-  async function extendSession() {
+  async function extendSession(): Promise<boolean> {
     isExtending.value = true
     try {
-      // Renovar sesión en backend (refresca cookies y token CSRF)
       await authStore.refreshUser()
 
       const now = Date.now()
@@ -221,22 +264,23 @@ export function useSessionTimeout() {
 
       Notify.create({
         type: 'positive',
-        message: 'Sesión renovada y extendida por 2 horas más.',
+        message: 'Sesión renovada exitosamente.',
         position: 'bottom-right',
         icon: 'sym_r_check_circle',
-        timeout: 3000,
+        timeout: 2500,
       })
+      return true
     } catch {
-      // Si la sesión ya expiró en el backend
       notifySessionExpired()
+      return false
     } finally {
       isExtending.value = false
     }
   }
 
-  async function reauthenticate(password: string) {
+  async function reauthenticate(password: string): Promise<boolean> {
     if (!password.trim()) {
-      reauthError.value = 'Por favor ingresa tu contraseña.'
+      reauthError.value = 'Por favor introduce tu contraseña.'
       return false
     }
 
@@ -260,6 +304,7 @@ export function useSessionTimeout() {
 
       isExpiredOpen.value = false
       isWarningOpen.value = false
+      isRevokedByAnotherDeviceOpen.value = false
 
       Notify.create({
         type: 'positive',
@@ -281,6 +326,7 @@ export function useSessionTimeout() {
   return {
     isWarningOpen,
     isExpiredOpen,
+    isRevokedByAnotherDeviceOpen,
     remainingSeconds,
     formattedRemainingTime,
     isExtending,
@@ -293,6 +339,7 @@ export function useSessionTimeout() {
     extendSession,
     reauthenticate,
     notifySessionExpired,
+    notifySessionRevokedByAnotherDevice,
     resetActivityTimer,
   }
 }

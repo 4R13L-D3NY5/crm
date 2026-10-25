@@ -6,7 +6,7 @@
     transition-show="fade"
     transition-hide="fade"
   >
-    <q-card class="xf-note-dialog-card column no-wrap" style="width: 720px; max-width: 95vw; max-height: 90vh;">
+    <q-card class="xf-note-dialog-card column no-wrap" style="width: 720px; max-width: 95vw; max-height: 90vh;" @paste="handlePaste">
       <!-- Dialog Header -->
       <q-card-section class="xf-note-dialog__header row items-center justify-between q-py-sm q-px-md">
         <div class="row items-center q-gutter-x-sm">
@@ -166,6 +166,28 @@
             >
               <q-tooltip>Compara este borrador con la base de conocimiento para detectar notas afines o duplicadas</q-tooltip>
             </q-btn>
+
+            <!-- Botón Adjuntar Imagen -->
+            <q-btn
+              flat
+              dense
+              size="sm"
+              color="teal-3"
+              icon="sym_r_add_photo_alternate"
+              label="Adjuntar Imagen"
+              class="q-px-sm"
+              :loading="isUploadingImage"
+              @click="triggerImageInput"
+            >
+              <q-tooltip>Subir o pegar una imagen (PNG, JPG, WebP) para acompañar esta nota</q-tooltip>
+            </q-btn>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              style="display: none;"
+              @change="onImageFileSelected"
+            />
           </div>
 
           <div class="text-caption text-grey-4 font-mono" style="font-size: 0.72rem">
@@ -249,6 +271,45 @@
           placeholder="Escribe el apunte, instrucciones, costos, requisitos o respuesta predefinida..."
           class="xf-input-field"
         />
+
+        <!-- Previsualización de Imagen Adjunta -->
+        <div v-if="form.image_url" class="note-attached-image-box q-pa-sm rounded-borders relative-position">
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption text-weight-bold text-teal-3 row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_image" size="16px" color="teal-3" />
+              <span>Imagen adjunta a la nota:</span>
+            </span>
+            <q-btn
+              flat
+              dense
+              round
+              size="sm"
+              color="negative"
+              icon="sym_r_delete"
+              @click="removeAttachedImage"
+            >
+              <q-tooltip>Quitar imagen de esta nota</q-tooltip>
+            </q-btn>
+          </div>
+          <div class="note-image-preview-wrapper flex flex-center rounded-borders overflow-hidden cursor-pointer" @click="isImageZoomOpen = true">
+            <img :src="form.image_url" alt="Previsualización de nota" class="note-image-preview" />
+          </div>
+          <q-tooltip>Clic para ampliar imagen</q-tooltip>
+        </div>
+
+        <!-- Modal Zoom Imagen en Editor -->
+        <q-dialog v-model="isImageZoomOpen">
+          <q-card class="bg-dark text-white" style="max-width: 90vw; max-height: 90vh;">
+            <q-card-section class="row items-center justify-between q-py-xs q-px-sm">
+              <div class="text-caption ellipsis text-grey-3">{{ form.title || 'Imagen adjunta' }}</div>
+              <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+            </q-card-section>
+            <q-separator dark />
+            <q-card-section class="q-pa-xs flex flex-center">
+              <img :src="form.image_url" style="max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px;" />
+            </q-card-section>
+          </q-card>
+        </q-dialog>
 
         <!-- Atajo & Visibilidad -->
         <div class="row q-col-gutter-sm">
@@ -869,7 +930,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { http } from '@/shared/api/http'
 import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
-import { suggestEntities as apiSuggestEntities } from '../api/notes.api'
+import { suggestEntities as apiSuggestEntities, uploadNoteImage } from '../api/notes.api'
 import { useNotes } from '../composables/useNotes'
 import type { AnalyzeResult, Note, NotePayload, SuggestEntitiesResponse } from '../types/note.types'
 import SimilarNotesDialog from './SimilarNotesDialog.vue'
@@ -933,6 +994,7 @@ const visibilityOptions = [
 const form = reactive<NotePayload>({
   title: '',
   content: '',
+  image_url: null,
   color: '#1e293b',
   is_pinned: false,
   is_archived: false,
@@ -941,7 +1003,75 @@ const form = reactive<NotePayload>({
   category_ids: [],
   custom_status_ids: [],
   tag_ids: [],
+
 })
+
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingImage = ref(false)
+const isImageZoomOpen = ref(false)
+
+function triggerImageInput() {
+  imageInputRef.value?.click()
+}
+
+function onImageFileSelected(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) {
+    uploadAndSetImage(file)
+  }
+}
+
+async function uploadAndSetImage(file: File) {
+  if (file.size > 10 * 1024 * 1024) {
+    $q.notify({
+      type: 'negative',
+      message: 'La imagen excede el límite permitido de 10 MB',
+      position: 'bottom-right',
+    })
+    return
+  }
+
+  isUploadingImage.value = true
+  try {
+    const res = await uploadNoteImage(file)
+    form.image_url = res.image_url
+    $q.notify({
+      type: 'positive',
+      message: 'Imagen adjuntada a la nota correctamente.',
+      position: 'bottom-right',
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al subir la imagen',
+      position: 'bottom-right',
+    })
+  } finally {
+    isUploadingImage.value = false
+    if (imageInputRef.value) imageInputRef.value.value = ''
+  }
+}
+
+function removeAttachedImage() {
+  form.image_url = null
+}
+
+async function handlePaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        e.preventDefault()
+        await uploadAndSetImage(file)
+        break
+      }
+    }
+  }
+}
+
 
 const categoriesOptions = ref<Array<{ id: string; name: string }>>([])
 const statusesOptions = ref<Array<{ id: string; name: string }>>([])
@@ -1041,6 +1171,7 @@ watch(
       if (props.note) {
         form.title = props.note.title || ''
         form.content = props.note.content || ''
+        form.image_url = props.note.image_url || null
         form.color = props.note.color || '#1e293b'
         form.is_pinned = props.note.is_pinned || false
         form.is_archived = props.note.is_archived || false
@@ -1052,6 +1183,7 @@ watch(
       } else {
         form.title = ''
         form.content = ''
+        form.image_url = null
         form.color = '#1e293b'
         form.is_pinned = false
         form.is_archived = false
@@ -1383,6 +1515,28 @@ async function handleSubmit() {
   &--ia {
     background: rgba(147, 51, 234, 0.12);
     border: 1px solid rgba(168, 85, 247, 0.35);
+  }
+}
+
+.note-attached-image-box {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px dashed rgba(45, 212, 191, 0.4);
+  border-radius: 12px;
+}
+
+.note-image-preview-wrapper {
+  max-height: 220px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.note-image-preview {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.02);
   }
 }
 

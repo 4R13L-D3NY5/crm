@@ -175,7 +175,7 @@ export const useAuthStore = defineStore('auth', {
         this.isLoading = false
       }
     },
-    async login(email: string, password: string) {
+    async login(email: string, password: string, force: boolean = false) {
       this.isLoading = true
       this.errorMessage = null
 
@@ -186,14 +186,18 @@ export const useAuthStore = defineStore('auth', {
           // CSRF cookie endpoint is tolerant for stateful domains
         }
 
-        const user = await login({ email, password })
+        const user = await login({ email, password, force })
 
         this.user = user
         this.organizations = user.organizations
         this.isReady = true
         this.demoRole = null
         clearStoredDemoRole()
+        return user
       } catch (error: any) {
+        if (error?.response?.status === 409 && error?.response?.data?.status === 'session_conflict') {
+          throw error
+        }
         this.errorMessage =
           error?.response?.data?.message || 'Credenciales inválidas o sesión no disponible.'
         throw error

@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'user_id',
     'title',
     'content',
+    'image_url',
     'color',
     'is_pinned',
     'is_archived',

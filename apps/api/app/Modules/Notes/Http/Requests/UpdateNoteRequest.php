@@ -29,6 +29,8 @@ class UpdateNoteRequest extends FormRequest
         return [
             'title' => ['nullable', 'string', 'max:255'],
             'content' => ['sometimes', 'required', 'string'],
+            'image' => ['nullable', 'file', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
+            'image_url' => ['nullable', 'string', 'max:2000'],
             'color' => ['nullable', 'string', 'max:30'],
             'is_pinned' => ['nullable', 'boolean'],
             'is_archived' => ['nullable', 'boolean'],

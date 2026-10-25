@@ -34,6 +34,11 @@ class SendWhatsAppMessageAction
         }
 
         $body = $payload['body'] ?? '';
+        if (filled($body)) {
+            // Normalizar retornos de carro CRLF y CR a LF puro (\n) para que los clientes de WhatsApp
+            // no colapsen los saltos de línea en un único espacio en blanco.
+            $body = preg_replace("/\r\n|\r/", "\n", $body);
+        }
         if (blank($body) && filled($mediaType)) {
             $body = match ($mediaType) {
                 'image' => '[Imagen]',

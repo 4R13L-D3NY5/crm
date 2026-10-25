@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
-import { notifySessionExpired, resetActivityTimer } from '@/modules/auth/composables/useSessionTimeout'
+import { notifySessionExpired, notifySessionRevokedByAnotherDevice, resetActivityTimer } from '@/modules/auth/composables/useSessionTimeout'
 
 export function resolveApiBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL
@@ -114,7 +114,12 @@ http.interceptors.response.use(
       const isAuthPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/login')
 
       if (!isLoginRequest && !isAuthPage) {
-        notifySessionExpired()
+        const errorCode = (error.response?.data as any)?.code
+        if (errorCode === 'SESSION_REVOKED_ANOTHER_DEVICE') {
+          notifySessionRevokedByAnotherDevice()
+        } else {
+          notifySessionExpired()
+        }
       }
     }
 

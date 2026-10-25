@@ -44,6 +44,15 @@ export async function updateNote(id: string, payload: NotePayload): Promise<Note
   return response.data.data
 }
 
+export async function uploadNoteImage(file: File): Promise<{ image_url: string; message: string }> {
+  const formData = new FormData()
+  formData.append('image', file)
+  const response = await http.post<{ image_url: string; message: string }>('/notes/upload-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 export async function deleteNote(id: string): Promise<void> {
   await http.delete(`/notes/${id}`)
 }
