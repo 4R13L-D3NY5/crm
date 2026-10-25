@@ -328,23 +328,6 @@
 
           </q-btn>
 
-
-
-                    <!-- Acceso Directo: Ir a Bandeja Privada de Messenger -->
-          <q-btn
-            v-if="messengerConversation"
-            unelevated
-            dense
-            size="sm"
-            color="indigo-7"
-            icon="sym_r_forum"
-            :label="isMobile ? '' : 'Ir a Bandeja Interna (Messenger)'"
-            class="q-px-sm text-weight-bold"
-            @click="emit('select-conversation', messengerConversation)"
-          >
-            <q-tooltip>Abrir la conversación privada de Messenger de este cliente</q-tooltip>
-          </q-btn>
-
           <q-btn
 
             flat
