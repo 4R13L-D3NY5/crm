@@ -236,6 +236,6 @@ export async function getConversationUsers(): Promise<UserOption[]> {
 }
 
 export async function openPrivateChat(conversationId: string): Promise<Conversation> {
-  const response = await http.post<{ data: Conversation }>(/social/conversations//private-chat)
+  const response = await http.post<{ data: Conversation }>(`/social/conversations/${conversationId}/private-chat`)
   return response.data.data
 }

@@ -2398,6 +2398,27 @@ const postConversation = computed(() => {
   ) || null
 })
 
+const isOpeningPrivateChat = ref(false)
+
+async function handleGoToPrivateChat() {
+  if (messengerConversation.value) {
+    emit('select-conversation', messengerConversation.value)
+    return
+  }
+  if (!props.conversation?.id) return
+  try {
+    isOpeningPrivateChat.value = true
+    const privateConv = await openPrivateChat(props.conversation.id)
+    if (privateConv) {
+      emit('select-conversation', privateConv)
+    }
+  } catch (err) {
+    console.error('Error al abrir chat privado:', err)
+  } finally {
+    isOpeningPrivateChat.value = false
+  }
+}
+
 
 
 
