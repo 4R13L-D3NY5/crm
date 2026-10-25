@@ -1031,7 +1031,7 @@
 
               class="composer-tool-btn q-px-xs"
 
-              @click="openKeepNotesPicker"
+              @click="() => openKeepNotesPicker()"
 
             >
 
@@ -1395,7 +1395,7 @@
 
             <div class="text-caption text-grey-4" style="font-size: 0.7rem">
 
-              {{ formatFileSize(pendingFile.size) }}
+              {{ pendingFile ? formatFileSize(pendingFile.size) : 'Enlace / URL' }}
 
             </div>
 
@@ -3691,10 +3691,11 @@ const loadingKeepNotes = ref(false)
 
 
 
-async function openKeepNotesPicker(initialSearch = '') {
+async function openKeepNotesPicker(initialSearch: string | Event = '') {
+  const searchStr = typeof initialSearch === 'string' ? initialSearch : ''
   showKeepNotesModal.value = true
   if (initialSearch) {
-    keepNotesSearch.value = initialSearch
+    keepNotesSearch.value = searchStr
   }
 
 

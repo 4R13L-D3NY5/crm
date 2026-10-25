@@ -66,7 +66,7 @@
       @click.stop="isZoomOpen = true"
     >
       <img
-        :src="note.image_url"
+        :src="note.image_url || undefined"
         alt="Adjunto"
         class="xf-keep-card__image"
         loading="lazy"
@@ -220,7 +220,7 @@
         </q-card-section>
         <q-separator dark />
         <q-card-section class="q-pa-xs flex flex-center">
-          <img :src="note.image_url" style="max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px;" />
+          <img :src="note.image_url || undefined" style="max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px;" />
         </q-card-section>
       </q-card>
     </q-dialog>

@@ -292,7 +292,7 @@
             </q-btn>
           </div>
           <div class="note-image-preview-wrapper flex flex-center rounded-borders overflow-hidden cursor-pointer" @click="isImageZoomOpen = true">
-            <img :src="form.image_url" alt="Previsualización de nota" class="note-image-preview" />
+            <img :src="form.image_url || undefined" alt="Previsualización de nota" class="note-image-preview" />
           </div>
           <q-tooltip>Clic para ampliar imagen</q-tooltip>
         </div>
@@ -306,7 +306,7 @@
             </q-card-section>
             <q-separator dark />
             <q-card-section class="q-pa-xs flex flex-center">
-              <img :src="form.image_url" style="max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px;" />
+              <img :src="form.image_url || undefined" style="max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 4px;" />
             </q-card-section>
           </q-card>
         </q-dialog>
