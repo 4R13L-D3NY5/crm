@@ -121,6 +121,13 @@
       @submit="handleTransferTicket"
     />
 
+    <TicketResolveDialog
+      v-model="isResolveModalOpen"
+      :channel="selectedConversation?.channel || 'whatsapp'"
+      :loading="mutations.closeMutation.isPending.value"
+      @submit="handleResolveSubmit"
+    />
+
     <ConversationFormDialog
       v-model="isNewTicketModalOpen"
       :contacts="formOptions.contactsQuery.data.value ?? []"
@@ -151,6 +158,7 @@ import InboxTicketList from '../components/InboxTicketList.vue'
 import InboxChatThread from '../components/InboxChatThread.vue'
 import InboxContactSidebar from '../components/InboxContactSidebar.vue'
 import TicketTransferDialog from '../components/TicketTransferDialog.vue'
+import TicketResolveDialog from '../components/TicketResolveDialog.vue'
 import ConversationFormDialog from './ConversationFormDialog.vue'
 
 const route = useRoute()
@@ -169,6 +177,7 @@ const searchQuery = ref((route.query.search as string) || (route.query.phone as 
 const selectedConversationId = ref<string | null>((route.query.id as string) || null)
 const isProfileOpen = ref(!$q.screen.lt.md)
 const isTransferModalOpen = ref(false)
+const isResolveModalOpen = ref(false)
 const isNewTicketModalOpen = ref(false)
 
 // Query de lista de conversaciones con refetch continuo para tiempo real (per_page: 100 para no limitar a 20)
@@ -382,11 +391,24 @@ async function handleAcceptTicket() {
   }
 }
 
-async function handleCloseTicket() {
+function handleCloseTicket() {
+  if (!selectedConversationId.value) return
+  isResolveModalOpen.value = true
+}
+
+async function handleResolveSubmit(payload: { send_survey: boolean; rating?: number | null; feedback?: string | null }) {
   if (!selectedConversationId.value) return
   try {
-    await mutations.closeMutation.mutateAsync({ id: selectedConversationId.value })
-    notify.info({ message: 'Ticket resuelto y finalizado.' })
+    await mutations.closeMutation.mutateAsync({
+      id: selectedConversationId.value,
+      payload,
+    })
+    isResolveModalOpen.value = false
+    notify.info({
+      message: payload.send_survey && !payload.rating
+        ? 'Ticket resuelto y encuesta CSAT enviada por WhatsApp.'
+        : 'Ticket resuelto y finalizado.',
+    })
   } catch {
     notify.error({ message: 'Error al finalizar el ticket.' })
   }

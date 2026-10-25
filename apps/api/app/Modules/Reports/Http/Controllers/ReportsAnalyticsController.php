@@ -509,7 +509,7 @@ class ReportsAnalyticsController extends Controller
         }
 
         $totalRatings = $ratingsQuery->count();
-        $avgScore = $totalRatings > 0 ? round($ratingsQuery->avg('rating'), 1) : 5.0;
+        $avgScore = $totalRatings > 0 ? round($ratingsQuery->avg('rating'), 1) : 0.0;
 
         $starDistribution = [
             '5_stars' => (clone $ratingsQuery)->where('rating', 5)->count(),
@@ -523,7 +523,7 @@ class ReportsAnalyticsController extends Controller
             'data' => [
                 'average_score' => $avgScore,
                 'total_responses' => $totalRatings,
-                'satisfaction_percentage' => round(($avgScore / 5) * 100, 1),
+                'satisfaction_percentage' => $totalRatings > 0 ? round(($avgScore / 5) * 100, 1) : 0.0,
                 'stars_breakdown' => $starDistribution,
                 'distribution' => [
                     5 => $starDistribution['5_stars'],

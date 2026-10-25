@@ -87,6 +87,7 @@ class TicketLifecycleController extends Controller
         $validated = $request->validate([
             'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
             'feedback' => ['nullable', 'string', 'max:500'],
+            'send_survey' => ['nullable', 'boolean'],
         ]);
 
         $ticket->update([
@@ -95,6 +96,21 @@ class TicketLifecycleController extends Controller
             'rating' => $validated['rating'] ?? null,
             'feedback' => $validated['feedback'] ?? null,
         ]);
+
+        // Si no se asignó calificación manual y send_survey no es falso (por defecto true), despachar encuesta CSAT por WhatsApp
+        if (empty($validated['rating']) && ($validated['send_survey'] ?? true)) {
+            try {
+                app(\App\Modules\Conversations\Services\CsatSurveyService::class)->dispatchSurvey($ticket, $request->user());
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Error al despachar encuesta CSAT: ' . $e->getMessage());
+            }
+        }
+
+        try {
+            \App\Modules\Conversations\Events\TicketUpdatedEvent::dispatch($ticket->fresh(['queue', 'assignee', 'contact', 'company']));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Error al emitir TicketUpdatedEvent en close: ' . $e->getMessage());
+        }
 
         return response()->json([
             'data' => $ticket->load(['assignedToUser', 'contact.tags', 'queue']),

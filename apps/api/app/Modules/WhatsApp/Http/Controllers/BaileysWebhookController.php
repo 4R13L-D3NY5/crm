@@ -234,7 +234,7 @@ class BaileysWebhookController extends Controller
 
         // 2. Localización o reactivación unificada de la conversación (Chat Continuo)
         // Concurrencia segura: usamos lockForUpdate sobre el contacto para serializar ráfagas de mensajes simultáneos
-        [$conversation, $wasReopened, $isNewlyCreated] = DB::transaction(function () use ($account, $contact, $lid, $isFromMe, $referral) {
+        [$conversation, $wasReopened, $isNewlyCreated, $isCsatReply] = DB::transaction(function () use ($account, $contact, $lid, $isFromMe, $referral, $body) {
             Contact::where('id', $contact->id)->lockForUpdate()->first();
 
             // 2.1. Buscar conversación activa existente ('pending' u 'open')
@@ -264,7 +264,7 @@ class BaileysWebhookController extends Controller
                 if (!empty($updates)) {
                     $activeConv->update($updates);
                 }
-                return [$activeConv, false, false];
+                return [$activeConv, false, false, false];
             }
 
             // 2.2. Si no hay conversación abierta, buscar la última conversación (cerrada / resuelta) para reactivarla
@@ -282,6 +282,14 @@ class BaileysWebhookController extends Controller
                 ->first();
 
             if ($lastClosed) {
+                // 2.2.1 Si es respuesta del cliente a la encuesta de satisfacción CSAT de este ticket cerrado
+                if (!$isFromMe) {
+                    $csatService = app(\App\Modules\Conversations\Services\CsatSurveyService::class);
+                    if ($csatService->isEligibleForSurveyReply($lastClosed, $body)) {
+                        return [$lastClosed, false, false, true];
+                    }
+                }
+
                 // Reabrir la conversación existente:
                 $updates = [
                     'status' => $isFromMe ? 'open' : 'pending',
@@ -294,7 +302,7 @@ class BaileysWebhookController extends Controller
                 }
                 $lastClosed->update($updates);
 
-                return [$lastClosed, true, false];
+                return [$lastClosed, true, false, false];
             }
 
             // 2.3. Si nunca ha existido ninguna conversación previa, crearla por primera vez
@@ -310,8 +318,15 @@ class BaileysWebhookController extends Controller
                 'metadata' => $referral ? ['origin_referral' => $referral] : null,
             ]);
 
-            return [$newConv, false, true];
+            return [$newConv, false, true, false];
         });
+
+        // Si fue una respuesta a encuesta CSAT, procesar rating y finalizar sin reabrir
+        if (!empty($isCsatReply)) {
+            app(\App\Modules\Conversations\Services\CsatSurveyService::class)
+                ->recordSurveyReply($conversation, $body, $account, $providerMessageId, $request->all());
+            return;
+        }
 
         if ($isFromMe) {
             // Sincronización espejo de mensaje enviado fuera del CRM (WhatsApp Web o Móvil Android/iOS)

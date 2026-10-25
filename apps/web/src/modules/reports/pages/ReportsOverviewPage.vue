@@ -602,7 +602,7 @@
         <div class="col-12 col-md-5">
           <q-card flat bordered class="xf-chart-card q-pa-xl text-center full-height flex column justify-center items-center">
             <div class="text-h2 text-bold text-amber-4">
-              {{ csatData.average_score }} <span class="text-h5 text-grey-4">/ 5.0</span>
+              {{ csatData.total_responses > 0 ? csatData.average_score : '0.0' }} <span class="text-h5 text-grey-4">/ 5.0</span>
             </div>
             <div class="text-h6 text-white q-mt-sm">
               {{ csatData.satisfaction_percentage }}% Satisfacción Favorable
@@ -617,7 +617,7 @@
                 :key="star"
                 name="sym_r_star"
                 size="28px"
-                :color="star <= Math.round(csatData.average_score) ? 'amber-4' : 'grey-7'"
+                :color="csatData.total_responses > 0 && star <= Math.round(csatData.average_score) ? 'amber-4' : 'grey-7'"
               />
             </div>
           </q-card>

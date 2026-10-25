@@ -167,6 +167,13 @@ class ProcessWhatsAppWebhook implements ShouldQueue
                 ->first();
 
             if ($lastClosed) {
+                // Si el cliente respondió a la encuesta de satisfacción CSAT del ticket cerrado
+                $csatService = app(\App\Modules\Conversations\Services\CsatSurveyService::class);
+                if ($csatService->isEligibleForSurveyReply($lastClosed, $body)) {
+                    $csatService->recordSurveyReply($lastClosed, $body, $account, $providerMessageId, $rawPayload);
+                    return;
+                }
+
                 $conversation = $lastClosed;
                 $convUpdates = [
                     'status' => 'pending',
