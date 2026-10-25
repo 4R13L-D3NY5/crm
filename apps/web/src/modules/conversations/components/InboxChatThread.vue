@@ -204,39 +204,6 @@
 
           </q-btn>
 
-
-
-          <!-- Acceso directo entre Chat Privado (Messenger) y Post de Facebook -->
-          <q-btn
-            v-if="messengerConversation"
-            flat
-            dense
-            size="sm"
-            color="indigo-3"
-            icon="sym_r_forum"
-            :label="isMobile ? '' : 'Chat Privado'"
-            :round="isMobile"
-            class="q-px-xs text-weight-bold"
-            @click="emit('select-conversation', messengerConversation)"
-          >
-            <q-tooltip>Abrir chat privado de Messenger con este cliente</q-tooltip>
-          </q-btn>
-
-          <q-btn
-            v-else-if="postConversation"
-            flat
-            dense
-            size="sm"
-            color="teal-3"
-            icon="sym_r_push_pin"
-            :label="isMobile ? '' : 'Ver Post'"
-            :round="isMobile"
-            class="q-px-xs text-weight-bold"
-            @click="emit('select-conversation', postConversation)"
-          >
-            <q-tooltip>Ir a la publicación de Facebook donde comentó este cliente</q-tooltip>
-          </q-btn>
-
           <q-btn
 
             v-if="conversation.status !== 'closed'"
@@ -378,21 +345,6 @@
             <q-tooltip>Abrir la conversación privada de Messenger de este cliente</q-tooltip>
           </q-btn>
 
-          <!-- Acceso Directo: Ver Post de Origen -->
-          <q-btn
-            v-else-if="postConversation"
-            unelevated
-            dense
-            size="sm"
-            color="teal-8"
-            icon="sym_r_push_pin"
-            :label="isMobile ? '' : 'Ver Post de Origen'"
-            class="q-px-sm text-weight-bold"
-            @click="emit('select-conversation', postConversation)"
-          >
-            <q-tooltip>Ver el comentario público y publicación en Facebook</q-tooltip>
-          </q-btn>
-
           <q-btn
 
             flat
@@ -479,17 +431,19 @@
 
             <div class="row items-center q-gutter-x-sm no-wrap">
         <q-btn
-          v-if="messengerConversation"
-          flat
+          v-if="effectiveOriginReferral && (conversation.channel === 'facebook' || conversation.channel === 'instagram')"
+          unelevated
           dense
           size="xs"
-          color="indigo-3"
+          color="indigo-7"
+          text-color="white"
           icon="sym_r_forum"
-          label="Ir a Bandeja Interna (Messenger)"
-          class="text-weight-bold q-px-xs"
-          @click="emit('select-conversation', messengerConversation)"
+          label="Bandeja Interna (Mensaje Privado)"
+          class="text-weight-bold q-px-sm"
+          :loading="isOpeningPrivateChat"
+          @click="handleGoToPrivateChat"
         >
-          <q-tooltip>Abrir chat privado de Messenger con este cliente</q-tooltip>
+          <q-tooltip>Abrir chat privado de Messenger con este cliente para enviarle un mensaje directo</q-tooltip>
         </q-btn>
         <a
           v-if="effectiveOriginReferral.source_url"
@@ -2385,7 +2339,7 @@ import type { Note } from '@/modules/notes/types/note.types'
 
 import { matchesNoteSearch, computeNoteSearchScore } from '@/modules/notes/utils/note-search'
 
-import { getHentleAiSuggestion, editMessage } from '../api/conversations.api'
+import { getHentleAiSuggestion, editMessage, openPrivateChat } from '../api/conversations.api'
 
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 

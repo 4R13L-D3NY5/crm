@@ -986,5 +986,54 @@ class SocialCommentController extends Controller
             'message' => 'Respuesta enviada a TikTok con éxito.',
         ], 201);
     }
+
+    /**
+     * Obtiene o crea la conversación privada (Messenger / Instagram Direct) para el contacto de un post.
+     */
+    public function openPrivateChat(Request $request, Conversation $conversation): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        if ($conversation->organization_id !== $organization->id) {
+            abort(403);
+        }
+
+        $contactId = $conversation->contact_id;
+        $channel = in_array($conversation->channel, ['facebook', 'instagram']) ? $conversation->channel : 'facebook';
+
+        // 1. Buscar si ya existe una conversación privada activa (sin referral)
+        $privateConv = Conversation::where('organization_id', $organization->id)
+            ->where('contact_id', $contactId)
+            ->where('channel', $channel)
+            ->whereNull('origin_referral')
+            ->where(function ($q) {
+                $q->whereNull('metadata->origin_referral')
+                  ->orWhere('metadata', '[]')
+                  ->orWhereNull('metadata');
+            })
+            ->where('status', '!=', 'closed')
+            ->latest('last_message_at')
+            ->first();
+
+        if (!$privateConv) {
+            $privateConv = Conversation::create([
+                'organization_id' => $organization->id,
+                'contact_id' => $contactId,
+                'channel' => $channel,
+                'whatsapp_account_id' => $conversation->whatsapp_account_id,
+                'status' => 'pending',
+                'unread_count' => 0,
+                'origin_referral' => null,
+                'metadata' => null,
+                'last_message_at' => Carbon::now(),
+            ]);
+        }
+
+        $privateConv->load(['contact', 'assignee', 'messages' => fn($q) => $q->latest()->take(30)]);
+
+        return response()->json([
+            'data' => (new \App\Modules\Conversations\Http\Resources\ConversationResource($privateConv))->resolve(),
+            'message' => 'Chat privado abierto con éxito.',
+        ]);
+    }
 }
 
