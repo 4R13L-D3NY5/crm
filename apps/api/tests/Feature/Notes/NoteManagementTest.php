@@ -708,4 +708,51 @@ class NoteManagementTest extends TestCase
         $this->assertIsArray($aiRes->json('categories'));
         $this->assertIsArray($aiRes->json('tags'));
     }
+
+    public function test_user_can_upload_video_and_attach_to_note(): void
+    {
+        $this->actingAs($this->adminUser);
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $videoFile = \Illuminate\Http\UploadedFile::fake()->create('demo_tour.mp4', 1500, 'video/mp4');
+
+        $uploadRes = $this->postJson('/api/notes/upload-image', [
+            'image' => $videoFile,
+        ]);
+
+        $uploadRes->assertStatus(200);
+        $uploadRes->assertJsonStructure([
+            'image_url',
+            'media_url',
+            'media_type',
+            'message',
+        ]);
+        $this->assertSame('video', $uploadRes->json('media_type'));
+        $this->assertStringEndsWith('.mp4', $uploadRes->json('image_url'));
+
+        // Guardar nota con video
+        $noteRes = $this->postJson('/api/notes', [
+            'title' => 'Video Demostrativo Campus',
+            'content' => 'Recorrido en video de las instalaciones para nuevos postulantes.',
+            'image_url' => $uploadRes->json('image_url'),
+            'shortcut' => '#video_campus',
+        ]);
+
+        $noteRes->assertStatus(201);
+        $this->assertSame('video_campus', $noteRes->json('data.shortcut'));
+        $this->assertSame('video', $noteRes->json('data.media_type'));
+        $this->assertSame($uploadRes->json('image_url'), $noteRes->json('data.image_url'));
+
+        // Actualizar nota
+        $noteId = $noteRes->json('data.id');
+        $updateRes = $this->putJson("/api/notes/{$noteId}", [
+            'title' => 'Video Demostrativo Campus 2026',
+            'content' => 'Recorrido actualizado en video.',
+            'image_url' => $uploadRes->json('image_url'),
+        ]);
+
+        $updateRes->assertStatus(200);
+        $this->assertSame('video', $updateRes->json('data.media_type'));
+        $this->assertSame('Video Demostrativo Campus 2026', $updateRes->json('data.title'));
+    }
 }

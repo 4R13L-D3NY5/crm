@@ -124,17 +124,27 @@ class NoteController extends Controller
         $query->orderByDesc('is_pinned');
 
         if ($search) {
-            $searchClean = ltrim(trim($search), '#');
+            $trimmedSearch = trim($search);
+            $searchClean = ltrim($trimmedSearch, '#');
             if ($isPgsql) {
-                $query->orderByRaw(
-                    "CASE 
-                        WHEN unaccent(coalesce(shortcut, '')) = unaccent(?) THEN 1 
-                        WHEN unaccent(coalesce(shortcut, '')) ILIKE unaccent(?) THEN 2 
-                        WHEN unaccent(coalesce(title, '')) ILIKE unaccent(?) THEN 3 
-                        ELSE 4 
-                     END ASC",
-                    [$searchClean, "{$searchClean}%", "%{$searchClean}%"]
-                );
+                if ($searchClean !== '') {
+                    $query->orderByRaw(
+                        "CASE 
+                            WHEN unaccent(coalesce(shortcut, '')) = unaccent(?) THEN 1 
+                            WHEN unaccent(coalesce(shortcut, '')) ILIKE unaccent(?) THEN 2 
+                            WHEN unaccent(coalesce(title, '')) ILIKE unaccent(?) THEN 3 
+                            ELSE 4 
+                         END ASC",
+                        [$searchClean, "{$searchClean}%", "%{$searchClean}%"]
+                    );
+                } else {
+                    $query->orderByRaw(
+                        "CASE 
+                            WHEN shortcut IS NOT NULL AND shortcut != '' THEN 1 
+                            ELSE 2 
+                         END ASC"
+                    );
+                }
             }
         }
 
@@ -416,16 +426,21 @@ class NoteController extends Controller
     public function uploadImage(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:10240'],
+            'image' => ['required', 'file', 'mimes:jpeg,png,jpg,webp,gif,mp4,webm,quicktime,mov,ogg,m4v', 'max:51200'],
         ]);
 
         $file = $request->file('image');
         $storedPath = $file->store('notes_media', 'public');
         $imageUrl = '/storage/' . $storedPath;
+        $mime = (string) $file->getMimeType();
+        $ext = strtolower($file->getClientOriginalExtension());
+        $isSubVideo = str_starts_with($mime, 'video/') || in_array($ext, ['mp4', 'webm', 'mov', 'quicktime', 'ogg', 'm4v']);
 
         return response()->json([
             'image_url' => $imageUrl,
-            'message' => 'Imagen subida exitosamente.',
+            'media_url' => $imageUrl,
+            'media_type' => $isSubVideo ? 'video' : 'image',
+            'message' => $isSubVideo ? 'Video subido exitosamente.' : 'Imagen subida exitosamente.',
         ]);
     }
 }

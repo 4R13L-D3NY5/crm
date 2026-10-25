@@ -1,6 +1,15 @@
 import type { Note } from '../types/note.types'
 
 /**
+ * Detecta si una URL corresponde a un archivo de video
+ */
+export function isVideoMedia(url: string | null | undefined): boolean {
+  if (!url) return false
+  const clean = url.split('?')[0].toLowerCase()
+  return ['.mp4', '.webm', '.mov', '.ogg', '.m4v', '.quicktime'].some((ext) => clean.endsWith(ext))
+}
+
+/**
  * Normaliza una cadena de texto para búsquedas permisivas:
  * - Convierte a minúsculas
  * - Remueve acentos y diacríticos (ej: medicina/medicina, cochabamba/cochabamba, prótesis/protesis)
@@ -34,24 +43,46 @@ export function extractSearchTokens(query: string | null | undefined): string[] 
 }
 
 /**
- * Evalúa si una nota coincide con la búsqueda permisiva por palabras parciales.
+ * Evalúa si una nota coincide con la búsqueda permisiva por palabras parciales o atajos (#).
  *
- * Cada token ingresado (ej: "medi", "cocha") debe encontrarse como subcadena o prefijo
- * en al menos uno de los campos de la nota (título, contenido, atajo, categorías, etiquetas o estados).
- *
- * Si se ingresan varios tokens (ej: "medi cocha"), la nota solo coincidirá si TODOS
- * los tokens están presentes en la nota.
+ * 1. Si el usuario ingresa solo '#' o '##', devuelve únicamente notas que tengan un atajo configurado.
+ * 2. Si el usuario escribe '#' seguido de un texto (ej: #precio), se prioriza la búsqueda por atajo.
+ * 3. En búsquedas por palabras normales (ej: "medi cocha"), cada token ingresado debe encontrarse
+ *    en algún campo de la nota (título, contenido, atajo, categorías, etiquetas o estados).
  */
-export function matchesNoteSearch(note: Note, query: string | null | undefined): boolean {
+export function matchesNoteSearch(
+  note: Note,
+  query: string | null | undefined,
+  options?: { isPermissive?: boolean }
+): boolean {
   if (!query || !query.trim()) return true
 
+  const trimmed = query.trim()
+  const isShortcutSearch = trimmed.startsWith('#')
+  const cleanQuery = trimmed.replace(/^#+/, '').trim()
+
+  // 1. Si el usuario ingresó solo '#' o '##', mostrar exclusivamente notas con atajo
+  if (isShortcutSearch && cleanQuery.length === 0) {
+    return Boolean(note.shortcut && note.shortcut.trim().length > 0)
+  }
+
+  const noteShortcutNorm = normalizeSearchTerm(note.shortcut?.replace(/^#+/, ''))
+  const cleanQueryNorm = normalizeSearchTerm(cleanQuery)
+
+  // 2. Si el usuario comenzó explícitamente con '#', dar match directo si el atajo lo incluye
+  if (isShortcutSearch && cleanQueryNorm.length > 0) {
+    if (noteShortcutNorm.includes(cleanQueryNorm)) {
+      return true
+    }
+  }
+
+  // 3. Extracción de tokens
   const tokens = extractSearchTokens(query)
   if (tokens.length === 0) return true
 
   // Campos principales de la nota
   const titleNorm = normalizeSearchTerm(note.title)
   const contentNorm = normalizeSearchTerm(note.content)
-  const shortcutNorm = normalizeSearchTerm(note.shortcut?.replace(/^#+/, ''))
 
   // Categorías y subcategorías vinculadas
   const categoriesNorm = (note.categories || [])
@@ -69,16 +100,22 @@ export function matchesNoteSearch(note: Note, query: string | null | undefined):
     .join(' ')
 
   // Bolsa global de búsqueda de la nota
-  const searchableHaystack = `${titleNorm} ${contentNorm} ${shortcutNorm} ${categoriesNorm} ${tagsNorm} ${statusesNorm}`
+  const searchableHaystack = `${titleNorm} ${contentNorm} ${noteShortcutNorm} ${categoriesNorm} ${tagsNorm} ${statusesNorm}`
 
-  // Verificar que TODOS los tokens estén presentes en la bolsa de búsqueda
+  // Si se fuerza modo no permisivo (frase continua)
+  if (options?.isPermissive === false) {
+    return searchableHaystack.includes(cleanQueryNorm)
+  }
+
+  // Búsqueda permisiva inteligente: todos los tokens deben existir en la nota
   return tokens.every((token) => searchableHaystack.includes(token))
 }
 
 /**
  * Calcula un puntaje de relevancia para ordenar las notas encontradas:
- * - Coincidencia exacta de atajo (#shortcut): +100 puntos
- * - Atajo comienza con la búsqueda: +50 puntos
+ * - Búsqueda por atajo (#): notas con atajo coincidente obtienen hasta +200 puntos
+ * - Coincidencia exacta de atajo (#shortcut): +100 a +200 puntos
+ * - Atajo comienza con la búsqueda: +50 a +150 puntos
  * - Coincidencia en título: +35 puntos
  * - Cada token que coincide en el título o atajo incrementa el orden de prioridad
  */
@@ -86,26 +123,39 @@ export function computeNoteSearchScore(note: Note, query: string | null | undefi
   if (!query || !query.trim()) return 0
 
   let score = 0
-  const normQuery = normalizeSearchTerm(query.replace(/^#+/, ''))
+  const trimmed = query.trim()
+  const isShortcutSearch = trimmed.startsWith('#')
+  const cleanQuery = trimmed.replace(/^#+/, '').trim()
+  const normQuery = normalizeSearchTerm(cleanQuery)
   const shortcutNorm = normalizeSearchTerm(note.shortcut?.replace(/^#+/, ''))
   const titleNorm = normalizeSearchTerm(note.title)
   const tokens = extractSearchTokens(query)
 
-  // 1. Coincidencia directa de atajo (#)
-  if (shortcutNorm && shortcutNorm === normQuery) {
-    score += 100
-  } else if (shortcutNorm && shortcutNorm.startsWith(normQuery)) {
-    score += 50
-  } else if (shortcutNorm && shortcutNorm.includes(normQuery)) {
-    score += 25
+  // 1. Si el usuario buscó solo '#', priorizar notas con atajo
+  if (isShortcutSearch && cleanQuery.length === 0) {
+    return shortcutNorm ? 100 : 0
   }
 
-  // 2. Coincidencia directa de frase en título
-  if (titleNorm && titleNorm.includes(normQuery)) {
+  // 2. Coincidencia directa de atajo (#)
+  if (shortcutNorm && normQuery) {
+    if (shortcutNorm === normQuery) {
+      score += isShortcutSearch ? 200 : 100
+    } else if (shortcutNorm.startsWith(normQuery)) {
+      score += isShortcutSearch ? 150 : 50
+    } else if (shortcutNorm.includes(normQuery)) {
+      score += isShortcutSearch ? 80 : 25
+    }
+  } else if (isShortcutSearch && !shortcutNorm) {
+    // Si buscó explícitamente con '#' pero la nota carece de atajo, restar prioridad
+    score -= 30
+  }
+
+  // 3. Coincidencia directa de frase en título
+  if (titleNorm && normQuery && titleNorm.includes(normQuery)) {
     score += 35
   }
 
-  // 3. Puntuación por token
+  // 4. Puntuación por cada token individual
   for (const token of tokens) {
     if (shortcutNorm && shortcutNorm.includes(token)) {
       score += 15

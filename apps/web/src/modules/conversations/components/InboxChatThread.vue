@@ -1278,40 +1278,32 @@
 
         <div class="row items-center q-gutter-x-sm">
 
-          <img
-
-            v-if="pendingFilePreview && (pendingFileType === 'image' || pendingFileType === 'sticker')"
-
+          <video
+            v-if="pendingFilePreview && pendingFileType === 'video'"
             :src="pendingFilePreview"
-
-            alt="Preview"
-
             class="pending-thumb"
+            style="object-fit: cover; border-radius: 4px;"
+          />
 
+          <img
+            v-else-if="pendingFilePreview && (pendingFileType === 'image' || pendingFileType === 'sticker')"
+            :src="pendingFilePreview"
+            alt="Preview"
+            class="pending-thumb"
             :class="{ 'pending-thumb--sticker': pendingFileType === 'sticker' }"
-
           />
 
           <q-icon
-
             v-else
-
-            :name="pendingFileType === 'audio' ? 'sym_r_mic' : 'sym_r_description'"
-
+            :name="pendingFileType === 'video' ? 'sym_r_videocam' : pendingFileType === 'audio' ? 'sym_r_mic' : 'sym_r_description'"
             size="24px"
-
-            :color="pendingFileType === 'audio' ? 'teal-4' : 'blue-4'"
-
+            :color="pendingFileType === 'video' ? 'purple-4' : pendingFileType === 'audio' ? 'teal-4' : 'blue-4'"
           />
 
           <div>
-
             <div class="row items-center q-gutter-x-xs">
-
               <span class="text-caption text-weight-bold text-white ellipsis" style="max-width: 200px">
-
-                {{ pendingFile?.name || 'Imagen de Nota adjunta' }}
-
+                {{ pendingFile?.name || (pendingFileType === 'video' ? 'Video de Nota adjunto' : 'Imagen de Nota adjunta') }}
               </span>
 
               <q-badge
@@ -1788,12 +1780,12 @@
                   <q-badge
                     v-if="note.image_url"
                     rounded
-                    color="cyan-9"
-                    text-color="cyan-1"
+                    :color="isVideoMedia(note.image_url) ? 'purple-9' : 'cyan-9'"
+                    :text-color="isVideoMedia(note.image_url) ? 'purple-1' : 'cyan-1'"
                     class="text-caption text-weight-bold"
                   >
-                    <q-icon name="sym_r_image" size="12px" class="q-mr-xs" />
-                    Con Imagen
+                    <q-icon :name="isVideoMedia(note.image_url) ? 'sym_r_videocam' : 'sym_r_image'" size="12px" class="q-mr-xs" />
+                    {{ isVideoMedia(note.image_url) ? 'Con Video' : 'Con Imagen' }}
                   </q-badge>
 
                   <q-badge
@@ -2320,7 +2312,7 @@ import { getNotes } from '@/modules/notes/api/notes.api'
 
 import type { Note } from '@/modules/notes/types/note.types'
 
-import { matchesNoteSearch, computeNoteSearchScore } from '@/modules/notes/utils/note-search'
+import { matchesNoteSearch, computeNoteSearchScore, isVideoMedia } from '@/modules/notes/utils/note-search'
 
 import { getHentleAiSuggestion, editMessage, openPrivateChat } from '../api/conversations.api'
 
@@ -2661,7 +2653,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const pendingFile = ref<File | null>(null)
 
-const pendingFileType = ref<'image' | 'audio' | 'document' | 'sticker' | null>(null)
+const pendingFileType = ref<'image' | 'video' | 'audio' | 'document' | 'sticker' | null>(null)
 
 const pendingFilePreview = ref<string>('')
 
@@ -2685,7 +2677,7 @@ function isStickerMessage(msg: ConversationMessage): boolean {
 
 
 
-function setPendingFile(file: File, type: 'image' | 'audio' | 'document' | 'sticker') {
+function setPendingFile(file: File, type: 'image' | 'video' | 'audio' | 'document' | 'sticker') {
 
   if (pendingFilePreview.value) {
 
@@ -2697,7 +2689,7 @@ function setPendingFile(file: File, type: 'image' | 'audio' | 'document' | 'stic
 
   pendingFileType.value = type
 
-  if (type === 'image' || type === 'sticker') {
+  if (type === 'image' || type === 'sticker' || type === 'video') {
 
     pendingFilePreview.value = URL.createObjectURL(file)
 
@@ -3795,9 +3787,10 @@ function applyKeepNote(note: Note) {
 
 
   if (note.image_url) {
+    const isVideo = isVideoMedia(note.image_url)
     pendingMediaUrl.value = note.image_url
     pendingFilePreview.value = note.image_url
-    pendingFileType.value = 'image'
+    pendingFileType.value = isVideo ? 'video' : 'image'
     pendingFile.value = null
   }
 

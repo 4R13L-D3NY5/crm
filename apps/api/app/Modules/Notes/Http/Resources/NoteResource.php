@@ -14,6 +14,14 @@ class NoteResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $mediaUrl = $this->image_url ?? data_get($this->metadata, 'image_url');
+        $isSubVideo = false;
+        if ($mediaUrl) {
+            $cleanPath = parse_url($mediaUrl, PHP_URL_PATH) ?? $mediaUrl;
+            $ext = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
+            $isSubVideo = in_array($ext, ['mp4', 'webm', 'mov', 'ogg', 'm4v', 'quicktime']);
+        }
+
         return [
             'id' => $this->id,
             'organization_id' => $this->organization_id,
@@ -26,7 +34,9 @@ class NoteResource extends JsonResource
             'author_name' => $this->user?->name ?? 'Usuario',
             'title' => $this->title,
             'content' => $this->content,
-            'image_url' => $this->image_url ?? data_get($this->metadata, 'image_url'),
+            'image_url' => $mediaUrl,
+            'media_url' => $mediaUrl,
+            'media_type' => $isSubVideo ? 'video' : ($mediaUrl ? 'image' : null),
             'color' => $this->color ?? '#1e293b',
             'is_pinned' => (bool) $this->is_pinned,
             'is_archived' => (bool) $this->is_archived,

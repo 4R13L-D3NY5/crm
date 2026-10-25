@@ -11,6 +11,8 @@ export interface Note {
   title: string | null
   content: string
   image_url?: string | null
+  media_url?: string | null
+  media_type?: 'image' | 'video' | null
   color: string
   is_pinned: boolean
   is_archived: boolean
@@ -57,6 +59,8 @@ export interface NotePayload {
   title?: string | null
   content: string
   image_url?: string | null
+  media_url?: string | null
+  media_type?: 'image' | 'video' | null
   color?: string
   is_pinned?: boolean
   is_archived?: boolean
@@ -112,6 +116,8 @@ export interface KeepParsedNote {
   title: string
   content: string
   image_url?: string | null
+  media_url?: string | null
+  media_type?: 'image' | 'video' | null
   color: string
   keep_color: string
   is_pinned: boolean

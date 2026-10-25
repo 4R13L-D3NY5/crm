@@ -35,7 +35,7 @@
         text-color="deep-purple-1"
         class="text-weight-bold font-mono text-caption q-px-xs"
       >
-        #{{ note.shortcut }}
+        #{{ note.shortcut.replace(/^#+/, '') }}
       </q-badge>
 
       <q-badge
@@ -59,19 +59,32 @@
       </q-badge>
     </div>
 
-    <!-- Imagen de la Nota si existe -->
+    <!-- Imagen o Video de la Nota si existe -->
     <div
       v-if="note.image_url"
-      class="xf-keep-card__image-container q-mb-sm cursor-pointer rounded-borders overflow-hidden"
-      @click.stop="isZoomOpen = true"
+      class="xf-keep-card__media-container q-mb-sm rounded-borders overflow-hidden"
     >
-      <img
-        :src="note.image_url || undefined"
-        alt="Adjunto"
-        class="xf-keep-card__image"
-        loading="lazy"
-      />
-      <q-tooltip>Clic para ampliar imagen</q-tooltip>
+      <video
+        v-if="isVideo"
+        :src="note.image_url"
+        controls
+        playsinline
+        class="xf-keep-card__video"
+        preload="metadata"
+      ></video>
+      <div
+        v-else
+        class="xf-keep-card__image-container cursor-pointer"
+        @click.stop="isZoomOpen = true"
+      >
+        <img
+          :src="note.image_url || undefined"
+          alt="Adjunto"
+          class="xf-keep-card__image"
+          loading="lazy"
+        />
+        <q-tooltip>Clic para ampliar imagen</q-tooltip>
+      </div>
     </div>
 
     <!-- Contenido de la Nota -->
@@ -231,6 +244,7 @@
 import { computed, ref } from 'vue'
 import { copyToClipboard, useQuasar } from 'quasar'
 import type { Note } from '../types/note.types'
+import { isVideoMedia } from '../utils/note-search'
 
 const isZoomOpen = ref(false)
 
@@ -238,6 +252,8 @@ const props = defineProps<{
   note: Note
   canEdit?: boolean
 }>()
+
+const isVideo = computed(() => isVideoMedia(props.note.image_url || props.note.media_url))
 
 const emit = defineEmits<{
   edit: [note: Note]
@@ -362,6 +378,20 @@ async function copyContent() {
   &__title {
     color: #ffffff;
     letter-spacing: -0.01em;
+  }
+
+  &__media-container {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  &__video {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    background: #000;
+    display: block;
   }
 
   &__image-container {

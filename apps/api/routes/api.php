@@ -25,8 +25,8 @@ Route::post('social/comments/webhook', [\App\Modules\Social\Http\Controllers\Soc
 Route::middleware('web')->group(function (): void {
     Route::get('/login', static function (\Illuminate\Http\Request $request) {
         $cookieName = config('session.cookie');
-        $cookieSessionId = $request->cookies->get($cookieName);
-        $sessionId = $request->hasSession() ? $request->session()->getId() : $cookieSessionId;
+        $cookieSessionId = $request->cookies->get($cookieName) ?: $request->header('X-Session-Id');
+        $sessionId = $cookieSessionId ?: ($request->hasSession() ? $request->session()->getId() : null);
 
         if ($cookieSessionId && \Illuminate\Support\Facades\Cache::has("revoked_session:{$cookieSessionId}")) {
             \Illuminate\Support\Facades\Cache::forget("revoked_session:{$cookieSessionId}");

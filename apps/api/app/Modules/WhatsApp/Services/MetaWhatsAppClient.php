@@ -40,6 +40,7 @@ class MetaWhatsAppClient implements WhatsAppClient
 
         $typeKey = match ($mediaType) {
             'image' => 'image',
+            'video' => 'video',
             'audio' => 'audio',
             'document' => 'document',
             default => 'image',
@@ -47,7 +48,7 @@ class MetaWhatsAppClient implements WhatsAppClient
 
         $cleanCaption = $caption !== null ? preg_replace("/\r\n|\r/", "\n", $caption) : null;
         $mediaPayload = ['link' => $mediaUrl];
-        if ($cleanCaption && in_array($typeKey, ['image', 'document'])) {
+        if ($cleanCaption && in_array($typeKey, ['image', 'video', 'document'])) {
             $mediaPayload['caption'] = $cleanCaption;
         }
 

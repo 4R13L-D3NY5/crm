@@ -830,6 +830,12 @@ app.post('/sessions/:sessionId/send-media', async (req, res) => {
         image: mediaSource,
         caption: cleanCaption,
       };
+    } else if (media_type === 'video') {
+      messagePayload = {
+        video: mediaSource,
+        caption: cleanCaption,
+        mimetype: mime_type || 'video/mp4',
+      };
     } else if (media_type === 'audio') {
       messagePayload = {
         audio: mediaSource,

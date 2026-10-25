@@ -120,8 +120,9 @@ class SingleSessionConcurrentDeviceTest extends TestCase
 
         $cookieName = config('session.cookie');
 
-        // Hacer petición unauthenticated con la cookie de la sesión revocada
-        $response = $this->withUnencryptedCookie($cookieName, $revokedSessionId)
+        // Hacer petición unauthenticated con la cookie / header de la sesión revocada
+        $response = $this->withHeaders(['X-Session-Id' => $revokedSessionId])
+            ->withCookie($cookieName, $revokedSessionId)
             ->getJson('/api/me');
 
         $response->assertStatus(401)

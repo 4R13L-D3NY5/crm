@@ -167,24 +167,24 @@
               <q-tooltip>Compara este borrador con la base de conocimiento para detectar notas afines o duplicadas</q-tooltip>
             </q-btn>
 
-            <!-- Botón Adjuntar Imagen -->
+            <!-- Botón Adjuntar Imagen o Video -->
             <q-btn
               flat
               dense
               size="sm"
               color="teal-3"
-              icon="sym_r_add_photo_alternate"
-              label="Adjuntar Imagen"
+              icon="sym_r_perm_media"
+              label="Adjuntar Imagen / Video"
               class="q-px-sm"
               :loading="isUploadingImage"
               @click="triggerImageInput"
             >
-              <q-tooltip>Subir o pegar una imagen (PNG, JPG, WebP) para acompañar esta nota</q-tooltip>
+              <q-tooltip>Subir imagen (PNG, JPG, WebP) o video corto (MP4, WebM) para acompañar esta nota</q-tooltip>
             </q-btn>
             <input
               ref="imageInputRef"
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               style="display: none;"
               @change="onImageFileSelected"
             />
@@ -272,12 +272,12 @@
           class="xf-input-field"
         />
 
-        <!-- Previsualización de Imagen Adjunta -->
+        <!-- Previsualización de Imagen o Video Adjunto -->
         <div v-if="form.image_url" class="note-attached-image-box q-pa-sm rounded-borders relative-position">
           <div class="row items-center justify-between q-mb-xs">
             <span class="text-caption text-weight-bold text-teal-3 row items-center q-gutter-x-xs">
-              <q-icon name="sym_r_image" size="16px" color="teal-3" />
-              <span>Imagen adjunta a la nota:</span>
+              <q-icon :name="isVideo ? 'sym_r_videocam' : 'sym_r_image'" size="16px" color="teal-3" />
+              <span>{{ isVideo ? 'Video adjunto a la nota:' : 'Imagen adjunta a la nota:' }}</span>
             </span>
             <q-btn
               flat
@@ -288,13 +288,16 @@
               icon="sym_r_delete"
               @click="removeAttachedImage"
             >
-              <q-tooltip>Quitar imagen de esta nota</q-tooltip>
+              <q-tooltip>{{ isVideo ? 'Quitar video de esta nota' : 'Quitar imagen de esta nota' }}</q-tooltip>
             </q-btn>
           </div>
-          <div class="note-image-preview-wrapper flex flex-center rounded-borders overflow-hidden cursor-pointer" @click="isImageZoomOpen = true">
+          <div v-if="isVideo" class="note-video-preview-wrapper flex flex-center rounded-borders overflow-hidden">
+            <video controls :src="form.image_url" class="note-video-preview" style="max-width: 100%; max-height: 240px; border-radius: 6px;"></video>
+          </div>
+          <div v-else class="note-image-preview-wrapper flex flex-center rounded-borders overflow-hidden cursor-pointer" @click="isImageZoomOpen = true">
             <img :src="form.image_url || undefined" alt="Previsualización de nota" class="note-image-preview" />
           </div>
-          <q-tooltip>Clic para ampliar imagen</q-tooltip>
+          <q-tooltip v-if="!isVideo">Clic para ampliar imagen</q-tooltip>
         </div>
 
         <!-- Modal Zoom Imagen en Editor -->
@@ -933,6 +936,7 @@ import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/para
 import { suggestEntities as apiSuggestEntities, uploadNoteImage } from '../api/notes.api'
 import { useNotes } from '../composables/useNotes'
 import type { AnalyzeResult, Note, NotePayload, SuggestEntitiesResponse } from '../types/note.types'
+import { isVideoMedia } from '../utils/note-search'
 import SimilarNotesDialog from './SimilarNotesDialog.vue'
 
 const props = defineProps<{
@@ -1009,6 +1013,7 @@ const form = reactive<NotePayload>({
 const imageInputRef = ref<HTMLInputElement | null>(null)
 const isUploadingImage = ref(false)
 const isImageZoomOpen = ref(false)
+const isVideo = computed(() => isVideoMedia(form.image_url))
 
 function triggerImageInput() {
   imageInputRef.value?.click()
@@ -1023,10 +1028,10 @@ function onImageFileSelected(e: Event) {
 }
 
 async function uploadAndSetImage(file: File) {
-  if (file.size > 10 * 1024 * 1024) {
+  if (file.size > 50 * 1024 * 1024) {
     $q.notify({
       type: 'negative',
-      message: 'La imagen excede el límite permitido de 10 MB',
+      message: 'El archivo excede el límite permitido de 50 MB',
       position: 'bottom-right',
     })
     return
@@ -1038,13 +1043,13 @@ async function uploadAndSetImage(file: File) {
     form.image_url = res.image_url
     $q.notify({
       type: 'positive',
-      message: 'Imagen adjuntada a la nota correctamente.',
+      message: res.message || 'Archivo adjuntado a la nota correctamente.',
       position: 'bottom-right',
     })
   } catch (err: any) {
     $q.notify({
       type: 'negative',
-      message: err?.response?.data?.message || 'Error al subir la imagen',
+      message: err?.response?.data?.message || 'Error al subir el archivo adjunto',
       position: 'bottom-right',
     })
   } finally {
@@ -1061,7 +1066,7 @@ async function handlePaste(e: ClipboardEvent) {
   const items = e.clipboardData?.items
   if (!items) return
   for (const item of items) {
-    if (item.type.startsWith('image/')) {
+    if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
       const file = item.getAsFile()
       if (file) {
         e.preventDefault()

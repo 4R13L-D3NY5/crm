@@ -461,7 +461,7 @@ const filteredNotesList = computed(() => {
   let list = notes.value
 
   if (q) {
-    list = list.filter((n) => matchesNoteSearch(n, q))
+    list = list.filter((n) => matchesNoteSearch(n, q, { isPermissive: isPermissiveSearch.value }))
   }
 
   return [...list].sort((a, b) => {
@@ -489,12 +489,13 @@ const otherNotes = computed(() => {
 let notesSearchTimeout: any = null
 watch(searchQuery, (val) => {
   if (notesSearchTimeout) clearTimeout(notesSearchTimeout)
-  const q = val.trim().replace(/^#+/, '')
-  if (q.length >= 2) {
+  const trimmed = val.trim()
+  const q = trimmed.replace(/^#+/, '').trim()
+  if (q.length >= 2 || (trimmed.startsWith('#') && q.length >= 1)) {
     notesSearchTimeout = setTimeout(async () => {
       try {
         const results = await getNotes({
-          search: q,
+          search: trimmed,
           is_archived: activeTab.value === 'archived',
           is_pinned: activeTab.value === 'pinned' ? true : undefined,
           category_id: selectedCategory.value || undefined,
@@ -512,7 +513,7 @@ watch(searchQuery, (val) => {
       } catch (_) {
         // Fallback al filtro instantáneo en memoria
       }
-    }, 350)
+    }, 300)
   }
 })
 
