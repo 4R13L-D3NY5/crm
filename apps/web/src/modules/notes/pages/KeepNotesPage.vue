@@ -66,10 +66,8 @@
             v-model="searchQuery"
             dense
             outlined
-            placeholder="Buscar por texto, título, categorías o palabras parciales (ej: medi cocha)..."
+            placeholder="Buscar por #atajo, título o palabras clave (ej: #precio, medi cocha)..."
             class="xf-search-input"
-            debounce="300"
-            @update:model-value="onSearchInput"
           >
             <template #prepend>
               <q-icon name="sym_r_search" size="18px" color="teal-3" />
@@ -214,19 +212,24 @@
     </div>
 
     <!-- Tablero de Notas Estilo Keep -->
-    <div v-else-if="notes.length > 0">
-      <!-- Sección: Notas Fijadas -->
-      <section v-if="pinnedNotes.length > 0 && activeTab !== 'pinned'" class="q-mb-lg">
-        <div class="row items-center q-gutter-x-xs q-mb-sm">
-          <q-icon name="sym_r_push_pin" size="16px" color="amber-4" />
-          <span class="text-caption text-weight-bold text-uppercase text-amber-4 font-mono letter-spacing-wide">
-            Fijadas en la parte superior ({{ pinnedNotes.length }})
+    <div v-else-if="filteredNotesList.length > 0">
+      <!-- Caso 1: Búsqueda Activa -> Lista unificada ordenada por relevancia (Score de Atajo y Tokens) -->
+      <section v-if="searchQuery.trim()">
+        <div class="row items-center justify-between q-mb-sm">
+          <div class="row items-center q-gutter-x-xs">
+            <q-icon name="sym_r_manage_search" size="18px" color="teal-3" />
+            <span class="text-caption text-weight-bold text-uppercase text-teal-3 font-mono letter-spacing-wide">
+              Resultados de búsqueda ({{ filteredNotesList.length }})
+            </span>
+          </div>
+          <span class="text-caption text-grey-5">
+            Ordenados por mayor relevancia y coincidencia de atajos (#)
           </span>
         </div>
 
         <div class="keep-grid">
           <NoteCard
-            v-for="note in pinnedNotes"
+            v-for="note in filteredNotesList"
             :key="note.id"
             :note="note"
             :can-edit="canEditNote(note)"
@@ -239,28 +242,55 @@
         </div>
       </section>
 
-      <!-- Sección: Otras Notas -->
-      <section v-if="otherNotes.length > 0">
-        <div v-if="pinnedNotes.length > 0 && activeTab !== 'pinned'" class="row items-center q-gutter-x-xs q-mb-sm">
-          <span class="text-caption text-weight-bold text-uppercase text-grey-5 font-mono letter-spacing-wide">
-            Otras notas ({{ otherNotes.length }})
-          </span>
-        </div>
+      <!-- Caso 2: Sin Búsqueda Activa -> Secciones normales (Fijadas y Otras notas) -->
+      <template v-else>
+        <!-- Sección: Notas Fijadas -->
+        <section v-if="pinnedNotes.length > 0 && activeTab !== 'pinned'" class="q-mb-lg">
+          <div class="row items-center q-gutter-x-xs q-mb-sm">
+            <q-icon name="sym_r_push_pin" size="16px" color="amber-4" />
+            <span class="text-caption text-weight-bold text-uppercase text-amber-4 font-mono letter-spacing-wide">
+              Fijadas en la parte superior ({{ pinnedNotes.length }})
+            </span>
+          </div>
 
-        <div class="keep-grid">
-          <NoteCard
-            v-for="note in otherNotes"
-            :key="note.id"
-            :note="note"
-            :can-edit="canEditNote(note)"
-            @edit="openEditDialog"
-            @delete="confirmDelete"
-            @toggle-pin="handleTogglePin"
-            @toggle-archive="handleToggleArchive"
-            @find-similar="openSimilarDialog"
-          />
-        </div>
-      </section>
+          <div class="keep-grid">
+            <NoteCard
+              v-for="note in pinnedNotes"
+              :key="note.id"
+              :note="note"
+              :can-edit="canEditNote(note)"
+              @edit="openEditDialog"
+              @delete="confirmDelete"
+              @toggle-pin="handleTogglePin"
+              @toggle-archive="handleToggleArchive"
+              @find-similar="openSimilarDialog"
+            />
+          </div>
+        </section>
+
+        <!-- Sección: Otras Notas -->
+        <section v-if="otherNotes.length > 0">
+          <div v-if="pinnedNotes.length > 0 && activeTab !== 'pinned'" class="row items-center q-gutter-x-xs q-mb-sm">
+            <span class="text-caption text-weight-bold text-uppercase text-grey-5 font-mono letter-spacing-wide">
+              Otras notas ({{ otherNotes.length }})
+            </span>
+          </div>
+
+          <div class="keep-grid">
+            <NoteCard
+              v-for="note in otherNotes"
+              :key="note.id"
+              :note="note"
+              :can-edit="canEditNote(note)"
+              @edit="openEditDialog"
+              @delete="confirmDelete"
+              @toggle-pin="handleTogglePin"
+              @toggle-archive="handleToggleArchive"
+              @find-similar="openSimilarDialog"
+            />
+          </div>
+        </section>
+      </template>
     </div>
 
     <!-- Estado Vacío -->
@@ -322,14 +352,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import { http } from '@/shared/api/http'
 import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import { useNotes } from '../composables/useNotes'
+import { getNotes } from '../api/notes.api'
 import type { Note } from '../types/note.types'
-import { matchesNoteSearch } from '../utils/note-search'
+import { matchesNoteSearch, computeNoteSearchScore } from '../utils/note-search'
 import NoteCard from '../components/NoteCard.vue'
 import NoteEditDialog from '../components/NoteEditDialog.vue'
 import SimilarNotesDialog from '../components/SimilarNotesDialog.vue'
@@ -427,14 +458,62 @@ const selectedNote = ref<Note | null>(null)
 
 const filteredNotesList = computed(() => {
   const q = searchQuery.value.trim()
-  if (!q) return notes.value
-  return notes.value.filter((n) => matchesNoteSearch(n, q))
+  let list = notes.value
+
+  if (q) {
+    list = list.filter((n) => matchesNoteSearch(n, q))
+  }
+
+  return [...list].sort((a, b) => {
+    // Si hay búsqueda activa, ordenar por relevancia de tokens y atajos primero
+    if (q) {
+      const scoreA = computeNoteSearchScore(a, q)
+      const scoreB = computeNoteSearchScore(b, q)
+      if (scoreA !== scoreB) return scoreB - scoreA
+    }
+
+    const aPin = a.is_pinned ? 1 : 0
+    const bPin = b.is_pinned ? 1 : 0
+    if (aPin !== bPin) return bPin - aPin
+
+    return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime()
+  })
 })
 
 const pinnedNotes = computed(() => filteredNotesList.value.filter((n) => n.is_pinned))
 const otherNotes = computed(() => {
   if (activeTab.value === 'pinned') return filteredNotesList.value.filter((n) => n.is_pinned)
   return filteredNotesList.value.filter((n) => !n.is_pinned)
+})
+
+let notesSearchTimeout: any = null
+watch(searchQuery, (val) => {
+  if (notesSearchTimeout) clearTimeout(notesSearchTimeout)
+  const q = val.trim().replace(/^#+/, '')
+  if (q.length >= 2) {
+    notesSearchTimeout = setTimeout(async () => {
+      try {
+        const results = await getNotes({
+          search: q,
+          is_archived: activeTab.value === 'archived',
+          is_pinned: activeTab.value === 'pinned' ? true : undefined,
+          category_id: selectedCategory.value || undefined,
+          custom_status_id: selectedStatus.value || undefined,
+          permissive: isPermissiveSearch.value,
+        })
+        if (results && results.length > 0) {
+          const currentIds = new Set(notes.value.map((n) => n.id))
+          for (const item of results) {
+            if (!currentIds.has(item.id)) {
+              notes.value.push(item)
+            }
+          }
+        }
+      } catch (_) {
+        // Fallback al filtro instantáneo en memoria
+      }
+    }, 350)
+  }
 })
 
 onMounted(async () => {
@@ -457,10 +536,6 @@ async function loadFiltersData() {
 
 function applyFilters() {
   const params: any = {}
-  if (searchQuery.value.trim()) {
-    params.search = searchQuery.value.trim()
-    params.permissive = isPermissiveSearch.value
-  }
   if (selectedCategory.value) params.category_id = selectedCategory.value
   if (selectedStatus.value) params.custom_status_id = selectedStatus.value
 
@@ -480,13 +555,9 @@ function onTabChange() {
   applyFilters()
 }
 
-function onSearchInput() {
-  applyFilters()
-}
 
 function clearSearch() {
   searchQuery.value = ''
-  applyFilters()
 }
 
 function openCreateDialog() {
