@@ -19,6 +19,8 @@ class ConversationResource extends JsonResource
                 'name' => $this->whatsappAccount->name,
                 'display_phone_number' => $this->whatsappAccount->display_phone_number,
                 'session_type' => $this->whatsappAccount->session_type,
+                'status' => $this->whatsappAccount->status,
+                'is_active' => (bool) $this->whatsappAccount->is_active,
             ] : null,
             'custom_status_id' => $this->custom_status_id,
             'custom_status' => $this->customStatus ? [

@@ -22,7 +22,7 @@ class UserManagementController extends Controller
             $query->where('users.email', '!=', 'admin@crm.local');
         }
 
-        $users = $query->with(['queues', 'categories'])
+        $users = $query->with(['queues', 'categories', 'whatsappAccounts'])
             ->get()
             ->map(function ($u) use ($organization) {
                 $role = $u->organizations()->where('organizations.id', $organization->id)->first()?->pivot?->role ?? 'agent';
@@ -35,6 +35,13 @@ class UserManagementController extends Controller
                     'last_seen_at' => $u->last_seen_at?->toIso8601String(),
                     'queues' => $u->queues->map(fn ($q) => ['id' => $q->id, 'name' => $q->name, 'color' => $q->color]),
                     'categories' => $u->categories->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'color' => $c->color]),
+                    'channels' => $u->whatsappAccounts->where('organization_id', $organization->id)->map(fn ($ch) => [
+                        'id' => $ch->id,
+                        'name' => $ch->name,
+                        'session_type' => $ch->session_type,
+                        'display_phone_number' => $ch->display_phone_number,
+                        'status' => $ch->status,
+                    ])->values(),
                 ];
             });
 
@@ -66,6 +73,8 @@ class UserManagementController extends Controller
             'queue_ids.*' => ['exists:queues,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['exists:categories,id'],
+            'channel_ids' => ['nullable', 'array'],
+            'channel_ids.*' => ['exists:whatsapp_accounts,id'],
         ]);
 
         $user = User::create([
@@ -93,6 +102,18 @@ class UserManagementController extends Controller
             $user->categories()->sync($syncData);
         }
 
+        if (!empty($validated['channel_ids'])) {
+            $syncChannels = [];
+            foreach ($validated['channel_ids'] as $chId) {
+                $syncChannels[$chId] = [
+                    'id' => (string) Str::ulid(),
+                    'can_view' => true,
+                    'can_reply' => true,
+                ];
+            }
+            $user->whatsappAccounts()->sync($syncChannels);
+        }
+
         return response()->json([
             'data' => [
                 'id' => $user->id,
@@ -102,6 +123,13 @@ class UserManagementController extends Controller
                 'presence_status' => 'offline',
                 'queues' => $user->queues,
                 'categories' => $user->categories,
+                'channels' => $user->whatsappAccounts()->where('organization_id', $organization->id)->get()->map(fn ($ch) => [
+                    'id' => $ch->id,
+                    'name' => $ch->name,
+                    'session_type' => $ch->session_type,
+                    'display_phone_number' => $ch->display_phone_number,
+                    'status' => $ch->status,
+                ]),
             ],
             'message' => 'Operador creado exitosamente.',
         ], 201);
@@ -125,6 +153,8 @@ class UserManagementController extends Controller
             'queue_ids.*' => ['exists:queues,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['exists:categories,id'],
+            'channel_ids' => ['nullable', 'array'],
+            'channel_ids.*' => ['exists:whatsapp_accounts,id'],
         ]);
 
         if (isset($validated['name'])) {
@@ -147,6 +177,18 @@ class UserManagementController extends Controller
             $user->categories()->sync($syncData);
         }
 
+        if (isset($validated['channel_ids'])) {
+            $syncChannels = [];
+            foreach ($validated['channel_ids'] as $chId) {
+                $syncChannels[$chId] = [
+                    'id' => (string) Str::ulid(),
+                    'can_view' => true,
+                    'can_reply' => true,
+                ];
+            }
+            $user->whatsappAccounts()->sync($syncChannels);
+        }
+
         return response()->json([
             'data' => [
                 'id' => $user->id,
@@ -155,6 +197,13 @@ class UserManagementController extends Controller
                 'role' => $validated['role'] ?? $user->currentOrganizationRole(),
                 'queues' => $user->queues,
                 'categories' => $user->categories,
+                'channels' => $user->whatsappAccounts()->where('organization_id', $organization->id)->get()->map(fn ($ch) => [
+                    'id' => $ch->id,
+                    'name' => $ch->name,
+                    'session_type' => $ch->session_type,
+                    'display_phone_number' => $ch->display_phone_number,
+                    'status' => $ch->status,
+                ]),
             ],
             'message' => 'Operador actualizado correctamente.',
         ]);

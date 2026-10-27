@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Jobs;
 
+use App\Modules\Conversations\Events\TicketMessageUpdatedEvent;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\WhatsApp\Models\WhatsAppAccount;
 use App\Modules\WhatsApp\Models\WhatsAppMessageMapping;
@@ -72,8 +73,25 @@ class SendWhatsAppMessageJob implements ShouldQueue
         if (! $account) {
             $message->forceFill([
                 'message_status' => 'failed',
+                'delivery_status' => 'failed',
                 'error_message' => 'No existe una cuenta activa de WhatsApp.',
             ])->save();
+
+            event(new TicketMessageUpdatedEvent($message));
+
+            return;
+        }
+
+        $isMetaCloud = $account->session_type !== 'qr_baileys' && ($account->session_type === 'meta_cloud' || (filled($account->access_token) && filled($account->phone_number_id)));
+
+        if (! $isMetaCloud && $account->status === 'DISCONNECTED') {
+            $message->forceFill([
+                'message_status' => 'failed',
+                'delivery_status' => 'failed',
+                'error_message' => "La línea de WhatsApp ({$account->name}) está desconectada. Por favor verifica o reconecta el canal.",
+            ])->save();
+
+            event(new TicketMessageUpdatedEvent($message));
 
             return;
         }
@@ -83,8 +101,11 @@ class SendWhatsAppMessageJob implements ShouldQueue
         if (! $to) {
             $message->forceFill([
                 'message_status' => 'failed',
-                'error_message' => 'La conversacion no tiene un telefono destino.',
+                'delivery_status' => 'failed',
+                'error_message' => 'La conversación no tiene un teléfono destino válido.',
             ])->save();
+
+            event(new TicketMessageUpdatedEvent($message));
 
             return;
         }
@@ -113,9 +134,12 @@ class SendWhatsAppMessageJob implements ShouldQueue
 
             $message->forceFill([
                 'message_status' => 'sent',
+                'delivery_status' => 'sent',
                 'error_message' => null,
                 'sent_at' => now(),
             ])->save();
+
+            event(new TicketMessageUpdatedEvent($message));
 
             if ($providerMessageId) {
                 $existingMapping = WhatsAppMessageMapping::query()
@@ -155,8 +179,11 @@ class SendWhatsAppMessageJob implements ShouldQueue
         } catch (Throwable $exception) {
             $message->forceFill([
                 'message_status' => 'failed',
+                'delivery_status' => 'failed',
                 'error_message' => $exception->getMessage(),
             ])->save();
+
+            event(new TicketMessageUpdatedEvent($message));
         }
     }
 }

@@ -44,6 +44,7 @@ class BaileysWebhookController extends Controller
             'disconnected' => $this->handleDisconnected($account, $request),
             'message' => $this->handleMessage($account, $request),
             'message_edited' => $this->handleMessageEdited($account, $request),
+            'message_status' => $this->handleMessageStatus($account, $request),
             default => Log::info("Baileys unhandled event: {$event}"),
         };
 
@@ -480,5 +481,51 @@ class BaileysWebhookController extends Controller
         event(new TicketMessageUpdatedEvent($message));
 
         Log::info("Baileys message edited for account {$account->id}, message {$message->id}");
+    }
+
+    protected function handleMessageStatus(WhatsAppAccount $account, Request $request): void
+    {
+        $messageId = $request->input('message_id');
+        $status = $request->input('status'); // 'sent', 'delivered', 'read', 'pending'
+
+        if (blank($messageId) || blank($status)) {
+            return;
+        }
+
+        $mapping = WhatsAppMessageMapping::where('provider_message_id', $messageId)
+            ->where('whatsapp_account_id', $account->id)
+            ->first();
+
+        if (! $mapping || ! $mapping->message_id) {
+            $mapping = WhatsAppMessageMapping::where('provider_message_id', $messageId)->first();
+        }
+
+        if (! $mapping || ! $mapping->message_id) {
+            return;
+        }
+
+        $mapping->update([
+            'status' => $status,
+        ]);
+
+        $message = Message::find($mapping->message_id);
+        if (! $message) {
+            return;
+        }
+
+        $deliveryStatus = match ($status) {
+            'read' => 'read',
+            'delivered' => 'delivered',
+            'sent' => 'sent',
+            'failed' => 'failed',
+            default => $message->delivery_status,
+        };
+
+        $message->update([
+            'delivery_status' => $deliveryStatus,
+            'message_status' => $status === 'failed' ? 'failed' : ($message->message_status === 'failed' ? 'failed' : 'sent'),
+        ]);
+
+        event(new TicketMessageUpdatedEvent($message));
     }
 }

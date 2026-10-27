@@ -356,7 +356,30 @@
 
     </header>
 
-
+    <!-- Banner de Advertencia: Canal / Línea de WhatsApp Desconectada -->
+    <div
+      v-if="isChannelDisconnected"
+      class="channel-disconnected-banner row items-center justify-between no-wrap q-px-md q-py-xs"
+    >
+      <div class="row items-center q-gutter-x-sm ellipsis col text-caption">
+        <q-icon name="sym_r_warning" size="18px" class="text-amber-4 shrink-0" />
+        <span class="text-amber-2 ellipsis">
+          <strong>Línea Desconectada:</strong>
+          La línea de WhatsApp <em>{{ channelLineName }}</em> no tiene conexión activa. Los mensajes no podrán enviarse hasta reconectar.
+        </span>
+      </div>
+      <q-btn
+        flat
+        dense
+        size="xs"
+        no-caps
+        icon="sym_r_qr_code_scanner"
+        label="Reconectar Línea"
+        color="amber-4"
+        class="q-ml-sm shrink-0"
+        to="/app/channels"
+      />
+    </div>
 
     <!-- Banner de Origen de Campaña Publicitaria / Anuncio Patrocinado -->
 
@@ -790,21 +813,30 @@
 
             <span class="message-time">{{ formatMessageTime(msg.sent_at || msg.created_at) }}</span>
 
-            <q-icon
+            <template v-if="msg.direction === 'outbound' && !msg.is_internal">
+              <!-- Mensaje con error / no enviado -->
+              <span
+                v-if="msg.delivery_status === 'failed' || msg.message_status === 'failed'"
+                class="row items-center q-gutter-x-xs text-negative cursor-pointer"
+                @click.stop="handleRetryMessage(msg)"
+              >
+                <q-icon name="sym_r_error" size="14px" color="negative" />
+                <span class="text-caption text-negative text-bold" style="font-size: 0.68rem">Error al enviar (Reintentar)</span>
+                <q-tooltip class="bg-negative text-white">
+                  {{ msg.error_message || 'WhatsApp no pudo entregar el mensaje. Haz clic para reintentar.' }}
+                </q-tooltip>
+              </span>
 
-              v-if="msg.direction === 'outbound' && !msg.is_internal"
-
-              :name="msg.delivery_status === 'pending' || msg.id.startsWith('temp_') ? 'sym_r_schedule' : 'sym_r_done_all'"
-
-              size="13px"
-
-              :color="msg.delivery_status === 'pending' || msg.id.startsWith('temp_') ? 'grey-5' : 'teal-3'"
-
-            >
-
-              <q-tooltip v-if="msg.delivery_status === 'pending' || msg.id.startsWith('temp_')">Enviando...</q-tooltip>
-
-            </q-icon>
+              <!-- Indicadores normales de entrega -->
+              <q-icon
+                v-else
+                :name="getDeliveryStatusIcon(msg)"
+                size="13px"
+                :color="getDeliveryStatusColor(msg)"
+              >
+                <q-tooltip>{{ getDeliveryStatusTooltip(msg) }}</q-tooltip>
+              </q-icon>
+            </template>
 
           </div>
 
@@ -2351,6 +2383,71 @@ const isAdOrigin = computed(() => {
   return type === 'ad' || type === 'ads'
 
 })
+
+const isChannelDisconnected = computed(() => {
+  if (props.conversation.channel !== 'whatsapp') return false
+  const account = props.conversation.channel_account as any
+  if (!account) return false
+  return account.status === 'DISCONNECTED' || account.is_active === false
+})
+
+const channelLineName = computed(() => {
+  const account = props.conversation.channel_account
+  return account?.display_phone_number || account?.name || 'WhatsApp'
+})
+
+const retryingMessageId = ref<string | null>(null)
+
+async function handleRetryMessage(msg: any) {
+  if (retryingMessageId.value === msg.id) return
+  retryingMessageId.value = msg.id
+  try {
+    await http.post(`/conversations/${props.conversation.id}/messages/${msg.id}/whatsapp-retry`)
+    notify.info('Reintentando envío de mensaje a WhatsApp...')
+    await queryClient.invalidateQueries({ queryKey: ['conversation-messages', props.conversation.id] })
+    await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+  } catch (err: any) {
+    notify.error(err?.response?.data?.message || 'Error al reintentar envío del mensaje.')
+  } finally {
+    retryingMessageId.value = null
+  }
+}
+
+function getDeliveryStatusIcon(msg: any): string {
+  if (msg.delivery_status === 'pending' || (typeof msg.id === 'string' && msg.id.startsWith('temp_'))) {
+    return 'sym_r_schedule'
+  }
+  if (msg.delivery_status === 'sent') {
+    return 'sym_r_check'
+  }
+  return 'sym_r_done_all'
+}
+
+function getDeliveryStatusColor(msg: any): string {
+  if (msg.delivery_status === 'pending' || (typeof msg.id === 'string' && msg.id.startsWith('temp_'))) {
+    return 'grey-5'
+  }
+  if (msg.delivery_status === 'read') {
+    return 'teal-3'
+  }
+  return 'grey-4'
+}
+
+function getDeliveryStatusTooltip(msg: any): string {
+  if (msg.delivery_status === 'pending' || (typeof msg.id === 'string' && msg.id.startsWith('temp_'))) {
+    return 'Enviando a WhatsApp...'
+  }
+  if (msg.delivery_status === 'sent') {
+    return 'Enviado'
+  }
+  if (msg.delivery_status === 'delivered') {
+    return 'Entregado al cliente'
+  }
+  if (msg.delivery_status === 'read') {
+    return 'Leído'
+  }
+  return 'Enviado'
+}
 
 const otherConversationsForContact = computed(() => {
   const currentContactId = props.conversation?.contact?.id || (props.conversation as any)?.contact_id
@@ -4040,6 +4137,13 @@ onUnmounted(() => {
 
 
 <style scoped lang="scss">
+
+.channel-disconnected-banner {
+  flex-shrink: 0;
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  z-index: 5;
+}
 
 .origin-campaign-banner {
 

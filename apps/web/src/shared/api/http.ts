@@ -111,9 +111,12 @@ http.interceptors.response.use(
     if (status === 401) {
       const url = originalRequest?.url || ''
       const isLoginRequest = url.includes('/login')
-      const isAuthPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/login')
+      const isMeCheck = url.includes('/auth/me')
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+      const isPublicOrAuthPage = pathname.startsWith('/login') || pathname === '/' || pathname === ''
 
-      if (!isLoginRequest && !isAuthPage) {
+      // No disparar aviso de sesión expirada para peticiones de login, restore inicial /auth/me o rutas públicas
+      if (!isLoginRequest && !isMeCheck && !isPublicOrAuthPage) {
         const errorCode = (error.response?.data as any)?.code
         if (errorCode === 'SESSION_REVOKED_ANOTHER_DEVICE') {
           notifySessionRevokedByAnotherDevice()

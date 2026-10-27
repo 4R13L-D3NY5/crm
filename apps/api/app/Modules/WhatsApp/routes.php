@@ -26,6 +26,7 @@ Route::middleware('require.admin')->group(function () {
     Route::get('whatsapp/events', [WhatsAppWebhookEventController::class, 'index']);
 
     // Sesiones de QR y Pasarela de Conexión
+    Route::post('whatsapp/accounts/{id}/check-status', [WhatsAppAccountController::class, 'checkStatus'])->name('whatsapp.check-status');
     Route::get('whatsapp/accounts/{id}/qr', [WhatsAppQrSessionController::class, 'getQr'])->name('whatsapp.qr');
     Route::post('whatsapp/accounts/{id}/simulate-scan', [WhatsAppQrSessionController::class, 'simulateScan'])->name('whatsapp.simulate-scan');
     Route::post('whatsapp/accounts/{id}/disconnect', [WhatsAppQrSessionController::class, 'disconnect'])->name('whatsapp.disconnect');

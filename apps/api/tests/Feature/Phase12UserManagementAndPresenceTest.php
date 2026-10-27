@@ -86,4 +86,65 @@ class Phase12UserManagementAndPresenceTest extends TestCase
             'queue_id' => $queue1->id,
         ]);
     }
+
+    public function test_admin_can_assign_channels_to_operator(): void
+    {
+        $admin = User::factory()->create();
+        $organization = Organization::create(['name' => 'UNITEPC', 'slug' => 'unitepc']);
+        $admin->organizations()->attach($organization->id, ['id' => (string) Str::ulid(), 'role' => 'admin']);
+        $admin->update(['current_organization_id' => $organization->id]);
+
+        $channel1 = \App\Modules\WhatsApp\Models\WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->id,
+            'name' => 'Línea Admisiones Central',
+            'session_type' => 'baileys',
+            'status' => 'CONNECTED',
+            'display_phone_number' => '+5914445566',
+        ]);
+
+        $channel2 = \App\Modules\WhatsApp\Models\WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->id,
+            'name' => 'Fanpage Oficial UNITEPC',
+            'session_type' => 'facebook',
+            'status' => 'CONNECTED',
+            'display_phone_number' => 'UNITEPC Facebook',
+        ]);
+
+        // Crear con canal
+        $createRes = $this->actingAs($admin)->postJson('/api/users', [
+            'name' => 'Mateo Asesor',
+            'email' => 'mateo@unitepc.edu.bo',
+            'password' => 'Secreto123*',
+            'role' => 'agent',
+            'channel_ids' => [$channel1->id],
+        ]);
+
+        $createRes->assertStatus(201);
+        $userId = $createRes->json('data.id');
+
+        $this->assertDatabaseHas('whatsapp_account_users', [
+            'user_id' => $userId,
+            'whatsapp_account_id' => $channel1->id,
+        ]);
+
+        // Actualizar asignando ambos canales
+        $updateRes = $this->actingAs($admin)->putJson("/api/users/{$userId}", [
+            'channel_ids' => [$channel1->id, $channel2->id],
+        ]);
+
+        $updateRes->assertStatus(200);
+
+        $this->assertDatabaseHas('whatsapp_account_users', [
+            'user_id' => $userId,
+            'whatsapp_account_id' => $channel2->id,
+        ]);
+
+        // Consultar lista y verificar que devuelve los canales
+        $listRes = $this->actingAs($admin)->getJson('/api/users');
+        $listRes->assertStatus(200);
+
+        $userInList = collect($listRes->json('data'))->firstWhere('id', $userId);
+        $this->assertNotNull($userInList);
+        $this->assertCount(2, $userInList['channels']);
+    }
 }

@@ -18,7 +18,7 @@ class MessageResource extends JsonResource
             'edited_at' => $this->edited_at?->toIso8601String(),
             'message_type' => $this->message_type,
             'message_status' => $this->message_status,
-            'delivery_status' => $this->delivery_status ?? 'sent',
+            'delivery_status' => $this->delivery_status ?? ($this->message_status === 'failed' ? 'failed' : ($this->message_status === 'pending' ? 'pending' : 'sent')),
             'error_message' => $this->error_message,
             'body' => $this->body,
             'media_url' => $this->media_url,

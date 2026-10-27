@@ -65,6 +65,16 @@
               </q-item>
 
               <q-item
+                clickable
+                v-close-popup
+                class="text-teal-4"
+                @click="handleCheckConnection"
+              >
+                <q-item-section avatar><q-icon name="sym_r_wifi_tethering" size="16px" color="teal-4" /></q-item-section>
+                <q-item-section>Verificar Conexión en Vivo</q-item-section>
+              </q-item>
+
+              <q-item
                 v-if="account.session_type === 'facebook'"
                 clickable
                 v-close-popup
@@ -146,9 +156,23 @@
 
       <!-- Badge de Estado Minimalista -->
       <div class="row items-center justify-between q-mt-md">
-        <div class="status-pill" :class="`status-pill--${account.status.toLowerCase()}`">
-          <span class="status-dot"></span>
-          <span>{{ statusLabel }}</span>
+        <div class="row items-center q-gutter-x-xs">
+          <div class="status-pill" :class="`status-pill--${account.status.toLowerCase()}`">
+            <span class="status-dot"></span>
+            <span>{{ statusLabel }}</span>
+          </div>
+          <q-btn
+            flat
+            round
+            dense
+            size="xs"
+            icon="sym_r_sync"
+            color="grey-4"
+            :loading="isCheckingConnection"
+            @click.stop="handleCheckConnection"
+          >
+            <q-tooltip class="text-caption">Verificar conexión en tiempo real</q-tooltip>
+          </q-btn>
         </div>
 
         <div v-if="account.last_connected_at" class="text-caption text-grey-5" style="font-size: 0.7rem">
@@ -234,6 +258,19 @@
     <q-separator dark class="q-mt-sm" style="border-color: var(--crm-color-border)" />
     <q-card-actions align="between" class="q-px-md q-py-sm">
       <div class="row items-center q-gutter-x-xs">
+        <q-btn
+          flat
+          dense
+          size="sm"
+          no-caps
+          icon="sym_r_wifi_tethering"
+          label="Verificar"
+          color="teal-4"
+          :loading="isCheckingConnection"
+          @click="handleCheckConnection"
+        >
+          <q-tooltip>Verificar si la línea sigue conectada o necesita reconexión</q-tooltip>
+        </q-btn>
         <q-btn
           v-if="account.session_type === 'facebook'"
           flat
@@ -926,6 +963,51 @@ function formatDate(dateStr: string) {
 
 const queryClient = useQueryClient()
 const isSyncing = ref(false)
+const isCheckingConnection = ref(false)
+
+async function handleCheckConnection() {
+  isCheckingConnection.value = true
+  try {
+    const { data } = await http.post(`/whatsapp/accounts/${props.account.id}/check-status`)
+    await queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] })
+    await queryClient.invalidateQueries({ queryKey: ['conversations'] })
+
+    if (data.is_alive) {
+      $q.notify({
+        type: 'positive',
+        message: data.message || 'Línea de WhatsApp conectada y operativa.',
+        position: 'bottom-right',
+        icon: 'sym_r_check_circle',
+        timeout: 3500,
+      })
+    } else {
+      $q.notify({
+        type: 'warning',
+        message: data.message || 'La línea de WhatsApp está desconectada. Requiere reconexión.',
+        position: 'bottom-right',
+        icon: 'sym_r_warning',
+        timeout: 5000,
+        actions: isQrSession.value ? [
+          {
+            label: 'Escanear QR',
+            color: 'white',
+            handler: () => emit('connect', props.account),
+          },
+        ] : undefined,
+      })
+    }
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al verificar la conexión con WhatsApp',
+      position: 'bottom-right',
+      icon: 'sym_r_error',
+      timeout: 4000,
+    })
+  } finally {
+    isCheckingConnection.value = false
+  }
+}
 
 async function handleSyncFacebook() {
   isSyncing.value = true

@@ -79,6 +79,7 @@
             <tr>
               <th class="text-left">OPERADOR</th>
               <th class="text-left">ROL DE ACCESO</th>
+              <th class="text-left">CANALES ASIGNADOS</th>
               <th class="text-left">FILAS / COLAS ASIGNADAS</th>
               <th class="text-left">ESTADO DE PRESENCIA</th>
               <th class="text-right">ACCIONES</th>
@@ -104,6 +105,37 @@
                 <span class="xf-role-chip" :class="`xf-role-chip--${user.role}`">
                   {{ formatRole(user.role) }}
                 </span>
+              </td>
+
+              <!-- Canales Asignados (WhatsApp, Facebook, Instagram, etc.) -->
+              <td class="text-left">
+                <div v-if="user.role === 'admin'" class="row items-center q-gutter-xs">
+                  <q-badge color="purple-10" text-color="purple-2" class="q-px-sm q-py-xs text-weight-medium">
+                    <q-icon name="sym_r_all_inclusive" size="14px" class="q-mr-xs" />
+                    Todos (Admin)
+                  </q-badge>
+                </div>
+                <div v-else-if="user.channels && user.channels.length > 0" class="row q-gutter-xs items-center" style="max-width: 280px;">
+                  <span
+                    v-for="ch in user.channels"
+                    :key="ch.id"
+                    class="xf-channel-tag row items-center q-gutter-x-xs"
+                    :style="{
+                      borderColor: getChannelMeta(ch.session_type).color + '66',
+                      backgroundColor: getChannelMeta(ch.session_type).color + '18'
+                    }"
+                  >
+                    <q-icon
+                      :name="getChannelMeta(ch.session_type).icon"
+                      size="13px"
+                      :style="{ color: getChannelMeta(ch.session_type).color }"
+                    />
+                    <span>{{ ch.name }}</span>
+                  </span>
+                </div>
+                <div v-else class="text-caption text-grey-6 italic">
+                  Sin canales asignados
+                </div>
               </td>
 
               <!-- Colas Asignadas -->
@@ -217,6 +249,84 @@
               class="q-mr-md"
             />
           </div>
+
+          <!-- Canales y Redes Sociales Asignadas -->
+          <div class="q-mt-md">
+            <div class="row items-center justify-between q-mb-xs">
+              <div class="text-caption text-weight-bold text-white">
+                Canales & Líneas Autorizadas (WhatsApp, Facebook, Instagram):
+              </div>
+              <div class="row items-center q-gutter-x-xs">
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="teal-4"
+                  label="Todos"
+                  @click="selectAllChannels"
+                />
+                <span class="text-grey-6 text-caption">|</span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="grey-4"
+                  label="Limpiar"
+                  @click="clearAllChannels"
+                />
+              </div>
+            </div>
+            <p class="text-caption text-grey-4 q-mb-sm" style="font-size: 0.73rem;">
+              Selecciona qué líneas o páginas podrá atender este operador en la Bandeja Multicanal.
+            </p>
+
+            <div v-if="channelOptions.length === 0" class="text-caption text-grey-5 italic q-pa-sm bg-grey-10 rounded-borders">
+              No hay canales conectados aún. Puedes vincularlos en "Canales & Conexiones".
+            </div>
+
+            <div v-else class="row q-col-gutter-xs">
+              <div
+                v-for="ch in channelOptions"
+                :key="ch.id"
+                class="col-12 col-sm-6"
+              >
+                <div
+                  class="channel-select-card cursor-pointer row items-center justify-between q-pa-sm rounded-borders"
+                  :class="{ 'channel-select-card--active': form.channel_ids.includes(ch.id) }"
+                  @click="toggleChannelSelection(ch.id)"
+                >
+                  <div class="row items-center q-gutter-x-sm no-wrap ellipsis col">
+                    <div
+                      class="channel-mini-badge"
+                      :style="{ backgroundColor: getChannelMeta(ch.session_type).color + '22', borderColor: getChannelMeta(ch.session_type).color }"
+                    >
+                      <q-icon
+                        :name="getChannelMeta(ch.session_type).icon"
+                        size="15px"
+                        :style="{ color: getChannelMeta(ch.session_type).color }"
+                      />
+                    </div>
+                    <div class="col ellipsis">
+                      <div class="text-caption text-weight-bold text-white ellipsis">{{ ch.name }}</div>
+                      <div class="text-caption text-grey-5 ellipsis" style="font-size: 0.7rem;">
+                        {{ ch.display_phone_number || getChannelMeta(ch.session_type).label }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <q-checkbox
+                    :model-value="form.channel_ids.includes(ch.id)"
+                    dense
+                    color="teal-4"
+                    dark
+                    @update:model-value="toggleChannelSelection(ch.id)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </q-card-section>
 
         <q-card-actions align="right" class="col-auto">
@@ -261,6 +371,8 @@ const queueOptions = ref<any[]>([
   { id: '3', name: 'Soporte Campus', color: '#8b5cf6' },
 ])
 
+const channelOptions = ref<any[]>([])
+
 const users = ref<any[]>([
   {
     id: '1',
@@ -269,6 +381,7 @@ const users = ref<any[]>([
     role: 'admin',
     presence_status: 'online',
     queues: [{ id: '1', name: 'Admisiones Pregrado', color: '#10b981' }],
+    channels: [],
   },
   {
     id: '2',
@@ -277,6 +390,7 @@ const users = ref<any[]>([
     role: 'supervisor',
     presence_status: 'busy',
     queues: [{ id: '1', name: 'Admisiones Pregrado', color: '#10b981' }, { id: '2', name: 'Atención Financiera', color: '#06b6d4' }],
+    channels: [],
   },
   {
     id: '3',
@@ -285,6 +399,7 @@ const users = ref<any[]>([
     role: 'agent',
     presence_status: 'online',
     queues: [{ id: '1', name: 'Admisiones Pregrado', color: '#10b981' }],
+    channels: [],
   },
 ])
 
@@ -294,6 +409,7 @@ const form = reactive({
   password: '',
   role: 'agent',
   queue_ids: [] as string[],
+  channel_ids: [] as string[],
 })
 
 onMounted(async () => {
@@ -307,10 +423,49 @@ onMounted(async () => {
     if (qRes.data?.data && qRes.data.data.length > 0) {
       queueOptions.value = qRes.data.data
     }
+
+    const chRes = await http.get('/whatsapp/accounts')
+    if (chRes.data?.data) {
+      channelOptions.value = chRes.data.data
+    }
   } catch {
     // Mantener datos demo
   }
 })
+
+function getChannelMeta(sessionType: string) {
+  switch (sessionType) {
+    case 'meta_cloud':
+      return { label: 'Cloud API', icon: 'sym_r_cloud', color: '#10b981' }
+    case 'facebook':
+      return { label: 'Facebook', icon: 'sym_r_public', color: '#1877f2' }
+    case 'instagram':
+      return { label: 'Instagram', icon: 'sym_r_photo_camera', color: '#e1306c' }
+    case 'tiktok':
+      return { label: 'TikTok', icon: 'sym_r_music_note', color: '#25f4ee' }
+    case 'baileys':
+    case 'baileys_qr':
+    default:
+      return { label: 'WhatsApp', icon: 'sym_r_chat', color: '#10b981' }
+  }
+}
+
+function toggleChannelSelection(channelId: string) {
+  const idx = form.channel_ids.indexOf(channelId)
+  if (idx > -1) {
+    form.channel_ids.splice(idx, 1)
+  } else {
+    form.channel_ids.push(channelId)
+  }
+}
+
+function selectAllChannels() {
+  form.channel_ids = channelOptions.value.map((c) => c.id)
+}
+
+function clearAllChannels() {
+  form.channel_ids = []
+}
 
 const filteredUsers = computed(() => {
   return users.value.filter((u) => {
@@ -358,6 +513,7 @@ function openCreateDialog() {
   form.password = ''
   form.role = 'agent'
   form.queue_ids = []
+  form.channel_ids = []
   isDialogOpen.value = true
 }
 
@@ -367,6 +523,7 @@ function editUser(user: any) {
   form.email = user.email
   form.role = user.role
   form.queue_ids = (user.queues || []).map((q: any) => q.id)
+  form.channel_ids = (user.channels || []).map((ch: any) => ch.id)
   isDialogOpen.value = true
 }
 
@@ -375,15 +532,18 @@ async function saveUser() {
 
   try {
     if (selectedUser.value) {
-      await http.put(`/users/${selectedUser.value.id}`, {
+      const res = await http.put(`/users/${selectedUser.value.id}`, {
         name: form.name,
         role: form.role,
         queue_ids: form.queue_ids,
+        channel_ids: form.channel_ids,
       })
+      const updated = res.data?.data
       selectedUser.value.name = form.name
       selectedUser.value.role = form.role
       selectedUser.value.queues = queueOptions.value.filter((q) => form.queue_ids.includes(q.id))
-      notify.success({ message: 'Operador actualizado.' })
+      selectedUser.value.channels = updated?.channels || channelOptions.value.filter((ch) => form.channel_ids.includes(ch.id))
+      notify.success({ message: 'Operador actualizado exitosamente.' })
     } else {
       const res = await http.post('/users', {
         name: form.name,
@@ -391,6 +551,7 @@ async function saveUser() {
         password: form.password || '12345678',
         role: form.role,
         queue_ids: form.queue_ids,
+        channel_ids: form.channel_ids,
       })
       const created = res.data?.data
       users.value.push({
@@ -400,6 +561,7 @@ async function saveUser() {
         role: form.role,
         presence_status: 'offline',
         queues: queueOptions.value.filter((q) => form.queue_ids.includes(q.id)),
+        channels: created?.channels || channelOptions.value.filter((ch) => form.channel_ids.includes(ch.id)),
       })
       notify.success({ message: 'Operador creado con éxito.' })
     }
@@ -414,6 +576,7 @@ async function saveUser() {
       selectedUser.value.name = form.name
       selectedUser.value.role = form.role
       selectedUser.value.queues = queueOptions.value.filter((q) => form.queue_ids.includes(q.id))
+      selectedUser.value.channels = channelOptions.value.filter((ch) => form.channel_ids.includes(ch.id))
       notify.success({ message: 'Operador actualizado.' })
     } else {
       users.value.push({
@@ -423,6 +586,7 @@ async function saveUser() {
         role: form.role,
         presence_status: 'offline',
         queues: queueOptions.value.filter((q) => form.queue_ids.includes(q.id)),
+        channels: channelOptions.value.filter((ch) => form.channel_ids.includes(ch.id)),
       })
       notify.success({ message: 'Operador creado.' })
     }
@@ -574,6 +738,42 @@ async function deleteUser(id: string) {
   border: 1px solid;
   padding: 2px 8px;
   border-radius: 6px;
+}
+
+.xf-channel-tag {
+  font-size: 0.72rem;
+  color: #ffffff;
+  border: 1px solid;
+  padding: 2px 7px;
+  border-radius: 6px;
+  display: inline-flex;
+}
+
+.channel-select-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(20, 184, 166, 0.4);
+  }
+
+  &--active {
+    background: rgba(20, 184, 166, 0.12);
+    border-color: #14b8a6;
+  }
+}
+
+.channel-mini-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .xf-presence-pill {

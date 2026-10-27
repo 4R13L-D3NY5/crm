@@ -14,6 +14,7 @@ import {
   updatePresence,
   updateProfile,
 } from '../api/profile.api'
+import { clearSessionTimeoutState } from '../composables/useSessionTimeout'
 import type { AuthRole, AuthUser, PresenceStatus, UserPreferences } from '../types/auth.types'
 
 const DEMO_ROLE_STORAGE_KEY = 'crm-demo-role'
@@ -193,6 +194,7 @@ export const useAuthStore = defineStore('auth', {
         this.isReady = true
         this.demoRole = null
         clearStoredDemoRole()
+        clearSessionTimeoutState()
         return user
       } catch (error: any) {
         if (error?.response?.status === 409 && error?.response?.data?.status === 'session_conflict') {
@@ -215,6 +217,7 @@ export const useAuthStore = defineStore('auth', {
         this.organizations = []
         this.demoRole = null
         clearStoredDemoRole()
+        clearSessionTimeoutState()
         this.isLoading = false
       }
     },

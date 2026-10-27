@@ -3,6 +3,7 @@
 namespace App\Modules\WhatsApp\Actions;
 
 use App\Models\User;
+use App\Modules\Conversations\Events\TicketMessageUpdatedEvent;
 use App\Modules\Conversations\Models\Conversation;
 use App\Modules\Conversations\Models\Message;
 use App\Modules\WhatsApp\Jobs\SendWhatsAppMessageJob;
@@ -58,6 +59,7 @@ class SendWhatsAppMessageAction
             'media_url' => $mediaUrl,
             'media_type' => $mediaType,
             'message_status' => 'pending',
+            'delivery_status' => 'pending',
             'body' => $body,
             'sent_at' => null,
         ]);
@@ -94,8 +96,11 @@ class SendWhatsAppMessageAction
 
         $message->forceFill([
             'message_status' => 'pending',
+            'delivery_status' => 'pending',
             'error_message' => null,
         ])->save();
+
+        event(new TicketMessageUpdatedEvent($message));
 
         DispatchDomainJob::dispatch(new SendWhatsAppMessageJob($message->getKey()));
 

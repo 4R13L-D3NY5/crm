@@ -24,6 +24,7 @@ class WhatsAppAccountFactory extends Factory
             'business_account_id' => (string) fake()->numberBetween(1000000000, 9999999999),
             'verify_token' => 'verify-token-demo',
             'access_token' => 'meta-access-token-demo',
+            'status' => 'CONNECTED',
             'is_active' => true,
         ];
     }

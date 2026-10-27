@@ -49,8 +49,21 @@ function updateLocalActivity(timestamp: number = Date.now()) {
   }
 }
 
+export function clearSessionTimeoutState() {
+  isWarningOpen.value = false
+  isExpiredOpen.value = false
+  isRevokedByAnotherDeviceOpen.value = false
+  remainingSeconds.value = WARNING_BEFORE_TIMEOUT_MS / 1000
+  reauthError.value = null
+  updateLocalActivity(Date.now())
+  lastHeartbeat = Date.now()
+}
+
 export function notifySessionExpired() {
   const authStore = useAuthStore()
+  if (!authStore.isAuthenticated) {
+    return
+  }
 
   // Guardar datos de usuario antes de que se limpie la sesión para permitir re-login rápido
   if (authStore.user) {
@@ -66,6 +79,9 @@ export function notifySessionExpired() {
 
 export function notifySessionRevokedByAnotherDevice() {
   const authStore = useAuthStore()
+  if (!authStore.isAuthenticated) {
+    return
+  }
 
   if (authStore.user) {
     cachedUserEmail.value = authStore.user.email
@@ -192,7 +208,12 @@ export function useSessionTimeout() {
   }
 
   function startMonitoring() {
-    if (isMonitoring || typeof window === 'undefined') return
+    if (typeof window === 'undefined') return
+
+    // Siempre actualizar actividad y resetear modales al montar el layout autenticado
+    clearSessionTimeoutState()
+
+    if (isMonitoring) return
     isMonitoring = true
 
     updateLocalActivity(Date.now())
@@ -341,5 +362,6 @@ export function useSessionTimeout() {
     notifySessionExpired,
     notifySessionRevokedByAnotherDevice,
     resetActivityTimer,
+    clearSessionTimeoutState,
   }
 }

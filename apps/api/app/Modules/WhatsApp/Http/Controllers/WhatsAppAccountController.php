@@ -235,5 +235,76 @@ class WhatsAppAccountController
             'message' => 'Canal actualizado exitosamente.',
         ]);
     }
+
+    public function checkStatus(\Illuminate\Http\Request $request, string $id): JsonResponse
+    {
+        $organization = $request->user()->currentOrganization;
+        $account = WhatsAppAccount::where('organization_id', $organization->id)->findOrFail($id);
+
+        $sessionType = $account->session_type ?? 'baileys_qr';
+        $isBaileys = in_array($sessionType, ['baileys_qr', 'qr_baileys', 'qr']) || empty($sessionType);
+
+        if ($isBaileys) {
+            $baseUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');
+
+            try {
+                $response = \Illuminate\Support\Facades\Http::baseUrl($baseUrl)
+                    ->timeout(6)
+                    ->acceptJson()
+                    ->get("/sessions/{$account->id}/status");
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $isAlive = (bool) ($data['is_alive'] ?? false);
+                    $newStatus = $data['status'] ?? ($isAlive ? 'CONNECTED' : 'DISCONNECTED');
+
+                    $updateData = [
+                        'status' => $newStatus,
+                        'is_active' => $isAlive,
+                    ];
+
+                    if (!empty($data['phone']) && empty($account->display_phone_number)) {
+                        $updateData['display_phone_number'] = $data['phone'];
+                    }
+
+                    if ($isAlive) {
+                        $updateData['last_connected_at'] = now();
+                        $updateData['qrcode_raw'] = null;
+                    }
+
+                    $account->update($updateData);
+
+                    return response()->json([
+                        'success' => true,
+                        'is_alive' => $isAlive,
+                        'status' => $newStatus,
+                        'message' => $isAlive
+                            ? "Línea conectada correctamente. Teléfono: " . ($data['phone'] ?: $account->display_phone_number ?: 'Activo')
+                            : ($data['message'] ?? 'La línea no tiene una conexión activa con WhatsApp. Requiere reconexión.'),
+                        'data' => (new WhatsAppAccountResource($account->fresh()))->resolve(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("CheckStatus error for account {$account->id}: {$e->getMessage()}");
+            }
+
+            return response()->json([
+                'success' => false,
+                'is_alive' => false,
+                'status' => 'DISCONNECTED',
+                'message' => 'No se pudo contactar el servicio de WhatsApp o la sesión no está activa en este momento.',
+                'data' => (new WhatsAppAccountResource($account->fresh()))->resolve(),
+            ]);
+        }
+
+        $isConnected = filled($account->access_token) || filled($account->phone_number_id);
+        return response()->json([
+            'success' => true,
+            'is_alive' => $isConnected,
+            'status' => $isConnected ? 'CONNECTED' : 'DISCONNECTED',
+            'message' => $isConnected ? 'Canal configurado y listo para recibir webhooks.' : 'Canal sin credenciales configuradas.',
+            'data' => (new WhatsAppAccountResource($account->fresh()))->resolve(),
+        ]);
+    }
 }
 
