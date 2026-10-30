@@ -63,6 +63,10 @@ export const routes: RouteRecordRaw[] = [
     redirect: '/planes',
   },
   {
+    path: '/login',
+    redirect: '/',
+  },
+  {
     path: '/',
     component: PublicLayout,
     children: authRoutes,

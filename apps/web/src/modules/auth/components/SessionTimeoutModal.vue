@@ -246,6 +246,7 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
 import { useSessionTimeout, WARNING_BEFORE_TIMEOUT_MS } from '../composables/useSessionTimeout'
+import { queryClient } from '@/app/plugins/query-client'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -292,7 +293,7 @@ async function onExtendSession() {
 async function onLogout() {
   isWarningOpen.value = false
   await authStore.logout()
-  router.push('/login')
+  queryClient.clear(); await router.replace({ name: 'login' })
 }
 
 async function onReauthSubmit() {
@@ -306,13 +307,13 @@ async function onReauthSubmit() {
 async function onFullLoginRedirect() {
   isExpiredOpen.value = false
   await authStore.logout()
-  router.push('/login')
+  queryClient.clear(); await router.replace({ name: 'login' })
 }
 
 async function onRevokedLoginRedirect() {
   isRevokedByAnotherDeviceOpen.value = false
   await authStore.logout()
-  router.push('/login')
+  queryClient.clear(); await router.replace({ name: 'login' })
 }
 </script>
 

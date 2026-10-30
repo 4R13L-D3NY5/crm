@@ -212,6 +212,8 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         await logout()
+      } catch (err) {
+        console.warn('[AuthStore] Error during backend logout', err)
       } finally {
         this.user = null
         this.organizations = []

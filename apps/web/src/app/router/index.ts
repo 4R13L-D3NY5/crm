@@ -17,7 +17,11 @@ router.beforeEach(async (to) => {
     await authStore.hydrateSession()
   }
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  const requiresAuth = to.matched.some((record) => Boolean(record.meta?.requiresAuth))
+  const requiresAdmin = to.matched.some((record) => Boolean(record.meta?.requiresAdmin))
+  const requiresSuperAdmin = to.matched.some((record) => Boolean(record.meta?.requiresSuperAdmin))
+
+  if (requiresAuth && !authStore.isAuthenticated) {
     return { name: 'login' }
   }
 
@@ -26,27 +30,25 @@ router.beforeEach(async (to) => {
     || to.path.includes('superadmin')
     || to.path.includes('saas-billing')
     || to.path.includes('master-control')
-    || to.meta.requiresSuperAdmin
+    || requiresSuperAdmin
   ) {
     if (!authStore.isSuperAdmin) {
       return { path: '/app/conversations' }
     }
   }
 
-  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+  if (requiresAdmin && !authStore.isAdmin) {
     return { path: '/app/conversations' }
   }
 
-  const requiredPermission = typeof to.meta.permission === 'string'
-    ? to.meta.permission
-    : null
+  const matchedPermissions = to.matched
+    .map((record) => record.meta?.permission)
+    .filter((perm): perm is string => typeof perm === 'string')
 
-  if (
-    to.meta.requiresAuth
-    && requiredPermission
-    && !authStore.hasPermission(requiredPermission)
-  ) {
-    return { path: '/app/conversations' }
+  for (const perm of matchedPermissions) {
+    if (requiresAuth && !authStore.hasPermission(perm)) {
+      return { path: '/app/conversations' }
+    }
   }
 
   if (to.name === 'login' && authStore.isAuthenticated) {

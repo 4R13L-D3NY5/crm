@@ -7,5 +7,6 @@ export const authRoutes: RouteRecordRaw[] = [
     path: '',
     name: 'login',
     component: LoginPage,
+    alias: ['login'],
   },
 ]

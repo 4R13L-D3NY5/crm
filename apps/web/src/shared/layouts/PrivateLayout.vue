@@ -562,6 +562,7 @@ import SubscriptionAlertBanner from '@/shared/components/SubscriptionAlertBanner
 import SessionTimeoutModal from '@/modules/auth/components/SessionTimeoutModal.vue'
 import { useSessionTimeout } from '@/modules/auth/composables/useSessionTimeout'
 import { useAppTheme } from '@/shared/composables/useAppTheme'
+import { queryClient } from '@/app/plugins/query-client'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -691,8 +692,14 @@ function onOrganizationChange(id: string) {
 }
 
 async function handleLogout() {
-  await authStore.logout()
-  router.push('/login')
+  try {
+    await authStore.logout()
+  } catch (err) {
+    console.warn('[Logout] Error clearing server session', err)
+  } finally {
+    queryClient.clear()
+    await router.replace({ name: 'login' })
+  }
 }
 </script>
 
