@@ -20,7 +20,7 @@ class CleanProductionSeeder extends Seeder
     public function run(): void
     {
         // 1. Organización Principal Oficial
-        $organization = Organization::query()->updateOrCreate(
+        $organization = Organization::query()->firstOrCreate(
             ['slug' => 'unitepc'],
             [
                 'name' => 'UNITEPC',
@@ -38,7 +38,7 @@ class CleanProductionSeeder extends Seeder
         );
 
         // 2. Usuario Administrador Oficial de UNITEPC
-        $unitepcAdmin = User::query()->updateOrCreate(
+        $unitepcAdmin = User::query()->firstOrCreate(
             ['email' => 'admin@unitepc.pro'],
             [
                 'name' => 'Administrador UNITEPC',
@@ -58,7 +58,7 @@ class CleanProductionSeeder extends Seeder
         ])->save();
 
         // 3. SuperAdmin Global XpertiFlow (Plataforma Master)
-        User::query()->updateOrCreate(
+        User::query()->firstOrCreate(
             ['email' => 'admin@crm.local'],
             [
                 'name' => 'SuperAdmin XpertiFlow',

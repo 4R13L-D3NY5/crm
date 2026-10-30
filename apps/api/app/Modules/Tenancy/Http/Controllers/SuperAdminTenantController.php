@@ -161,25 +161,34 @@ class SuperAdminTenantController extends Controller
             'expires_at' => $newExpires,
         ];
 
-        if ($plan) {
-            $updateData['plan'] = $plan;
-            $pricing = $this->billingService->getPlanPricing($plan);
-            $updateData['max_whatsapp_lines'] = $pricing['included_phones'];
-            $updateData['max_social_accounts'] = $pricing['included_social'] ?? 8;
-            $updateData['max_agents'] = $pricing['included_agents'];
-            $updateData['monthly_price_usd'] = $pricing['base_monthly'];
-        }
+        $phonesExtra = $extraPhones !== null ? (int) $extraPhones : ($org->extra_whatsapp_lines ?? 0);
+        $socialExtra = $request->has('extra_social') ? (int) $request->input('extra_social') : ($org->extra_social_accounts ?? 0);
+        $agentsExtra = $extraAgents !== null ? (int) $extraAgents : ($org->extra_agents ?? 0);
 
         if ($extraPhones !== null) {
-            $updateData['extra_whatsapp_lines'] = (int) $extraPhones;
+            $updateData['extra_whatsapp_lines'] = $phonesExtra;
         }
 
         if ($request->has('extra_social')) {
-            $updateData['extra_social_accounts'] = (int) $request->input('extra_social');
+            $updateData['extra_social_accounts'] = $socialExtra;
         }
 
         if ($extraAgents !== null) {
-            $updateData['extra_agents'] = (int) $extraAgents;
+            $updateData['extra_agents'] = $agentsExtra;
+        }
+
+        if ($plan) {
+            $updateData['plan'] = $plan;
+            $pricing = $this->billingService->getPlanPricing($plan);
+            $updateData['max_whatsapp_lines'] = $pricing['included_phones'] + $phonesExtra;
+            $updateData['max_social_accounts'] = ($pricing['included_social'] ?? 8) + $socialExtra;
+            $updateData['max_agents'] = $pricing['included_agents'] + $agentsExtra;
+            
+            $baseMonthly = $pricing['base_monthly'];
+            $phonesCost = $phonesExtra * $pricing['extra_phone_rate'];
+            $socialCost = $socialExtra * ($pricing['extra_social_rate'] ?? 10.00);
+            $agentsCost = $agentsExtra * $pricing['extra_agent_rate'];
+            $updateData['monthly_price_usd'] = round($baseMonthly + $phonesCost + $socialCost + $agentsCost, 2);
         }
 
         $org->update($updateData);
