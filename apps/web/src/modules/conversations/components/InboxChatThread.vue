@@ -482,59 +482,32 @@
 
 
       <div
-
-        v-for="msg in conversation.messages"
-
+        v-for="(msg, msgIdx) in conversation.messages"
         :key="msg.id"
-
         class="message-row"
-
         :class="{
-
           'message-row--inbound': msg.direction === 'inbound',
-
           'message-row--outbound': msg.direction === 'outbound' && !msg.is_internal,
-
           'message-row--internal': msg.is_internal || msg.direction === 'internal',
-
         }"
-
       >
-
         <div
-
           class="message-bubble"
-
           :class="{ 'message-bubble--sticker': isStickerMessage(msg) }"
-
         >
-
           <!-- Nota Interna Header -->
-
           <div v-if="msg.is_internal || msg.direction === 'internal'" class="row items-center q-gutter-x-xs text-caption text-amber-4 q-mb-xs">
-
             <q-icon name="sym_r_lock" size="13px" />
-
             <span class="text-weight-bold">Nota Interna (Sólo Equipo)</span>
-
             <span v-if="msg.user?.name" class="text-grey-4">• {{ msg.user.name }}</span>
-
           </div>
 
-
-
           <!-- Tarjeta de Anuncio / Publicación Patrocinada -->
-
           <AdReferralCard
-
-            v-if="msg.metadata?.referral"
-
+            v-if="shouldShowMessageReferral(msg, msgIdx) && msg.metadata?.referral"
             :referral="msg.metadata.referral"
-
             compact
-
             class="q-mb-xs"
-
           />
 
 
@@ -2377,12 +2350,24 @@ const effectiveOriginReferral = computed(() => {
 
 
 const isAdOrigin = computed(() => {
-
   const type = String(effectiveOriginReferral.value?.source_type || 'ad').toLowerCase()
-
   return type === 'ad' || type === 'ads'
-
 })
+
+function shouldShowMessageReferral(msg: ConversationMessage, index: number): boolean {
+  if (!msg.metadata?.referral) return false
+
+  // Si ya tenemos el banner superior fijo para este mismo post o anuncio, no repetirlo dentro de las burbujas
+  if (effectiveOriginReferral.value?.source_id && msg.metadata.referral.source_id === effectiveOriginReferral.value.source_id) {
+    return false
+  }
+
+  // Si proviene de un anuncio o post diferente, mostrarlo solo en el primer mensaje que lo referencia
+  const firstIndex = props.conversation?.messages?.findIndex(
+    m => m.metadata?.referral?.source_id === msg.metadata?.referral?.source_id
+  )
+  return firstIndex === index
+}
 
 const isChannelDisconnected = computed(() => {
   if (props.conversation.channel !== 'whatsapp') return false

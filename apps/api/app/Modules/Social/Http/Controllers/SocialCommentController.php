@@ -230,14 +230,56 @@ class SocialCommentController extends Controller
 
             // B. Comentarios en Publicaciones (Feed Changes / Instagram Media Comments)
             if ($changes = data_get($entry, 'changes.0.value')) {
+                // Filtrar solo eventos de comentarios
+                $item = data_get($changes, 'item');
+                if ($item && $item !== 'comment') {
+                    return response()->json(['status' => 'ignored', 'reason' => 'non_comment_item'], 200);
+                }
+
+                // Filtrar solo nuevos comentarios (ignorar likes, ediciones o reacciones)
+                $verb = data_get($changes, 'verb');
+                if ($verb && $verb !== 'add') {
+                    return response()->json(['status' => 'ignored', 'reason' => 'non_add_verb'], 200);
+                }
+
+                // Ignorar acciones originadas por la propia Fanpage (para evitar que las respuestas de la página reboten como comentarios de lead)
+                $authorId = (string) data_get($changes, 'from.id', data_get($changes, 'sender_id'));
+                $pageIds = WhatsAppAccount::where('session_type', 'facebook')
+                    ->whereNotNull('phone_number_id')
+                    ->pluck('phone_number_id')
+                    ->all();
+                if ($authorId && in_array($authorId, $pageIds, true)) {
+                    return response()->json(['status' => 'ignored', 'reason' => 'page_own_action'], 200);
+                }
+
+                // Validar texto real del comentario
+                $rawMessage = data_get($changes, 'message', data_get($changes, 'text'));
+                if (!$rawMessage || trim((string) $rawMessage) === '') {
+                    return response()->json(['status' => 'ignored', 'reason' => 'empty_comment_text'], 200);
+                }
+
+                $postId = (string) data_get($changes, 'post_id', data_get($changes, 'media.id', 'post_' . time()));
+
+                // Resolver la Fanpage exacta a partir del post_id si tiene el formato {PAGE_ID}_{POST_ID}
+                if (str_contains($postId, '_')) {
+                    [$postPageId] = explode('_', $postId, 2);
+                    $pageAccount = WhatsAppAccount::where('session_type', 'facebook')
+                        ->where('phone_number_id', $postPageId)
+                        ->first();
+                    if ($pageAccount) {
+                        $account = $pageAccount;
+                        $orgId = $pageAccount->organization_id;
+                    }
+                }
+
                 $validated = [
                     'organization_id' => $orgId,
                     'platform' => $isInstagram ? 'instagram' : ($account?->session_type ?? 'facebook'),
-                    'post_id' => (string) data_get($changes, 'post_id', data_get($changes, 'media.id', 'post_' . time())),
+                    'post_id' => $postId,
                     'comment_id' => (string) data_get($changes, 'comment_id', data_get($changes, 'id', (string) uniqid())),
                     'author_name' => (string) data_get($changes, 'from.name', data_get($changes, 'from.username', data_get($changes, 'sender_name', 'Usuario Redes'))),
-                    'author_id' => (string) data_get($changes, 'from.id', data_get($changes, 'sender_id')),
-                    'comment_text' => (string) data_get($changes, 'message', data_get($changes, 'text', 'Comentario en publicación')),
+                    'author_id' => $authorId,
+                    'comment_text' => (string) $rawMessage,
                     'auto_reply_message' => '¡Hola! Te enviamos un mensaje privado con todos los detalles.',
                     'open_dm_ticket' => true,
                 ];
@@ -260,6 +302,11 @@ class SocialCommentController extends Controller
         }
 
         $orgId = $validated['organization_id'];
+
+        $account = $account ?? WhatsAppAccount::where('organization_id', $orgId)
+            ->where('is_active', true)
+            ->where('session_type', $validated['platform'])
+            ->first();
 
         $authorId = $validated['author_id'] ?? null;
 
@@ -308,6 +355,9 @@ class SocialCommentController extends Controller
             $conversation = Conversation::where('organization_id', $orgId)
                 ->where('contact_id', $contact->id)
                 ->where('channel', $validated['platform'])
+                ->when($account?->id, function ($q, $accId) {
+                    $q->where('whatsapp_account_id', $accId);
+                })
                 ->where(function ($q) {
                     $q->whereNotNull('origin_referral')
                       ->orWhereNotNull('metadata->origin_referral');
@@ -321,6 +371,7 @@ class SocialCommentController extends Controller
                     'organization_id' => $orgId,
                     'contact_id' => $contact->id,
                     'channel' => $validated['platform'],
+                    'whatsapp_account_id' => $account?->id,
                     'status' => 'pending',
                     'last_message_at' => Carbon::now(),
                     'unread_count' => 1,
@@ -330,20 +381,28 @@ class SocialCommentController extends Controller
             } else {
                 $conversation->update([
                     'last_message_at' => Carbon::now(),
+                    'whatsapp_account_id' => $conversation->whatsapp_account_id ?: $account?->id,
                     'origin_referral' => $postReferral,
                     'metadata' => array_merge((array) ($conversation->metadata ?? []), ['origin_referral' => $postReferral]),
                 ]);
                 $conversation->increment('unread_count');
             }
 
-            Message::create([
-                'organization_id' => $orgId,
-                'conversation_id' => $conversation->id,
-                'direction' => 'inbound',
-                'body' => "💬 Comentario en publicación: \"{$validated['comment_text']}\"",
-                'metadata' => ['referral' => $postReferral],
-                'sent_at' => Carbon::now(),
-            ]);
+            // Deduplicación: no crear mensaje repetido si ya existe uno para este comment_id
+            $alreadyExists = Message::where('conversation_id', $conversation->id)
+                ->where('metadata->referral->comment_id', $validated['comment_id'])
+                ->exists();
+
+            if (!$alreadyExists) {
+                Message::create([
+                    'organization_id' => $orgId,
+                    'conversation_id' => $conversation->id,
+                    'direction' => 'inbound',
+                    'body' => "💬 Comentario en publicación: \"{$validated['comment_text']}\"",
+                    'metadata' => ['referral' => $postReferral],
+                    'sent_at' => Carbon::now(),
+                ]);
+            }
 
             $cf = (array) ($contact->custom_fields ?? []);
             $cf['last_ad_referral'] = $postReferral;
@@ -695,7 +754,28 @@ class SocialCommentController extends Controller
 
         // Resolver la cuenta exacta vinculada a la conversación (Multi-Fanpage)
         $account = null;
-        if ($conversation->whatsapp_account_id) {
+
+        // Si la conversación o el comentario proviene de un post específico, asegurar que usamos la cuenta de esa Fanpage
+        $socialComment = SocialComment::where('conversation_id', $conversation->id)->latest()->first();
+        $postSourceId = $socialComment?->post_id
+            ?: data_get($conversation->origin_referral, 'source_id')
+            ?: data_get($conversation->metadata, 'origin_referral.source_id');
+
+        if ($postSourceId && str_contains((string) $postSourceId, '_')) {
+            [$postPageId] = explode('_', (string) $postSourceId, 2);
+            $pageMatch = WhatsAppAccount::where('organization_id', $organization->id)
+                ->where('session_type', 'facebook')
+                ->where('phone_number_id', $postPageId)
+                ->first();
+            if ($pageMatch) {
+                $account = $pageMatch;
+                if ($conversation->whatsapp_account_id !== $pageMatch->id) {
+                    $conversation->update(['whatsapp_account_id' => $pageMatch->id]);
+                }
+            }
+        }
+
+        if (!$account && $conversation->whatsapp_account_id) {
             $account = WhatsAppAccount::where('organization_id', $organization->id)
                 ->where('id', $conversation->whatsapp_account_id)
                 ->first();
