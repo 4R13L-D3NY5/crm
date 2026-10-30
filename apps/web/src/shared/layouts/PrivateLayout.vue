@@ -534,6 +534,7 @@
 
     <!-- Contenedor Principal de Vistas -->
     <q-page-container class="xf-page-container">
+      <SubscriptionAlertBanner />
       <router-view v-slot="{ Component }">
         <transition name="xf-fade" mode="out-in">
           <component :is="Component" />
@@ -557,6 +558,7 @@ import type { PresenceStatus } from '@/modules/auth/types/auth.types'
 import UserSettingsModal from '@/shared/components/UserSettingsModal.vue'
 import SystemGuideModal from '@/shared/components/SystemGuideModal.vue'
 import NotificationBell from '@/modules/notifications/components/NotificationBell.vue'
+import SubscriptionAlertBanner from '@/shared/components/SubscriptionAlertBanner.vue'
 import SessionTimeoutModal from '@/modules/auth/components/SessionTimeoutModal.vue'
 import { useSessionTimeout } from '@/modules/auth/composables/useSessionTimeout'
 import { useAppTheme } from '@/shared/composables/useAppTheme'

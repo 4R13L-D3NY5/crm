@@ -306,6 +306,9 @@ function getTypeIcon(type: string): string {
     case 'unread':
     case 'chat':
       return 'sym_r_mark_chat_unread'
+    case 'billing':
+    case 'subscription':
+      return 'sym_r_credit_card'
     default:
       return 'sym_r_notifications'
   }
@@ -320,6 +323,9 @@ function getTypeBadgeLabel(type: string): string {
     case 'unread':
     case 'chat':
       return 'Nuevo'
+    case 'billing':
+    case 'subscription':
+      return 'Suscripción'
     default:
       return 'Aviso'
   }
@@ -334,6 +340,9 @@ function getTypeBadgeColor(type: string): string {
     case 'unread':
     case 'chat':
       return 'positive'
+    case 'billing':
+    case 'subscription':
+      return 'amber-9'
     default:
       return 'primary'
   }

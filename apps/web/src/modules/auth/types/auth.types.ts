@@ -20,6 +20,13 @@ export interface Organization {
   name: string
   slug: string
   role?: AuthRole | string
+  plan?: string
+  status?: 'active' | 'trial' | 'past_due' | 'suspended' | string
+  billing_cycle?: 'monthly' | 'annual' | string
+  expires_at?: string | null
+  days_remaining?: number | null
+  is_trial?: boolean
+  is_expired?: boolean
 }
 
 export interface AuthUser {

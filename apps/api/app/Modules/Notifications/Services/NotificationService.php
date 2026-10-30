@@ -227,6 +227,59 @@ class NotificationService
             }
         }
 
+        // 2.5 Alerta de suscripción / período de prueba por vencer o vencido
+        $org = $user->currentOrganization;
+        if ($org && $org->expires_at) {
+            $expiresAt = Carbon::parse($org->expires_at);
+            $daysRemaining = (int) $now->copy()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false);
+            $isTrial = $org->status === 'trial';
+            $planName = strtoupper($org->plan ?? 'BÁSICO');
+            $periodType = $isTrial ? 'de prueba gratuita' : 'de suscripción';
+
+            if ($daysRemaining <= 7) {
+                $isExpired = $daysRemaining < 0 || in_array($org->status, ['past_due', 'suspended'], true);
+                $dateFormatted = $expiresAt->format('d/m/Y');
+
+                if ($isExpired) {
+                    $alertTitle = "Período {$periodType} concluido";
+                    $alertMsg = $isTrial
+                        ? "Tu período de prueba del Plan {$planName} ha finalizado. Actualiza a un plan oficial para mantener activas tus líneas de WhatsApp."
+                        : "Tu suscripción al Plan {$planName} ha vencido el {$dateFormatted}. Renueva tu servicio para evitar la interrupción de atención.";
+                } elseif ($daysRemaining === 0) {
+                    $alertTitle = "Tu período {$periodType} vence hoy";
+                    $alertMsg = $isTrial
+                        ? "Tu período de prueba vence hoy ({$dateFormatted}). Activa tu suscripción para no perder la conexión de tus líneas."
+                        : "Tu suscripción al Plan {$planName} vence hoy. Confirma tu renovación para continuar sin interrupciones.";
+                } else {
+                    $daysText = $daysRemaining === 1 ? '1 día' : "{$daysRemaining} días";
+                    $alertTitle = "Período {$periodType} por concluir ({$daysText})";
+                    $alertMsg = $isTrial
+                        ? "Tu período de prueba gratuita del Plan {$planName} concluye en {$daysText} (el {$dateFormatted}). Puedes elegir tu plan para continuar sin interrupciones."
+                        : "Tu suscripción al Plan {$planName} vencerá en {$daysText} (el {$dateFormatted}). Recuerda renovar a tiempo.";
+                }
+
+                $operationalAlerts->prepend([
+                    'id' => "billing_exp_{$org->id}",
+                    'type' => 'billing',
+                    'title' => $alertTitle,
+                    'message' => $alertMsg,
+                    'action_url' => '/app/pricing',
+                    'data' => [
+                        'organization_id' => $org->id,
+                        'plan' => $org->plan,
+                        'is_trial' => $isTrial,
+                        'expires_at' => $expiresAt->toIso8601String(),
+                        'days_remaining' => $daysRemaining,
+                        'is_expired' => $isExpired,
+                    ],
+                    'is_read' => false,
+                    'read_at' => null,
+                    'created_at' => $now->toIso8601String(),
+                    'created_at_human' => $daysRemaining < 0 ? 'Vencido' : ($daysRemaining === 0 ? 'Vence hoy' : "En {$daysRemaining} d."),
+                ]);
+            }
+        }
+
         // 3. Notificaciones persistentes de base de datos
         $dbNotifications = AppNotification::query()
             ->forRecipient($orgId, $user->id)
@@ -294,7 +347,7 @@ class NotificationService
             return true;
         }
 
-        if (str_starts_with($id, 'conv_')) {
+        if (str_starts_with($id, 'conv_') || str_starts_with($id, 'billing_exp_')) {
             return true;
         }
 
@@ -349,7 +402,7 @@ class NotificationService
      */
     public function delete(string $id, User $user): bool
     {
-        if (str_starts_with($id, 'conv_')) {
+        if (str_starts_with($id, 'conv_') || str_starts_with($id, 'billing_exp_')) {
             return true;
         }
 
