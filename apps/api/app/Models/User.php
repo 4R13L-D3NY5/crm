@@ -22,6 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
     'email',
     'password',
     'current_organization_id',
+    'is_superadmin',
     'presence_status',
     'last_seen_at',
     'phone',
@@ -45,6 +46,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'is_superadmin' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'last_seen_at' => 'datetime',
@@ -135,9 +137,14 @@ class User extends Authenticatable
         return $organization?->pivot?->role;
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return (bool) ($this->is_superadmin ?? false) || $this->email === 'admin@crm.local';
+    }
+
     public function isAdmin(): bool
     {
-        if ($this->email === 'admin@crm.local') {
+        if ($this->isSuperAdmin()) {
             return true;
         }
 

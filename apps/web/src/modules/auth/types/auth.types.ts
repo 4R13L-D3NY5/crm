@@ -33,6 +33,7 @@ export interface AuthUser {
   id: string
   name: string
   email: string
+  is_superadmin?: boolean
   phone?: string | null
   avatar_url?: string | null
   presence_status?: PresenceStatus

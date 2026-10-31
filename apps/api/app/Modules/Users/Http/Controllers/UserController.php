@@ -17,8 +17,8 @@ class UserController
             ->whereHas('organizations', fn ($query) => $query->where('organizations.id', $organizationId))
             ->orderBy('name');
 
-        if ($request->user()?->email !== 'admin@crm.local') {
-            $query->where('users.email', '!=', 'admin@crm.local');
+        if (!$request->user()?->isSuperAdmin()) {
+            $query->where('users.is_superadmin', false)->where('users.email', '!=', 'admin@crm.local');
         }
 
         $users = $query->get();

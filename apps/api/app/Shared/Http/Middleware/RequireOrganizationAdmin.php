@@ -12,7 +12,7 @@ class RequireOrganizationAdmin
     {
         $user = $request->user();
 
-        if ($user?->isAdmin() || $user?->email === 'admin@crm.local') {
+        if ($user?->isAdmin() || $user?->isSuperAdmin()) {
             return $next($request);
         }
 

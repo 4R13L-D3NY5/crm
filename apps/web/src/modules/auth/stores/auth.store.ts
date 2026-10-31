@@ -113,14 +113,14 @@ export const useAuthStore = defineStore('auth', {
     currentOrganization: (state) => state.user?.current_organization ?? null,
     currentRole: (state): AuthRole | null => state.demoRole ?? state.user?.current_role ?? null,
     isAdmin: (state): boolean => {
-      if (state.user?.email === 'admin@crm.local') {
+      if (Boolean(state.user?.is_superadmin) || state.user?.email === 'admin@crm.local') {
         return true
       }
       const role = state.demoRole ?? state.user?.current_role ?? null
       return role === 'owner' || role === 'admin'
     },
     isSuperAdmin: (state): boolean => {
-      return state.user?.email === 'admin@crm.local'
+      return Boolean(state.user?.is_superadmin) || state.user?.email === 'admin@crm.local'
     },
     isAgent: (state): boolean => {
       const role = state.demoRole ?? state.user?.current_role ?? null

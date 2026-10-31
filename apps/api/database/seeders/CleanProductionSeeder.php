@@ -58,13 +58,23 @@ class CleanProductionSeeder extends Seeder
         ])->save();
 
         // 3. SuperAdmin Global XpertiFlow (Plataforma Master)
-        User::query()->firstOrCreate(
-            ['email' => 'admin@crm.local'],
-            [
+        $superAdmin = User::query()
+            ->where('is_superadmin', true)
+            ->orWhere('email', 'admin@crm.local')
+            ->first();
+
+        if (!$superAdmin) {
+            User::create([
                 'name' => 'SuperAdmin XpertiFlow',
+                'email' => 'admin@crm.local',
                 'password' => 'password',
-            ]
-        );
+                'is_superadmin' => true,
+            ]);
+        } else {
+            if (!$superAdmin->is_superadmin) {
+                $superAdmin->forceFill(['is_superadmin' => true])->save();
+            }
+        }
 
         // 3. Pipeline Oficial de Admisiones y Ventas
         $pipeline = Pipeline::query()->updateOrCreate(

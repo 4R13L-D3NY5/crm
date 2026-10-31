@@ -58,6 +58,32 @@ class UserProfileAndPreferencesTest extends TestCase
         ]);
     }
 
+    public function test_superadmin_can_update_email_and_retain_superadmin_status(): void
+    {
+        $superAdmin = User::create([
+            'name' => 'SuperAdmin XpertiFlow',
+            'email' => 'admin@crm.local',
+            'password' => Hash::make('password'),
+            'is_superadmin' => true,
+        ]);
+
+        $this->actingAs($superAdmin);
+
+        $response = $this->putJson('/api/me/profile', [
+            'name' => 'Ariel SuperAdmin',
+            'email' => 'ariel@unitepc.pro',
+            'phone' => '+591 70000001',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.is_superadmin', true);
+        $response->assertJsonPath('data.email', 'ariel@unitepc.pro');
+
+        $fresh = $superAdmin->fresh();
+        $this->assertEquals('ariel@unitepc.pro', $fresh->email);
+        $this->assertTrue($fresh->isSuperAdmin());
+    }
+
     public function test_user_can_update_password(): void
     {
         $this->actingAs($this->user);

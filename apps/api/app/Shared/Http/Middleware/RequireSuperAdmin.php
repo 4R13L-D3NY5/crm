@@ -12,7 +12,7 @@ class RequireSuperAdmin
     {
         $user = $request->user();
 
-        if (app()->environment('testing') || $user?->email === 'admin@crm.local') {
+        if (app()->environment('testing') || $user?->isSuperAdmin()) {
             return $next($request);
         }
 

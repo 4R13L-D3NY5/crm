@@ -1515,7 +1515,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 onMounted(() => {
-  if (authStore.user && authStore.user.email !== 'admin@crm.local') {
+  if (authStore.user && !authStore.isSuperAdmin) {
     router.replace('/app/conversations')
     return
   }

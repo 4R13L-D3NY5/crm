@@ -589,6 +589,11 @@ async function handleSaveProfile() {
       phone: profileForm.phone.trim() || undefined,
     })
     notify.success({ message: 'Perfil actualizado exitosamente.' })
+    if (authStore.user) {
+      profileForm.name = authStore.user.name || ''
+      profileForm.email = authStore.user.email || ''
+      profileForm.phone = authStore.user.phone || ''
+    }
   } catch (err: any) {
     notify.error({ message: err?.response?.data?.message || 'Error al actualizar perfil.' })
   } finally {

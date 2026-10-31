@@ -18,8 +18,8 @@ class UserManagementController extends Controller
 
         $query = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id));
 
-        if ($request->user()?->email !== 'admin@crm.local') {
-            $query->where('users.email', '!=', 'admin@crm.local');
+        if (!$request->user()?->isSuperAdmin()) {
+            $query->where('users.is_superadmin', false)->where('users.email', '!=', 'admin@crm.local');
         }
 
         $users = $query->with(['queues', 'categories', 'whatsappAccounts'])
@@ -52,7 +52,10 @@ class UserManagementController extends Controller
     {
         $organization = $request->user()->currentOrganization;
 
-        $currentUsersCount = $organization->users()->where('users.email', '!=', 'admin@crm.local')->count();
+        $currentUsersCount = $organization->users()
+            ->where('users.is_superadmin', false)
+            ->where('users.email', '!=', 'admin@crm.local')
+            ->count();
         $maxAgents = $organization->max_agents ?? 3;
 
         if ($currentUsersCount >= $maxAgents) {
@@ -140,7 +143,7 @@ class UserManagementController extends Controller
         $organization = $request->user()->currentOrganization;
         $user = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))->findOrFail($id);
 
-        if ($user->email === 'admin@crm.local' && $request->user()?->email !== 'admin@crm.local') {
+        if ($user->isSuperAdmin() && !$request->user()?->isSuperAdmin()) {
             return response()->json([
                 'message' => 'No tienes permisos para modificar a la cuenta maestra de la plataforma.',
             ], 403);
@@ -238,7 +241,7 @@ class UserManagementController extends Controller
         $organization = $request->user()->currentOrganization;
         $user = User::whereHas('organizations', fn ($q) => $q->where('organizations.id', $organization->id))->findOrFail($id);
 
-        if ($user->email === 'admin@crm.local' && $request->user()?->email !== 'admin@crm.local') {
+        if ($user->isSuperAdmin() && !$request->user()?->isSuperAdmin()) {
             return response()->json([
                 'message' => 'No tienes permisos para desvincular a la cuenta maestra de la plataforma.',
             ], 403);

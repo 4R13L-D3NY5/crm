@@ -58,7 +58,7 @@ class DemoCrmSeeder extends Seeder
         $users = [
             'owner' => User::query()->updateOrCreate(
                 ['email' => 'admin@crm.local'],
-                ['name' => 'Administrador CRM', 'password' => 'password'],
+                ['name' => 'Administrador CRM', 'password' => 'password', 'is_superadmin' => true],
             ),
             'admin' => User::query()->updateOrCreate(
                 ['email' => 'supervisora@crm.local'],
