@@ -1095,6 +1095,9 @@
                 <q-icon name="sym_r_calendar_today" />
               </template>
             </q-input>
+            <div class="text-caption text-positive q-mt-xs text-weight-medium" v-if="calculatedDaysRemaining !== null">
+              Duración resultante: {{ calculatedDaysRemaining }} días (Vence a las 23:59:59)
+            </div>
           </div>
 
           <!-- Plan de prueba o asignado -->

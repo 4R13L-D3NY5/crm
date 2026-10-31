@@ -56,6 +56,8 @@ export interface ProrationData {
   daily_rate_diff: number
   prorated_charge_due_today_usd: number
   next_billing_cycle_amount_usd: number
+  unused_credit_usd?: number
+  new_plan_cost_remaining_days_usd?: number
   currency: string
 }
 
