@@ -551,11 +551,11 @@
           </div>
           <div class="row justify-between q-mb-xs text-caption text-muted">
             <span>Crédito a favor del cliente (Plan anterior no usado):</span>
-            <span class="text-positive text-weight-bold">-${{ prorationResult.unused_credit_usd.toFixed(2) }} USD</span>
+            <span class="text-positive text-weight-bold">-${{ (prorationResult.unused_credit_usd ?? 0).toFixed(2) }} USD</span>
           </div>
           <div class="row justify-between q-mb-xs text-caption text-muted">
             <span>Costo proporcional del nuevo plan (por días restantes):</span>
-            <span class="text-ink text-weight-bold">${{ prorationResult.new_plan_cost_remaining_days_usd.toFixed(2) }} USD</span>
+            <span class="text-ink text-weight-bold">${{ (prorationResult.new_plan_cost_remaining_days_usd ?? 0).toFixed(2) }} USD</span>
           </div>
           <q-separator class="q-my-sm" />
           <div class="row justify-between items-center text-subtitle1">
@@ -916,11 +916,11 @@
             </div>
             <div class="row justify-between text-caption text-muted q-mb-xs">
               <span>Crédito a favor (no devengado):</span>
-              <span class="text-positive text-weight-bold">-${{ quotaProration.unused_credit_usd.toFixed(2) }} USD</span>
+              <span class="text-positive text-weight-bold">-${{ (quotaProration.unused_credit_usd ?? 0).toFixed(2) }} USD</span>
             </div>
             <div class="row justify-between text-caption text-muted q-mb-xs">
               <span>Costo nuevo por días restantes:</span>
-              <span class="text-ink text-weight-bold">${{ quotaProration.new_plan_cost_remaining_days_usd.toFixed(2) }} USD</span>
+              <span class="text-ink text-weight-bold">${{ (quotaProration.new_plan_cost_remaining_days_usd ?? 0).toFixed(2) }} USD</span>
             </div>
             <q-separator class="q-my-xs" />
             <div class="row justify-between items-center text-subtitle1">
