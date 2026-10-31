@@ -18,6 +18,7 @@ class Organization extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'starts_at' => 'datetime',
         'expires_at' => 'datetime',
         'last_payment_at' => 'datetime',
         'monthly_price_usd' => 'float',
@@ -33,6 +34,11 @@ class Organization extends Model
     protected static function newFactory(): OrganizationFactory
     {
         return OrganizationFactory::new();
+    }
+
+    public function whatsappAccounts(): HasMany
+    {
+        return $this->hasMany(\App\Modules\WhatsApp\Models\WhatsAppAccount::class);
     }
 
     public function users(): BelongsToMany

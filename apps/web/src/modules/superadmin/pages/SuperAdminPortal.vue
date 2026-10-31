@@ -178,16 +178,61 @@
             </q-td>
           </template>
 
-          <!-- Celda: Plan & Ciclo -->
+          <!-- Celda: Plan & Modalidad -->
           <template #body-cell-plan="props">
             <q-td :props="props">
-              <div class="row items-center q-gutter-x-xs">
-                <span :class="['plan-pill', `plan-pill--${props.row.plan}`]">
-                  {{ props.row.plan_name }}
-                </span>
-                <span class="text-caption text-dim" v-if="props.row.billing_cycle === 'annual'">
-                  (Anual -15%)
-                </span>
+              <div class="column q-gutter-y-xs">
+                <div class="row items-center q-gutter-x-xs">
+                  <span :class="['plan-pill', `plan-pill--${props.row.plan}`]">
+                    {{ props.row.plan_name }}
+                  </span>
+                  <span class="text-caption text-dim" v-if="props.row.billing_cycle === 'annual'">
+                    (Anual -15%)
+                  </span>
+                </div>
+                <!-- Badge de Modalidad: Cuenta Oficial vs Período de Prueba vs Programada -->
+                <div class="row items-center">
+                  <q-badge
+                    v-if="props.row.status === 'active'"
+                    color="teal-9"
+                    text-color="teal-1"
+                    class="q-px-xs text-weight-bold"
+                    style="font-size: 10px;"
+                  >
+                    <q-icon name="sym_r_verified" size="12px" class="q-mr-xs" />
+                    Cuenta Oficial
+                  </q-badge>
+                  <q-badge
+                    v-else-if="props.row.modalidad === 'scheduled' || (props.row.starts_at && new Date(props.row.starts_at) > new Date())"
+                    color="purple-9"
+                    text-color="purple-1"
+                    class="q-px-xs text-weight-bold"
+                    style="font-size: 10px;"
+                  >
+                    <q-icon name="sym_r_schedule" size="12px" class="q-mr-xs" />
+                    Prueba Programada
+                  </q-badge>
+                  <q-badge
+                    v-else-if="props.row.status === 'trial'"
+                    color="amber-9"
+                    text-color="dark"
+                    class="q-px-xs text-weight-bold"
+                    style="font-size: 10px;"
+                  >
+                    <q-icon name="sym_r_timer" size="12px" class="q-mr-xs" />
+                    Período de Prueba
+                  </q-badge>
+                  <q-badge
+                    v-else-if="props.row.status === 'suspended'"
+                    color="negative"
+                    text-color="white"
+                    class="q-px-xs text-weight-bold"
+                    style="font-size: 10px;"
+                  >
+                    <q-icon name="sym_r_block" size="12px" class="q-mr-xs" />
+                    Suspendida
+                  </q-badge>
+                </div>
               </div>
             </q-td>
           </template>
@@ -205,11 +250,11 @@
           <template #body-cell-resources="props">
             <q-td :props="props">
               <div class="text-caption text-ink">
-                📱 <strong>{{ props.row.phones_total }}</strong> WhatsApp
+                📱 <strong>{{ props.row.phones_connected !== undefined ? props.row.phones_connected : props.row.phones_total }}</strong> / {{ props.row.phones_total }} WhatsApp
                 <span class="text-dim" v-if="props.row.extra_phones > 0">(+{{ props.row.extra_phones }} extra)</span>
               </div>
               <div class="text-caption text-ink">
-                🌐 <strong>{{ props.row.social_total || 8 }}</strong> Redes
+                🌐 <strong>{{ props.row.social_connected !== undefined ? props.row.social_connected : (props.row.social_total || 8) }}</strong> / {{ props.row.social_total || 8 }} Redes
                 <span class="text-dim" v-if="props.row.extra_social > 0">(+{{ props.row.extra_social }} extra)</span>
               </div>
               <div class="text-caption text-dim">
@@ -936,48 +981,125 @@
       </q-card>
     </q-dialog>
 
-    <!-- MODAL: AMPLIAR O PARAMETRIZAR PERIODO DE PRUEBA -->
+    <!-- MODAL: GESTIONAR VIGENCIA, PRUEBA O CUENTA OFICIAL -->
     <q-dialog v-model="trialModalOpen">
-      <q-card style="width: 480px; max-width: 95vw;" class="saas-modal-card q-pa-md">
+      <q-card style="width: 520px; max-width: 95vw;" class="saas-modal-card q-pa-md">
         <q-card-section>
           <div class="row items-center q-gutter-x-sm">
-            <q-icon name="sym_r_hourglass_top" color="amber-9" size="24px" />
-            <div class="text-h6 text-weight-bold text-ink">Gestionar Período de Prueba</div>
+            <q-icon
+              :name="trialMode === 'active' ? 'sym_r_verified' : 'sym_r_hourglass_top'"
+              :color="trialMode === 'active' ? 'positive' : 'amber-9'"
+              size="24px"
+            />
+            <div class="text-h6 text-weight-bold text-ink">Gestionar Licencia & Vigencia</div>
           </div>
           <div class="text-caption text-muted q-mt-xs">
-            {{ activeTenant?.name }} • Estado: <strong>{{ activeTenant?.status?.toUpperCase() }}</strong> ({{ activeTenant?.days_remaining }} días restantes)
+            {{ activeTenant?.name }} • Estado actual: <strong>{{ activeTenant?.status?.toUpperCase() }}</strong> ({{ activeTenant?.days_remaining }} días restantes)
           </div>
         </q-card-section>
 
         <q-card-section class="q-gutter-y-md">
-          <!-- Días a añadir -->
+          <!-- Tipo de Cuenta / Modalidad -->
           <div>
-            <label class="text-caption text-weight-bold text-ink block q-mb-xs">Días a sumar a la vigencia:</label>
-            <div class="row q-gutter-xs q-mb-sm">
+            <label class="text-caption text-weight-bold text-ink block q-mb-xs">Tipo de Cuenta / Modalidad:</label>
+            <div class="row q-gutter-xs">
               <q-btn
-                v-for="opt in [3, 7, 14, 30]"
-                :key="opt"
                 dense
                 no-caps
-                :color="trialDaysToAdd === opt ? 'amber-9' : 'grey-8'"
-                :label="`+${opt} días`"
                 class="q-px-sm"
-                @click="trialDaysToAdd = opt"
+                :color="trialMode === 'active' ? 'teal-9' : 'grey-9'"
+                :class="trialMode === 'active' ? 'text-weight-bold' : ''"
+                icon="sym_r_verified"
+                label="Cuenta Oficial (Producción)"
+                @click="trialMode = 'active'"
+              />
+              <q-btn
+                dense
+                no-caps
+                class="q-px-sm"
+                :color="trialMode === 'trial' ? 'amber-9' : 'grey-9'"
+                :class="trialMode === 'trial' ? 'text-weight-bold' : ''"
+                icon="sym_r_timer"
+                label="Período de Prueba (Trial)"
+                @click="trialMode = 'trial'"
+              />
+            </div>
+          </div>
+
+          <!-- Fecha de Inicio (para programar pruebas diferidas) -->
+          <div>
+            <div class="row items-center justify-between q-mb-xs">
+              <label class="text-caption text-weight-bold text-ink">Fecha de Inicio del Período:</label>
+              <span class="text-caption text-dim" v-if="trialStartDate">
+                Inicia: {{ trialStartDate }}
+              </span>
+            </div>
+            <div class="row q-gutter-xs q-mb-xs">
+              <q-btn
+                dense
+                no-caps
+                size="sm"
+                :color="!trialStartDate || trialStartDate === todayDateStr ? 'primary' : 'grey-8'"
+                label="Hoy"
+                @click="setStartToday"
+              />
+              <q-btn
+                dense
+                no-caps
+                size="sm"
+                :color="trialStartDate === nextMondayDateStr ? 'primary' : 'grey-8'"
+                label="Próximo Lunes"
+                @click="setStartNextMonday"
               />
             </div>
             <q-input
-              v-model.number="trialDaysToAdd"
-              type="number"
-              min="1"
-              label="O escribe el número exacto de días"
+              v-model="trialStartDate"
+              type="date"
               outlined
               dense
+              hint="Opcional. Si seleccionas fecha futura, la cuenta quedará como Prueba Programada."
             />
           </div>
 
-          <!-- Plan de prueba asignado -->
+          <!-- Fecha de Vencimiento / Vigencia (SIEMPRE 23:59:59) -->
           <div>
-            <label class="text-caption text-weight-bold text-ink block q-mb-xs">Plan de Prueba Asignado:</label>
+            <div class="row items-center justify-between q-mb-xs">
+              <label class="text-caption text-weight-bold text-ink">Fecha de Vencimiento (Corte 23:59:59):</label>
+              <span class="text-caption text-amber-4 text-weight-bold" v-if="calculatedExpiry">
+                Corte: {{ calculatedExpiry }}
+              </span>
+            </div>
+            <div class="row q-gutter-xs q-mb-sm">
+              <q-btn
+                v-for="opt in [7, 14, 30, 60, 90]"
+                :key="opt"
+                dense
+                no-caps
+                size="sm"
+                :color="trialDaysToAdd === opt && !trialExactDate ? 'amber-9' : 'grey-8'"
+                :label="`+${opt} días`"
+                class="q-px-sm"
+                @click="setDaysToAdd(opt)"
+              />
+            </div>
+            <q-input
+              v-model="trialExactDate"
+              type="date"
+              label="O define fecha fija de corte (Calendario)"
+              outlined
+              dense
+              clearable
+              @clear="onClearExactDate"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_calendar_today" />
+              </template>
+            </q-input>
+          </div>
+
+          <!-- Plan de prueba o asignado -->
+          <div>
+            <label class="text-caption text-weight-bold text-ink block q-mb-xs">Plan Asignado:</label>
             <q-select
               v-model="trialPlan"
               :options="[
@@ -1031,8 +1153,8 @@
           <q-btn flat label="Cancelar" color="grey-6" no-caps v-close-popup />
           <q-btn
             unelevated
-            label="Guardar y Ampliar Prueba"
-            color="amber-9"
+            :label="trialMode === 'active' ? 'Guardar Licencia Oficial' : 'Guardar y Ampliar Prueba'"
+            :color="trialMode === 'active' ? 'teal-9' : 'amber-9'"
             icon="sym_r_check_circle"
             no-caps
             :loading="actionLoading"
@@ -1136,9 +1258,67 @@ const tokenModalOpen = ref(false)
 const trialModalOpen = ref(false)
 const trialDaysToAdd = ref(7)
 const trialPlan = ref<'basic' | 'pro' | 'elite'>('pro')
+const trialMode = ref<'active' | 'trial'>('trial')
+const trialStartDate = ref('')
+const trialExactDate = ref('')
 const trialExtraPhones = ref(0)
 const trialExtraSocial = ref(0)
 const trialExtraAgents = ref(0)
+
+const todayDateStr = computed(() => {
+  const d = new Date()
+  return d.toISOString().split('T')[0]
+})
+
+const nextMondayDateStr = computed(() => {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = d.getDate() + ((7 - day + 1) % 7 || 7)
+  const nextMon = new Date(d.setDate(diff))
+  return nextMon.toISOString().split('T')[0]
+})
+
+function setStartToday() {
+  trialStartDate.value = todayDateStr.value
+}
+
+function setStartNextMonday() {
+  trialStartDate.value = nextMondayDateStr.value
+}
+
+function setDaysToAdd(days: number) {
+  trialDaysToAdd.value = days
+  trialExactDate.value = ''
+}
+
+function onClearExactDate() {
+  trialExactDate.value = ''
+  trialDaysToAdd.value = 7
+}
+
+const calculatedExpiry = computed(() => {
+  if (trialExactDate.value) {
+    const parts = trialExactDate.value.split('-')
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]} 23:59:59`
+    }
+  }
+  const base = trialStartDate.value ? new Date(trialStartDate.value + 'T00:00:00') : new Date()
+  const target = new Date(base.getTime() + (trialDaysToAdd.value || 7) * 24 * 60 * 60 * 1000)
+  const dd = String(target.getDate()).padStart(2, '0')
+  const mm = String(target.getMonth() + 1).padStart(2, '0')
+  const yyyy = target.getFullYear()
+  return `${dd}/${mm}/${yyyy} 23:59:59`
+})
+
+const calculatedDaysRemaining = computed(() => {
+  if (trialExactDate.value) {
+    const target = new Date(trialExactDate.value + 'T23:59:59').getTime()
+    const now = Date.now()
+    return Math.max(0, Math.ceil((target - now) / (1000 * 60 * 60 * 24)))
+  }
+  return trialDaysToAdd.value
+})
 
 const quotaModalOpen = ref(false)
 const quotaExtraPhones = ref(0)
@@ -1228,11 +1408,14 @@ async function submitRenew() {
   }
 }
 
-// GESTIÓN DE PERIODO DE PRUEBA
+// GESTIÓN DE PERIODO DE PRUEBA Y LICENCIA OFICIAL
 function openTrialModal(tenant: TenantItem) {
   activeTenant.value = tenant
   trialDaysToAdd.value = 7
   trialPlan.value = tenant.plan
+  trialMode.value = tenant.status === 'active' ? 'active' : 'trial'
+  trialStartDate.value = tenant.starts_at || ''
+  trialExactDate.value = tenant.expires_at_date || ''
   trialExtraPhones.value = tenant.extra_phones || 0
   trialExtraSocial.value = tenant.extra_social || 0
   trialExtraAgents.value = tenant.extra_agents || 0
@@ -1244,7 +1427,10 @@ async function submitTrialExtension() {
   actionLoading.value = true
   try {
     const res = await extendTenantTrial(activeTenant.value.id, {
-      days: trialDaysToAdd.value,
+      days: trialExactDate.value ? undefined : trialDaysToAdd.value,
+      exact_date: trialExactDate.value || undefined,
+      starts_at: trialStartDate.value || null,
+      mode: trialMode.value,
       plan: trialPlan.value,
       extra_phones: trialExtraPhones.value,
       extra_social: trialExtraSocial.value,
@@ -1252,7 +1438,7 @@ async function submitTrialExtension() {
     })
     $q.notify({
       type: 'positive',
-      message: res.message || 'Período de prueba ampliado con éxito.',
+      message: res.message || 'Vigencia de licencia actualizada con éxito.',
       position: 'bottom-right',
     })
     trialModalOpen.value = false
@@ -1260,7 +1446,7 @@ async function submitTrialExtension() {
   } catch (err: any) {
     $q.notify({
       type: 'negative',
-      message: err?.response?.data?.message || err?.message || 'Error al ampliar período de prueba',
+      message: err?.response?.data?.message || err?.message || 'Error al actualizar vigencia/licencia',
       position: 'bottom-right',
     })
   } finally {

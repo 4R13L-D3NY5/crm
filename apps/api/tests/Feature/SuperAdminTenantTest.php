@@ -297,5 +297,79 @@ class SuperAdminTenantTest extends TestCase
         $this->assertEquals(1, $org->extra_whatsapp_lines);
         $this->assertEquals(2, $org->extra_agents);
         $this->assertTrue($org->expires_at->gt(now()->addDays(10)));
+        $this->assertEquals('23:59:59', $org->expires_at->format('H:i:s'));
+    }
+
+    public function test_superadmin_can_set_exact_expiration_date_at_end_of_day(): void
+    {
+        $org = Organization::create([
+            'name' => 'Empresa Exact Date Test',
+            'slug' => 'empresa-exact-' . uniqid(),
+            'plan' => 'elite',
+            'status' => 'active',
+            'expires_at' => now()->addDays(5),
+        ]);
+
+        $admin = User::factory()->create([
+            'current_organization_id' => $org->id,
+            'is_superadmin' => true,
+        ]);
+        $org->users()->attach($admin->id, [
+            'id' => (string) Str::ulid(),
+            'role' => 'owner',
+        ]);
+
+        $targetDate = now()->addDays(20)->format('Y-m-d');
+
+        $res = $this->actingAs($admin)->postJson("/api/superadmin/tenants/{$org->id}/extend-trial", [
+            'exact_date' => $targetDate,
+            'mode' => 'official',
+            'plan' => 'elite',
+            'extra_phones' => 4,
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('success', true);
+        $res->assertJsonPath('modalidad', 'official');
+
+        $org->refresh();
+        $this->assertEquals('active', $org->status);
+        $this->assertEquals($targetDate . ' 23:59:59', $org->expires_at->format('Y-m-d H:i:s'));
+        $this->assertEquals(8, $org->max_whatsapp_lines);
+        $this->assertEquals(4, $org->extra_whatsapp_lines);
+    }
+
+    public function test_superadmin_can_schedule_trial_start_date(): void
+    {
+        $org = Organization::create([
+            'name' => 'Empresa Scheduled Test',
+            'slug' => 'empresa-sched-' . uniqid(),
+            'plan' => 'pro',
+            'status' => 'trial',
+        ]);
+
+        $admin = User::factory()->create([
+            'current_organization_id' => $org->id,
+            'is_superadmin' => true,
+        ]);
+        $org->users()->attach($admin->id, [
+            'id' => (string) Str::ulid(),
+            'role' => 'owner',
+        ]);
+
+        $startDate = now()->addDays(3)->format('Y-m-d');
+
+        $res = $this->actingAs($admin)->postJson("/api/superadmin/tenants/{$org->id}/extend-trial", [
+            'starts_at' => $startDate,
+            'days' => 14,
+            'mode' => 'trial',
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertJsonPath('success', true);
+
+        $org->refresh();
+        $this->assertEquals($startDate . ' 00:00:00', $org->starts_at->format('Y-m-d H:i:s'));
+        $this->assertEquals('23:59:59', $org->expires_at->format('H:i:s'));
     }
 }

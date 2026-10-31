@@ -145,31 +145,68 @@ class SuperAdminTenantController extends Controller
     public function extendTrial(Request $request, string $id): JsonResponse
     {
         $org = Organization::findOrFail($id);
-        $days = (int) $request->input('days', 7);
+        $days = (int) $request->input('days', 0);
         $plan = $request->input('plan');
         $extraPhones = $request->input('extra_phones');
         $extraAgents = $request->input('extra_agents');
+        $extraSocial = $request->input('extra_social');
+        $mode = $request->input('mode'); // 'active' | 'official' | 'trial'
+        $startsAt = $request->input('starts_at'); // e.g. '2026-11-03'
+        $exactDate = $request->input('exact_date') ?? $request->input('expires_at'); // e.g. '2026-12-15'
 
-        $baseDate = ($org->expires_at && $org->expires_at->isFuture())
-            ? $org->expires_at
-            : now();
+        $now = now();
 
-        $newExpires = $baseDate->copy()->addDays($days);
+        // 1. Fecha de inicio (si se pasa)
+        if ($request->has('starts_at')) {
+            $parsedStart = $startsAt ? Carbon::parse($startsAt)->startOfDay() : null;
+        } else {
+            $parsedStart = $org->starts_at;
+        }
+
+        // 2. Base para cálculo de días
+        if ($parsedStart && $parsedStart->isFuture()) {
+            $baseDate = $parsedStart->copy();
+        } elseif ($org->expires_at && $org->expires_at->isFuture()) {
+            $baseDate = $org->expires_at->copy();
+        } else {
+            $baseDate = $now->copy();
+        }
+
+        // 3. Fecha de vencimiento exacta (siempre a las 23:59:59)
+        if (! empty($exactDate)) {
+            $newExpires = Carbon::parse($exactDate)->setTime(23, 59, 59);
+        } else {
+            $daysToAdd = $days > 0 ? $days : 7;
+            $newExpires = $baseDate->copy()->addDays($daysToAdd)->setTime(23, 59, 59);
+        }
+
+        // 4. Modalidad (Oficial vs Prueba)
+        if ($mode === 'official' || $mode === 'active') {
+            $newStatus = 'active';
+        } elseif ($mode === 'trial') {
+            $newStatus = 'trial';
+        } else {
+            $newStatus = $org->status ?: 'active';
+        }
 
         $updateData = [
-            'status' => 'trial',
+            'status' => $newStatus,
             'expires_at' => $newExpires,
         ];
 
+        if ($request->has('starts_at')) {
+            $updateData['starts_at'] = $parsedStart;
+        }
+
         $phonesExtra = $extraPhones !== null ? (int) $extraPhones : ($org->extra_whatsapp_lines ?? 0);
-        $socialExtra = $request->has('extra_social') ? (int) $request->input('extra_social') : ($org->extra_social_accounts ?? 0);
+        $socialExtra = $extraSocial !== null ? (int) $extraSocial : ($org->extra_social_accounts ?? 0);
         $agentsExtra = $extraAgents !== null ? (int) $extraAgents : ($org->extra_agents ?? 0);
 
         if ($extraPhones !== null) {
             $updateData['extra_whatsapp_lines'] = $phonesExtra;
         }
 
-        if ($request->has('extra_social')) {
+        if ($extraSocial !== null) {
             $updateData['extra_social_accounts'] = $socialExtra;
         }
 
@@ -177,29 +214,34 @@ class SuperAdminTenantController extends Controller
             $updateData['extra_agents'] = $agentsExtra;
         }
 
-        if ($plan) {
-            $updateData['plan'] = $plan;
-            $pricing = $this->billingService->getPlanPricing($plan);
-            $updateData['max_whatsapp_lines'] = $pricing['included_phones'] + $phonesExtra;
-            $updateData['max_social_accounts'] = ($pricing['included_social'] ?? 8) + $socialExtra;
-            $updateData['max_agents'] = $pricing['included_agents'] + $agentsExtra;
-            
-            $baseMonthly = $pricing['base_monthly'];
-            $phonesCost = $phonesExtra * $pricing['extra_phone_rate'];
-            $socialCost = $socialExtra * ($pricing['extra_social_rate'] ?? 10.00);
-            $agentsCost = $agentsExtra * $pricing['extra_agent_rate'];
-            $updateData['monthly_price_usd'] = round($baseMonthly + $phonesCost + $socialCost + $agentsCost, 2);
-        }
+        $activePlan = $plan ?: $org->plan ?: 'elite';
+        $updateData['plan'] = $activePlan;
+        $pricing = $this->billingService->getPlanPricing($activePlan);
+        $updateData['max_whatsapp_lines'] = $pricing['included_phones'] + $phonesExtra;
+        $updateData['max_social_accounts'] = ($pricing['included_social'] ?? 8) + $socialExtra;
+        $updateData['max_agents'] = $pricing['included_agents'] + $agentsExtra;
+        
+        $baseMonthly = $pricing['base_monthly'];
+        $phonesCost = $phonesExtra * $pricing['extra_phone_rate'];
+        $socialCost = $socialExtra * ($pricing['extra_social_rate'] ?? 10.00);
+        $agentsCost = $agentsExtra * $pricing['extra_agent_rate'];
+        $updateData['monthly_price_usd'] = round($baseMonthly + $phonesCost + $socialCost + $agentsCost, 2);
+
+        $licenseToken = $this->billingService->generateSignedLicenseToken($org->id, $activePlan, $newExpires);
+        $updateData['license_token'] = $licenseToken;
 
         $org->update($updateData);
 
         return response()->json([
             'success' => true,
-            'message' => "Periodo de prueba para {$org->name} actualizado a {$days} días adicionales.",
-            'new_expires_at' => $newExpires->format('Y-m-d H:i:s'),
+            'message' => "Licencia para {$org->name} actualizada exitosamente.",
+            'new_expires_at' => $newExpires->format('d/m/Y 23:59:59'),
+            'expires_at_date' => $newExpires->format('Y-m-d'),
             'days_remaining' => (int) now()->diffInDays($newExpires, false),
             'status' => $org->status,
+            'modalidad' => $org->status === 'active' ? 'official' : 'trial',
             'plan' => $org->plan,
+            'starts_at' => $org->starts_at?->format('Y-m-d'),
         ]);
     }
 }

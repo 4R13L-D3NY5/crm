@@ -77,7 +77,15 @@ class SuperAdminBillingService
      */
     public function getTenantsWithMetrics(): array
     {
-        $orgs = Organization::withCount(['users'])->get();
+        $orgs = Organization::withCount([
+            'users',
+            'whatsappAccounts as phones_connected' => function ($q) {
+                $q->whereIn('session_type', ['baileys_qr', 'meta_cloud', 'whatsapp']);
+            },
+            'whatsappAccounts as social_connected' => function ($q) {
+                $q->whereIn('session_type', ['facebook', 'instagram', 'tiktok']);
+            },
+        ])->get();
 
         $totalMrr = 0.0;
         $activeCount = 0;
@@ -101,6 +109,9 @@ class SuperAdminBillingService
             $expiresAt = $org->expires_at ? Carbon::parse($org->expires_at) : null;
             $daysRemaining = $expiresAt ? (int) $now->diffInDays($expiresAt, false) : 0;
 
+            $startsAt = $org->starts_at ? Carbon::parse($org->starts_at) : null;
+            $isScheduled = $startsAt && $startsAt->isFuture();
+
             // Determinar estado de salud
             if ($org->status === 'suspended') {
                 $health = 'suspended';
@@ -116,9 +127,29 @@ class SuperAdminBillingService
                 $activeCount++;
             }
 
+            // Modalidad descriptor
+            if ($org->status === 'suspended') {
+                $modalidad = 'suspended';
+                $modalidadLabel = 'Suspendida';
+            } elseif ($isScheduled) {
+                $modalidad = 'scheduled';
+                $modalidadLabel = 'Prueba Programada';
+            } elseif ($org->status === 'trial') {
+                $modalidad = 'trial';
+                $modalidadLabel = 'Período de Prueba';
+            } else {
+                $modalidad = 'official';
+                $modalidadLabel = 'Cuenta Oficial';
+            }
+
             $planMeta = $this->getPlanPricing($org->plan ?? 'basic');
             $totalPhones = $planMeta['included_phones'] + ($org->extra_whatsapp_lines ?? 0);
             $totalPhonesLeased += $totalPhones;
+
+            $phonesConnected = (int) ($org->phones_connected ?? 0);
+            $socialConnected = (int) ($org->social_connected ?? 0);
+            $totalSocial = ($planMeta['included_social'] ?? 8) + ($org->extra_social_accounts ?? 0);
+            $totalAgents = $planMeta['included_agents'] + ($org->extra_agents ?? 0);
 
             return [
                 'id' => $org->id,
@@ -128,16 +159,24 @@ class SuperAdminBillingService
                 'plan_name' => $planMeta['name'],
                 'billing_cycle' => $org->billing_cycle ?? 'monthly',
                 'status' => $org->status ?? 'active',
+                'modalidad' => $modalidad,
+                'modalidad_label' => $modalidadLabel,
                 'health_status' => $health,
                 'days_remaining' => $daysRemaining,
-                'expires_at' => $org->expires_at?->format('Y-m-d H:i') ?? 'Sin fecha asignada',
-                'last_payment_at' => $org->last_payment_at?->format('Y-m-d H:i') ?? 'Sin pagos registrados',
+                'starts_at' => $org->starts_at?->format('Y-m-d'),
+                'starts_at_formatted' => $org->starts_at?->format('d/m/Y'),
+                'expires_at' => $org->expires_at?->format('d/m/Y 23:59:59') ?? ($org->expires_at?->format('Y-m-d H:i') ?? 'Sin fecha asignada'),
+                'expires_at_date' => $org->expires_at?->format('Y-m-d'),
+                'expires_at_raw' => $org->expires_at?->format('Y-m-d H:i:s'),
+                'last_payment_at' => $org->last_payment_at?->format('d/m/Y H:i') ?? 'Sin pagos registrados',
                 'monthly_mrr_usd' => $mrr,
+                'phones_connected' => $phonesConnected,
                 'phones_total' => $totalPhones,
                 'extra_phones' => $org->extra_whatsapp_lines ?? 0,
-                'social_total' => ($planMeta['included_social'] ?? 8) + ($org->extra_social_accounts ?? 0),
+                'social_connected' => $socialConnected,
+                'social_total' => $totalSocial,
                 'extra_social' => $org->extra_social_accounts ?? 0,
-                'agents_total' => $planMeta['included_agents'] + ($org->extra_agents ?? 0),
+                'agents_total' => $totalAgents,
                 'extra_agents' => $org->extra_agents ?? 0,
                 'users_count' => $org->users_count,
                 'contact_name' => $org->contact_name ?? 'Administrador',
@@ -177,7 +216,7 @@ class SuperAdminBillingService
 
         // Si ya está vencido, renueva desde hoy. Si no, extiende la fecha actual.
         $baseDate = ($currentExpires && $currentExpires->isFuture()) ? $currentExpires : $now;
-        $newExpires = $baseDate->copy()->addMonths($months);
+        $newExpires = $baseDate->copy()->addMonths($months)->setTime(23, 59, 59);
 
         $monthlyPrice = $this->calculateTenantMonthlyPrice($org);
         $totalAmount = $monthlyPrice * $months;

@@ -35,6 +35,14 @@ export interface TenantItem {
   contact_phone: string
   contact_email: string
   license_token: string | null
+  phones_connected?: number
+  social_connected?: number
+  modalidad?: 'official' | 'trial' | 'scheduled' | 'suspended'
+  modalidad_label?: string
+  starts_at?: string | null
+  starts_at_formatted?: string | null
+  expires_at_date?: string | null
+  expires_at_raw?: string | null
 }
 
 export interface ProrationData {
@@ -44,13 +52,18 @@ export interface ProrationData {
   new_monthly_price: number
   days_used: number
   days_remaining: number
-  unused_credit_usd: number
-  new_plan_cost_remaining_days_usd: number
+  days_in_month: number
+  daily_rate_diff: number
   prorated_charge_due_today_usd: number
+  next_billing_cycle_amount_usd: number
+  currency: string
 }
 
 export async function fetchSuperAdminData() {
-  const { data } = await http.get<{ summary: TenantSummary; tenants: TenantItem[] }>('/superadmin/tenants')
+  const { data } = await http.get<{
+    summary: TenantSummary
+    tenants: TenantItem[]
+  }>('/superadmin/tenants')
   return data
 }
 
@@ -122,16 +135,28 @@ export async function generateAiAudit(tenantId: string) {
 
 export async function extendTenantTrial(
   tenantId: string,
-  payload: { days: number; plan?: string; extra_phones?: number; extra_agents?: number; extra_social?: number }
+  payload: {
+    days?: number
+    plan?: string
+    extra_phones?: number
+    extra_agents?: number
+    extra_social?: number
+    mode?: 'active' | 'official' | 'trial'
+    starts_at?: string | null
+    exact_date?: string | null
+    expires_at?: string | null
+  }
 ) {
   const { data } = await http.post<{
     success: boolean
     message: string
     new_expires_at: string
+    expires_at_date?: string
     days_remaining: number
     status: string
+    modalidad?: string
     plan: string
+    starts_at?: string
   }>(`/superadmin/tenants/${tenantId}/extend-trial`, payload)
   return data
 }
-
