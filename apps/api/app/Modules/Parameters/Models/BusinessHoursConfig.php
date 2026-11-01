@@ -25,6 +25,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
     'schedule_days',
     'auto_reply_enabled',
     'auto_reply_message',
+    'auto_reply_mode',
+    'auto_reply_schedule',
+    'auto_reply_cooldown_minutes',
 ])]
 class BusinessHoursConfig extends Model
 {
@@ -40,6 +43,8 @@ class BusinessHoursConfig extends Model
         'validity_type' => 'immediate',
         'timezone' => 'America/La_Paz',
         'auto_reply_enabled' => true,
+        'auto_reply_mode' => 'outside_hours',
+        'auto_reply_cooldown_minutes' => 1440,
     ];
 
     protected function casts(): array
@@ -49,6 +54,8 @@ class BusinessHoursConfig extends Model
             'is_default' => 'boolean',
             'auto_reply_enabled' => 'boolean',
             'schedule_days' => 'array',
+            'auto_reply_schedule' => 'array',
+            'auto_reply_cooldown_minutes' => 'integer',
             'start_date' => 'date',
             'end_date' => 'date',
         ];
@@ -236,5 +243,56 @@ class BusinessHoursConfig extends Model
         $end = $dayConfig['end_time'] ?? '23:59';
 
         return $currentTime >= $start && $currentTime <= $end;
+    }
+
+    /**
+     * Evalúa si corresponde disparar la respuesta de ausencia según el modo configurado.
+     */
+    public function shouldSendAutoReply(?Carbon $moment = null): bool
+    {
+        if (! $this->is_active || ! $this->auto_reply_enabled) {
+            return false;
+        }
+
+        $tz = $this->timezone ?: 'America/La_Paz';
+        $now = $moment ? $moment->copy()->setTimezone($tz) : Carbon::now($tz);
+        $mode = $this->auto_reply_mode ?? 'outside_hours';
+
+        // 1. Modo Ausente Continuo 24/7 (Feriados, vacaciones, receso)
+        if ($mode === 'always') {
+            return true;
+        }
+
+        // 2. Modo Horario Específico de Ausencia (rango horario propio para auto-respuesta)
+        if ($mode === 'custom_schedule' && ! empty($this->auto_reply_schedule)) {
+            $schedule = $this->auto_reply_schedule;
+            $dayOfWeek = strtolower($now->format('l'));
+
+            // Fin de semana completo en ausencia
+            if (! empty($schedule['all_day_weekends']) && in_array($dayOfWeek, ['saturday', 'sunday'])) {
+                return true;
+            }
+
+            // Días habilitados para el horario de ausencia
+            if (! empty($schedule['days']) && is_array($schedule['days'])) {
+                if (! in_array($dayOfWeek, $schedule['days'])) {
+                    return false;
+                }
+            }
+
+            $currentTime = $now->format('H:i');
+            $startTime = $schedule['start_time'] ?? '19:00';
+            $endTime = $schedule['end_time'] ?? '08:00';
+
+            // Si cruza la medianoche (ej: 19:00 a 08:00)
+            if ($startTime > $endTime) {
+                return $currentTime >= $startTime || $currentTime <= $endTime;
+            }
+
+            return $currentTime >= $startTime && $currentTime <= $endTime;
+        }
+
+        // 3. Modo Predeterminado: Se envía cuando esté fuera del horario de atención laboral
+        return ! $this->isWithinHours($now);
     }
 }

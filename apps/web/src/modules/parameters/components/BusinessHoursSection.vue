@@ -649,46 +649,217 @@
           </div>
         </div>
 
-        <div v-if="form.auto_reply_enabled" class="row q-col-gutter-lg q-mt-xs">
-          <!-- Editor del Mensaje -->
-          <div class="col-12 col-md-7 q-gutter-y-sm">
-            <div class="row items-center justify-between">
-              <span class="text-caption text-grey-4 text-bold">MENSAJE AUTOMÁTICO PROGRAMADO:</span>
-              <q-btn
-                flat
-                dense
-                no-caps
-                size="sm"
-                color="cyan-3"
-                icon="sym_r_restart_alt"
-                label="Restablecer mensaje oficial UNITEPC"
-                @click="resetDefaultMessage"
+        <div v-if="form.auto_reply_enabled" class="q-gutter-y-md q-mt-xs">
+          <!-- Configuración de Modalidad de Ausencia -->
+          <div class="q-pa-md rounded-borders bg-dark-subtle border-subtle">
+            <div class="text-caption text-grey-4 text-bold q-mb-sm">
+              MODALIDAD DE DISPARO DE LA RESPUESTA DE AUSENCIA:
+            </div>
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-4">
+                <q-card
+                  flat
+                  bordered
+                  class="cursor-pointer q-pa-sm full-height transition-all"
+                  :class="form.auto_reply_mode === 'outside_hours' ? 'border-primary bg-primary-subtle' : 'border-subtle bg-dark-page'"
+                  @click="form.auto_reply_mode = 'outside_hours'"
+                >
+                  <div class="row items-center q-gutter-x-sm no-wrap">
+                    <q-radio v-model="form.auto_reply_mode" val="outside_hours" color="primary" dense />
+                    <div>
+                      <div class="text-caption text-bold text-white">🌙 Fuera de Horario Laboral</div>
+                      <div class="text-grey-4" style="font-size: 0.72rem; line-height: 1.2;">
+                        Se activa automáticamente cuando los operadores o turnos están fuera de servicio.
+                      </div>
+                    </div>
+                  </div>
+                </q-card>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <q-card
+                  flat
+                  bordered
+                  class="cursor-pointer q-pa-sm full-height transition-all"
+                  :class="form.auto_reply_mode === 'custom_schedule' ? 'border-amber bg-amber-subtle' : 'border-subtle bg-dark-page'"
+                  @click="form.auto_reply_mode = 'custom_schedule'"
+                >
+                  <div class="row items-center q-gutter-x-sm no-wrap">
+                    <q-radio v-model="form.auto_reply_mode" val="custom_schedule" color="amber" dense />
+                    <div>
+                      <div class="text-caption text-bold text-amber-3">🕒 Horario Específico de Ausencia</div>
+                      <div class="text-grey-4" style="font-size: 0.72rem; line-height: 1.2;">
+                        Configura un horario nocturno o ventana fija sin alterar el horario de atención de los agentes.
+                      </div>
+                    </div>
+                  </div>
+                </q-card>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <q-card
+                  flat
+                  bordered
+                  class="cursor-pointer q-pa-sm full-height transition-all"
+                  :class="form.auto_reply_mode === 'always' ? 'border-negative bg-negative-subtle' : 'border-subtle bg-dark-page'"
+                  @click="form.auto_reply_mode = 'always'"
+                >
+                  <div class="row items-center q-gutter-x-sm no-wrap">
+                    <q-radio v-model="form.auto_reply_mode" val="always" color="negative" dense />
+                    <div>
+                      <div class="text-caption text-bold text-red-3">🏖️ Ausencia Continua 24/7</div>
+                      <div class="text-grey-4" style="font-size: 0.72rem; line-height: 1.2;">
+                        Ideal para feriados, recesos o emergencias. Responde siempre a cualquier mensaje entrante.
+                      </div>
+                    </div>
+                  </div>
+                </q-card>
+              </div>
+            </div>
+
+            <!-- Ventana Horaria Específica de Ausencia -->
+            <div v-if="form.auto_reply_mode === 'custom_schedule'" class="q-mt-md q-pa-md rounded-borders bg-dark-page" style="border: 1px solid rgba(245, 158, 11, 0.35);">
+              <div class="row items-center justify-between q-mb-sm">
+                <div class="text-caption text-amber-3 text-bold">
+                  ⏰ VENTANA HORARIA DE AUSENCIA (DISPARO DE AUTO-RESPUESTA):
+                </div>
+                <div class="text-caption text-grey-4">
+                  Soporta cruce de medianoche (ej: 19:00 a 08:00 del día siguiente)
+                </div>
+              </div>
+
+              <div class="row q-col-gutter-md items-center">
+                <div class="col-12 col-sm-3">
+                  <q-input
+                    v-model="form.auto_reply_schedule.start_time"
+                    type="time"
+                    label="Hora de Inicio de Ausencia"
+                    outlined
+                    dark
+                    dense
+                    color="amber"
+                  >
+                    <template #prepend>
+                      <q-icon name="sym_r_bedtime" color="amber-4" size="18px" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-sm-3">
+                  <q-input
+                    v-model="form.auto_reply_schedule.end_time"
+                    type="time"
+                    label="Hora de Fin de Ausencia"
+                    outlined
+                    dark
+                    dense
+                    color="amber"
+                  >
+                    <template #prepend>
+                      <q-icon name="sym_r_wb_sunny" color="amber-4" size="18px" />
+                    </template>
+                  </q-input>
+                </div>
+
+                <div class="col-12 col-sm-6">
+                  <q-checkbox
+                    v-model="form.auto_reply_schedule.all_day_weekends"
+                    label="Ausencia total en fin de semana (Sábados y Domingos 24hs)"
+                    dark
+                    color="amber"
+                    dense
+                  />
+                </div>
+              </div>
+
+              <div class="q-mt-sm">
+                <div class="text-caption text-grey-4 q-mb-xs">Días aplicables para la ventana de ausencia:</div>
+                <div class="row items-center q-gutter-xs">
+                  <q-btn
+                    v-for="d in weekDays"
+                    :key="d.key"
+                    dense
+                    size="sm"
+                    :outline="!form.auto_reply_schedule.days.includes(d.key)"
+                    :unelevated="form.auto_reply_schedule.days.includes(d.key)"
+                    :color="form.auto_reply_schedule.days.includes(d.key) ? 'amber-8' : 'grey-8'"
+                    :label="d.label"
+                    no-caps
+                    class="q-px-sm"
+                    @click="toggleAbsenceDay(d.key)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Frecuencia / Anti-spam / Cooldown -->
+            <div class="row items-center justify-between q-mt-md pt-sm" style="border-top: 1px solid rgba(255, 255, 255, 0.08);">
+              <div class="col-12 col-md-6 q-mb-xs q-mb-md-none">
+                <div class="text-caption text-bold text-white">FRECUENCIA DE RE-ENVÍO (CONTROL ANTI-SPAM):</div>
+                <div class="text-caption text-grey-4" style="font-size: 0.72rem;">
+                  Evita saturar al mismo contacto si envía múltiples mensajes mientras rige la ausencia.
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="form.auto_reply_cooldown_minutes"
+                  :options="cooldownOptions"
+                  emit-value
+                  map-options
+                  outlined
+                  dark
+                  dense
+                  color="cyan-4"
+                  label="Reenviar auto-respuesta cada:"
+                >
+                  <template #prepend>
+                    <q-icon name="sym_r_timer" color="cyan-3" size="18px" />
+                  </template>
+                </q-select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editor del Mensaje y Vista Previa -->
+          <div class="row q-col-gutter-lg q-mt-xs">
+            <div class="col-12 col-md-7 q-gutter-y-sm">
+              <div class="row items-center justify-between">
+                <span class="text-caption text-grey-4 text-bold">MENSAJE AUTOMÁTICO PROGRAMADO:</span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="sm"
+                  color="cyan-3"
+                  icon="sym_r_restart_alt"
+                  label="Restablecer mensaje oficial UNITEPC"
+                  @click="resetDefaultMessage"
+                />
+              </div>
+
+              <q-input
+                v-model="form.auto_reply_message"
+                type="textarea"
+                rows="4"
+                outlined
+                dark
+                counter
+                maxlength="1000"
+                placeholder="Escribe el mensaje que recibirá el cliente..."
               />
             </div>
 
-            <q-input
-              v-model="form.auto_reply_message"
-              type="textarea"
-              rows="4"
-              outlined
-              dark
-              counter
-              maxlength="1000"
-              placeholder="Escribe el mensaje que recibirá el cliente..."
-            />
-          </div>
-
-          <!-- Vista Previa de Chat WhatsApp -->
-          <div class="col-12 col-md-5">
-            <div class="text-caption text-grey-4 text-bold q-mb-xs">VISTA PREVIA EN WHATSAPP:</div>
-            <div class="xf-whatsapp-preview q-pa-md">
-              <div class="xf-chat-bubble">
-                <div class="text-caption text-white" style="white-space: pre-line; line-height: 1.45;">
-                  {{ form.auto_reply_message || '¡Hola! Gracias por comunicarte con nosotros...' }}
-                </div>
-                <div class="row justify-end items-center q-gutter-x-xs q-mt-xs">
-                  <span class="text-grey-4" style="font-size: 0.68rem;">{{ currentTime }}</span>
-                  <q-icon name="sym_r_done_all" size="14px" color="teal-3" />
+            <div class="col-12 col-md-5">
+              <div class="text-caption text-grey-4 text-bold q-mb-xs">VISTA PREVIA EN WHATSAPP:</div>
+              <div class="xf-whatsapp-preview q-pa-md">
+                <div class="xf-chat-bubble">
+                  <div class="text-caption text-white" style="white-space: pre-line; line-height: 1.45;">
+                    {{ form.auto_reply_message || '¡Hola! Gracias por comunicarte con nosotros...' }}
+                  </div>
+                  <div class="row justify-end items-center q-gutter-x-xs q-mt-xs">
+                    <span class="text-grey-4" style="font-size: 0.68rem;">{{ currentTime }}</span>
+                    <q-icon name="sym_r_done_all" size="14px" color="teal-3" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -723,7 +894,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { http } from '@/shared/api/http'
 import { useAppNotify } from '@/shared/composables/useAppNotify'
 
@@ -731,9 +902,45 @@ const notify = useAppNotify()
 
 const loading = ref(false)
 const saving = ref(false)
-const isCurrentlyOpen = ref(true)
 const currentTime = ref('08:30')
 const currentDayName = ref('Lunes')
+
+interface AutoReplySchedule {
+  start_time: string
+  end_time: string
+  all_day_weekends: boolean
+  days: string[]
+}
+
+function defaultAutoReplySchedule(): AutoReplySchedule {
+  return {
+    start_time: '19:00',
+    end_time: '08:00',
+    all_day_weekends: true,
+    days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+  }
+}
+
+const cooldownOptions = [
+  { label: 'Cada 30 minutos (alta insistencia)', value: 30 },
+  { label: 'Cada 1 hora', value: 60 },
+  { label: 'Cada 4 horas', value: 240 },
+  { label: 'Cada 12 horas', value: 720 },
+  { label: '1 vez cada 24 horas (Recomendado)', value: 1440 },
+  { label: '1 sola vez por conversación (30 días)', value: 43200 },
+]
+
+function toggleAbsenceDay(dayKey: string) {
+  const list = form.auto_reply_schedule.days
+  const idx = list.indexOf(dayKey)
+  if (idx >= 0) {
+    if (list.length > 1) {
+      list.splice(idx, 1)
+    }
+  } else {
+    list.push(dayKey)
+  }
+}
 
 const configsList = ref<any[]>([])
 const operatorsList = ref<any[]>([])
@@ -782,6 +989,20 @@ interface DaySchedule {
 }
 
 type WeekScheduleDays = Record<string, DaySchedule>
+
+const isCurrentlyOpen = computed(() => {
+  if (!form.is_active) return false
+  const dayKey = (Object.keys(form.schedule_days) as (keyof WeekScheduleDays)[]).find(
+    (k) => translateDay(k).toLowerCase() === currentDayName.value.toLowerCase(),
+  ) || 'monday'
+  const dayCfg = form.schedule_days[dayKey]
+  if (!dayCfg || !dayCfg.enabled) return false
+  const time = currentTime.value || '12:00'
+  if (dayCfg.slots && dayCfg.slots.length > 0) {
+    return dayCfg.slots.some((s) => s.enabled && time >= s.start_time && time <= s.end_time)
+  }
+  return time >= (dayCfg.start_time || '00:00') && time <= (dayCfg.end_time || '23:59')
+})
 
 function defaultDaysStructure(): WeekScheduleDays {
   return {
@@ -862,6 +1083,9 @@ const form = reactive({
   schedule_days: defaultDaysStructure() as WeekScheduleDays,
   auto_reply_enabled: true,
   auto_reply_message: defaultMessageTemplate,
+  auto_reply_mode: 'outside_hours' as 'outside_hours' | 'custom_schedule' | 'always',
+  auto_reply_schedule: defaultAutoReplySchedule(),
+  auto_reply_cooldown_minutes: 1440,
 })
 
 async function fetchConfigs() {
@@ -910,6 +1134,15 @@ function selectConfig(cfg: any) {
   form.timezone = cfg.timezone || 'America/La_Paz'
   form.auto_reply_enabled = cfg.auto_reply_enabled ?? true
   form.auto_reply_message = cfg.auto_reply_message || defaultMessageTemplate
+  form.auto_reply_mode = cfg.auto_reply_mode || 'outside_hours'
+  form.auto_reply_schedule = {
+    ...defaultAutoReplySchedule(),
+    ...(cfg.auto_reply_schedule || {}),
+    days: Array.isArray(cfg.auto_reply_schedule?.days)
+      ? cfg.auto_reply_schedule.days
+      : defaultAutoReplySchedule().days,
+  }
+  form.auto_reply_cooldown_minutes = cfg.auto_reply_cooldown_minutes ?? 1440
 
   // Normalizar schedule_days asegurando slots
   const mergedDays = { ...defaultDaysStructure(), ...(cfg.schedule_days || {}) }
@@ -944,6 +1177,9 @@ function openNewConfigForm() {
   form.schedule_days = defaultDaysStructure()
   form.auto_reply_enabled = true
   form.auto_reply_message = defaultMessageTemplate
+  form.auto_reply_mode = 'outside_hours'
+  form.auto_reply_schedule = defaultAutoReplySchedule()
+  form.auto_reply_cooldown_minutes = 1440
 }
 
 function cancelCreate() {
@@ -1076,6 +1312,9 @@ async function saveCurrentConfig() {
       schedule_days: form.schedule_days,
       auto_reply_enabled: form.auto_reply_enabled,
       auto_reply_message: form.auto_reply_message.trim(),
+      auto_reply_mode: form.auto_reply_mode,
+      auto_reply_schedule: form.auto_reply_mode === 'custom_schedule' ? form.auto_reply_schedule : null,
+      auto_reply_cooldown_minutes: form.auto_reply_cooldown_minutes,
     }
 
     if (isCreatingNew.value) {
@@ -1247,5 +1486,32 @@ onMounted(() => {
 .xf-btn-primary {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
   border-radius: 8px;
+}
+.bg-primary-subtle {
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+.border-primary {
+  border-color: #10b981 !important;
+}
+.bg-amber-subtle {
+  background: rgba(245, 158, 11, 0.12) !important;
+}
+.border-amber {
+  border-color: #f59e0b !important;
+}
+.bg-negative-subtle {
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+.border-negative {
+  border-color: #ef4444 !important;
+}
+.bg-dark-page {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+.border-subtle {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.transition-all {
+  transition: all 0.2s ease;
 }
 </style>

@@ -169,6 +169,9 @@ class BusinessHoursController extends Controller
             'schedule_days' => ['required', 'array'],
             'auto_reply_enabled' => ['required', 'boolean'],
             'auto_reply_message' => ['required', 'string', 'max:1500'],
+            'auto_reply_mode' => ['nullable', 'string', 'in:outside_hours,custom_schedule,always'],
+            'auto_reply_schedule' => ['nullable', 'array'],
+            'auto_reply_cooldown_minutes' => ['nullable', 'integer', 'min:1'],
             'user_ids' => ['nullable', 'array'],
             'user_ids.*' => ['string', 'exists:users,id'],
             'channel_ids' => ['nullable', 'array'],
@@ -198,6 +201,9 @@ class BusinessHoursController extends Controller
             'schedule_days' => $validated['schedule_days'],
             'auto_reply_enabled' => $validated['auto_reply_enabled'],
             'auto_reply_message' => $validated['auto_reply_message'],
+            'auto_reply_mode' => $validated['auto_reply_mode'] ?? 'outside_hours',
+            'auto_reply_schedule' => $validated['auto_reply_schedule'] ?? null,
+            'auto_reply_cooldown_minutes' => $validated['auto_reply_cooldown_minutes'] ?? 1440,
         ]);
 
         // Sincronizar relaciones
@@ -248,6 +254,9 @@ class BusinessHoursController extends Controller
             'schedule_days' => ['required', 'array'],
             'auto_reply_enabled' => ['required', 'boolean'],
             'auto_reply_message' => ['required', 'string', 'max:1500'],
+            'auto_reply_mode' => ['nullable', 'string', 'in:outside_hours,custom_schedule,always'],
+            'auto_reply_schedule' => ['nullable', 'array'],
+            'auto_reply_cooldown_minutes' => ['nullable', 'integer', 'min:1'],
             'user_ids' => ['nullable', 'array'],
             'user_ids.*' => ['string', 'exists:users,id'],
             'channel_ids' => ['nullable', 'array'],
@@ -279,6 +288,9 @@ class BusinessHoursController extends Controller
             'schedule_days' => $validated['schedule_days'],
             'auto_reply_enabled' => $validated['auto_reply_enabled'],
             'auto_reply_message' => $validated['auto_reply_message'],
+            'auto_reply_mode' => $validated['auto_reply_mode'] ?? 'outside_hours',
+            'auto_reply_schedule' => $validated['auto_reply_schedule'] ?? null,
+            'auto_reply_cooldown_minutes' => $validated['auto_reply_cooldown_minutes'] ?? 1440,
         ]);
 
         if (isset($validated['user_ids'])) {
@@ -446,12 +458,15 @@ class BusinessHoursController extends Controller
 
         $now = Carbon::now($config->timezone ?: 'America/La_Paz');
         $isWithin = $config->isWithinHours($now);
+        $shouldAutoReply = $config->shouldSendAutoReply($now);
 
         return response()->json([
             'is_active' => $config->is_active,
             'is_within_hours' => $isWithin,
+            'should_auto_reply' => $shouldAutoReply,
             'auto_reply_enabled' => $config->auto_reply_enabled,
-            'auto_reply_message' => (!$isWithin && $config->auto_reply_enabled) ? $config->auto_reply_message : null,
+            'auto_reply_mode' => $config->auto_reply_mode ?? 'outside_hours',
+            'auto_reply_message' => ($shouldAutoReply && $config->auto_reply_enabled) ? $config->auto_reply_message : null,
             'timezone' => $config->timezone,
             'current_day' => strtolower($now->format('l')),
             'current_time' => $now->format('H:i'),

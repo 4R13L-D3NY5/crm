@@ -274,5 +274,122 @@ class BusinessHoursAutoReplyTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_custom_absence_schedule_across_midnight(): void
+    {
+        Queue::fake([SendWhatsAppMessageJob::class]);
+
+        $org = Organization::factory()->create();
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $org->id,
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $config = BusinessHoursConfig::create([
+            'organization_id' => $org->id,
+            'name' => 'Horario con Ausencia Nocturna',
+            'is_active' => true,
+            'auto_reply_enabled' => true,
+            'auto_reply_mode' => 'custom_schedule',
+            'auto_reply_schedule' => [
+                'start_time' => '19:00',
+                'end_time' => '08:00',
+                'all_day_weekends' => true,
+                'days' => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+            ],
+            'auto_reply_cooldown_minutes' => 1440,
+            'auto_reply_message' => 'Estamos ausentes en horario nocturno.',
+        ]);
+
+        $contact = Contact::factory()->create(['organization_id' => $org->id]);
+        $conversation = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+        ]);
+
+        $action = app(DispatchOutOfHoursAutoReplyAction::class);
+
+        // Lunes 21:00 -> Dentro de la ventana de ausencia (19:00 a 08:00) -> Debe responder
+        Carbon::setTestNow(Carbon::parse('2026-10-19 21:00:00', 'America/La_Paz'));
+        $replyNight = $action->execute($conversation);
+        $this->assertNotNull($replyNight);
+        $this->assertSame('Estamos ausentes en horario nocturno.', $replyNight->body);
+
+        // Martes 06:30 -> Antes de las 08:00 (cruce de medianoche) -> Debe responder (simulando nueva conversación o sin cooldown)
+        $conv2 = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => Contact::factory()->create(['organization_id' => $org->id])->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-20 06:30:00', 'America/La_Paz'));
+        $replyMorning = $action->execute($conv2);
+        $this->assertNotNull($replyMorning);
+
+        // Martes 15:00 -> Fuera de la ventana de ausencia -> No debe responder
+        Carbon::setTestNow(Carbon::parse('2026-10-20 15:00:00', 'America/La_Paz'));
+        $replyAfternoon = $action->execute($conv2);
+        $this->assertNull($replyAfternoon);
+
+        // Sábado 12:00 -> Fin de semana completo en ausencia -> Debe responder
+        $conv3 = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => Contact::factory()->create(['organization_id' => $org->id])->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+        ]);
+        Carbon::setTestNow(Carbon::parse('2026-10-24 12:00:00', 'America/La_Paz'));
+        $replyWeekend = $action->execute($conv3);
+        $this->assertNotNull($replyWeekend);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_always_absence_mode_responds_anytime(): void
+    {
+        Queue::fake([SendWhatsAppMessageJob::class]);
+
+        $org = Organization::factory()->create();
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $org->id,
+            'status' => 'CONNECTED',
+            'is_active' => true,
+        ]);
+
+        $config = BusinessHoursConfig::create([
+            'organization_id' => $org->id,
+            'name' => 'Receso Académico',
+            'is_active' => true,
+            'auto_reply_enabled' => true,
+            'auto_reply_mode' => 'always',
+            'auto_reply_message' => 'Estamos en receso académico.',
+        ]);
+
+        $contact = Contact::factory()->create(['organization_id' => $org->id]);
+        $conversation = Conversation::create([
+            'organization_id' => $org->id,
+            'contact_id' => $contact->id,
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->id,
+            'status' => 'open',
+        ]);
+
+        // Miércoles 11:00 am (pleno horario de oficina normal)
+        Carbon::setTestNow(Carbon::parse('2026-10-21 11:00:00', 'America/La_Paz'));
+
+        $action = app(DispatchOutOfHoursAutoReplyAction::class);
+        $reply = $action->execute($conversation);
+
+        $this->assertNotNull($reply);
+        $this->assertSame('Estamos en receso académico.', $reply->body);
+
+        Carbon::setTestNow();
+    }
 }
 

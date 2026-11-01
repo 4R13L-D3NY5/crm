@@ -63,17 +63,17 @@ class DispatchOutOfHoursAutoReplyAction
             return null;
         }
 
-        // 2. Verificar si está dentro del horario laboral
+        // 2. Verificar si corresponde auto-respuesta según regla de horario y modalidad configurada
         $tz = $config->timezone ?: 'America/La_Paz';
         $now = Carbon::now($tz);
 
-        if ($config->isWithinHours($now)) {
-            // Está dentro del horario de atención, no corresponde auto-respuesta
+        if (! $config->shouldSendAutoReply($now)) {
+            // No corresponde auto-respuesta en este momento
             return null;
         }
 
-        // 3. Control anti-spam: no repetir la misma auto-respuesta en la conversación si ya se envió recientemente
-        $antiSpamMinutes = app()->environment('local') ? 1 : 30;
+        // 3. Control anti-spam: no repetir la misma auto-respuesta en la conversación si ya se envió dentro de la ventana de enfriamiento (cooldown)
+        $antiSpamMinutes = app()->environment('local') ? 1 : ((int) ($config->auto_reply_cooldown_minutes ?: 1440));
         $alreadySentRecently = Message::where('conversation_id', $conversation->id)
             ->where('direction', 'outbound')
             ->where('body', $messageText)

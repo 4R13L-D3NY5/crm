@@ -273,4 +273,45 @@ class BusinessHoursManagementTest extends TestCase
             'is_internal' => true,
         ]);
     }
+
+    public function test_can_configure_custom_absence_schedule_and_cooldown(): void
+    {
+        $this->actingAs($this->user);
+
+        $payload = [
+            'name' => 'Horario con Modo Ausencia Especial',
+            'scope_type' => 'general',
+            'validity_type' => 'immediate',
+            'timezone' => 'America/La_Paz',
+            'schedule_days' => BusinessHoursConfig::defaultScheduleDays(),
+            'auto_reply_enabled' => true,
+            'auto_reply_message' => 'Estamos ausentes en horario nocturno programado.',
+            'auto_reply_mode' => 'custom_schedule',
+            'auto_reply_schedule' => [
+                'start_time' => '19:00',
+                'end_time' => '08:00',
+                'all_day_weekends' => true,
+                'days' => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+            ],
+            'auto_reply_cooldown_minutes' => 720,
+        ];
+
+        $response = $this->postJson('/api/business-hours/configs', $payload);
+        $response->assertCreated();
+
+        $data = $response->json('data');
+        $this->assertSame('custom_schedule', $data['auto_reply_mode']);
+        $this->assertSame(720, $data['auto_reply_cooldown_minutes']);
+        $this->assertEquals('19:00', $data['auto_reply_schedule']['start_time']);
+        $this->assertTrue($data['auto_reply_schedule']['all_day_weekends']);
+
+        // Actualizar a modo 'always'
+        $updateResponse = $this->putJson("/api/business-hours/configs/{$data['id']}", array_merge($payload, [
+            'auto_reply_mode' => 'always',
+            'auto_reply_cooldown_minutes' => 60,
+        ]));
+        $updateResponse->assertOk();
+        $this->assertSame('always', $updateResponse->json('data.auto_reply_mode'));
+        $this->assertSame(60, $updateResponse->json('data.auto_reply_cooldown_minutes'));
+    }
 }
