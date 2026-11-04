@@ -15,6 +15,8 @@ use App\Modules\WhatsApp\Models\WhatsAppMessageMapping;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class SocialCommentController extends Controller
@@ -63,6 +65,8 @@ class SocialCommentController extends Controller
      */
     public function handleWebhook(Request $request): JsonResponse
     {
+        \Illuminate\Support\Facades\Log::info("SOCIAL WEBHOOK RECEIVED: " . json_encode($request->all()));
+
         // 1. Manejo de Payload Oficial de Meta (Facebook / Instagram Webhooks)
         if ($request->has('entry')) {
             $entry = $request->input('entry.0', []);
@@ -94,6 +98,23 @@ class SocialCommentController extends Controller
 
             $orgId = $account?->organization_id ?? Organization::first()?->id;
 
+            // A. Mensajería Directa (Facebook Messenger / Instagram DM / Standby Handover)
+            $messaging = data_get($entry, 'messaging.0') ?: data_get($entry, 'standby.0');
+
+            if (!$account && $messaging) {
+                $recipientId = (string) data_get($messaging, 'recipient.id');
+                $senderId = (string) data_get($messaging, 'sender.id');
+                $account = WhatsAppAccount::whereIn('phone_number_id', array_filter([$recipientId, $senderId]))
+                    ->where('is_active', true)
+                    ->first();
+                if ($account) {
+                    $orgId = $account->organization_id;
+                    if ($account->session_type === 'instagram') {
+                        $isInstagram = true;
+                    }
+                }
+            }
+
             if (!$account) {
                 $account = WhatsAppAccount::where('organization_id', $orgId)
                     ->where('is_active', true)
@@ -107,13 +128,26 @@ class SocialCommentController extends Controller
 
             $platform = $isInstagram ? 'instagram' : 'facebook';
 
-            // A. Mensajería Directa (Facebook Messenger / Instagram DM)
-            if ($messaging = data_get($entry, 'messaging.0')) {
+            if ($messaging) {
+                // Si es un recibo de lectura o entrega sin mensaje ni postback, ignorar defensivamente
+                if (!data_get($messaging, 'message') && !data_get($messaging, 'postback')) {
+                    return response()->json(['status' => 'ignored', 'reason' => 'read_or_delivery_receipt'], 200);
+                }
+
                 $senderId = (string) data_get($messaging, 'sender.id');
                 $recipientId = (string) data_get($messaging, 'recipient.id');
                 $isEcho = (bool) data_get($messaging, 'message.is_echo', false);
                 $messageText = (string) data_get($messaging, 'message.text', 'Mensaje multimedia recibido');
+                $mid = (string) data_get($messaging, 'message.mid');
                 $platform = $isInstagram ? 'instagram' : ($account?->session_type ?? 'facebook');
+
+                // Deduplicación por external_message_id (MID de Meta)
+                if ($mid) {
+                    $alreadyExists = WhatsAppMessageMapping::where('external_message_id', $mid)->exists();
+                    if ($alreadyExists) {
+                        return response()->json(['status' => 'ignored', 'reason' => 'duplicate_mid'], 200);
+                    }
+                }
 
                 $isOutbound = $isEcho
                     || ($senderId === (string) $pageId)
@@ -131,9 +165,26 @@ class SocialCommentController extends Controller
                     ->first();
 
                 if (!$contact) {
+                    $customerName = "Usuario {$platform} ({$customerSocialId})";
+                    if ($account && !empty($account->access_token)) {
+                        try {
+                            $fields = $platform === 'instagram' ? 'name,username,profile_pic' : 'first_name,last_name,name,profile_pic';
+                            $graphResp = Http::timeout(3)->get("https://graph.facebook.com/v21.0/{$customerSocialId}", [
+                                'fields' => $fields,
+                                'access_token' => $account->access_token,
+                            ]);
+                            if ($graphResp->successful()) {
+                                $userData = $graphResp->json();
+                                $customerName = $userData['name'] ?? $userData['username'] ?? (trim(($userData['first_name'] ?? '') . ' ' . ($userData['last_name'] ?? '')) ?: $customerName);
+                            }
+                        } catch (\Throwable $e) {
+                            // Non-blocking profile lookup
+                        }
+                    }
+
                     $contact = Contact::create([
                         'organization_id' => $orgId,
-                        'first_name' => "Usuario {$platform} ({$customerSocialId})",
+                        'first_name' => $customerName,
                         'status' => 'active',
                         'notes' => "Lead capturado vía {$platform} ID {$customerSocialId}",
                         'custom_fields' => ["{$platform}_id" => $customerSocialId],
@@ -218,6 +269,17 @@ class SocialCommentController extends Controller
                     $cf = (array) ($contact->custom_fields ?? []);
                     $cf['last_ad_referral'] = $referral;
                     $contact->update(['custom_fields' => $cf]);
+                }
+
+                if ($mid) {
+                    WhatsAppMessageMapping::firstOrCreate(
+                        ['external_message_id' => $mid],
+                        [
+                            'organization_id' => $orgId,
+                            'message_id' => $msg->id,
+                            'channel' => $platform,
+                        ]
+                    );
                 }
 
                 event(new TicketMessageCreatedEvent($msg));
