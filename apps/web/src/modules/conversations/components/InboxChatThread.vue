@@ -86,6 +86,20 @@
 
               </q-badge>
 
+              <!-- Radar de Sentimiento IA en Vivo -->
+              <q-badge
+                v-if="aiSentimentBadge"
+                :color="aiSentimentBadge.color"
+                rounded
+                class="q-px-xs text-caption cursor-pointer"
+                :class="{ 'pulse-radar-frustrated': aiSentimentBadge.isFrustrated }"
+              >
+                <q-icon :name="aiSentimentBadge.icon" size="13px" class="q-mr-xs" />
+                <span>{{ aiSentimentBadge.label }}</span>
+                <q-tooltip class="bg-dark text-white font-sans text-caption shadow-4">
+                  <strong>Radar IA:</strong> {{ aiAnalysis?.sentiment?.reason || aiSentimentBadge.label }}
+                </q-tooltip>
+              </q-badge>
             </div>
 
             <div class="row items-center q-gutter-x-xs text-caption text-grey-4 font-mono no-wrap ellipsis" style="font-size: 0.72rem">
@@ -1427,6 +1441,61 @@
 
       </div>
 
+      <!-- Banner de Sugerencia de Estado IA (Fase 3) -->
+      <div v-if="aiAnalysis?.status_recommendation && !isStatusSuggestionDismissed" class="ai-status-suggestion-banner row items-center justify-between q-pa-xs q-px-sm rounded-borders q-mb-xs">
+        <div class="row items-center q-gutter-x-xs text-caption text-grey-2">
+          <q-icon name="sym_r_lightbulb" color="amber-4" size="18px" />
+          <span><strong>Sugerencia IA:</strong> {{ aiAnalysis.status_recommendation.reason }}</span>
+        </div>
+        <div class="row items-center q-gutter-x-xs">
+          <q-btn
+            unelevated
+            dense
+            no-caps
+            size="xs"
+            color="primary"
+            :label="`Cambiar a '${aiAnalysis.status_recommendation.suggested_custom_status_name || aiAnalysis.status_recommendation.suggested_status}'`"
+            :loading="isApplyingStatus"
+            class="q-px-sm"
+            @click="handleApplyAiStatus"
+          />
+          <q-btn flat round dense size="xs" color="grey-4" icon="sym_r_close" @click="isStatusSuggestionDismissed = true" />
+        </div>
+      </div>
+
+      <!-- Banner de Sugerencia de Etiquetas IA (Fase 3) -->
+      <div v-if="aiAnalysis?.tag_recommendations?.length && !isTagsSuggestionDismissed" class="ai-tag-suggestion-banner row items-center justify-between q-pa-xs q-px-sm rounded-borders q-mb-xs">
+        <div class="row items-center q-gutter-x-xs text-caption text-grey-2">
+          <q-icon name="sym_r_sell" color="teal-4" size="16px" />
+          <span>Etiquetas detectadas:</span>
+          <q-chip
+            v-for="tag in aiAnalysis.tag_recommendations"
+            :key="tag.name"
+            dense
+            size="xs"
+            dark
+            :style="{ backgroundColor: (tag.color || '#0d9488') + '33', borderColor: tag.color || '#0d9488', border: '1px solid' }"
+            class="text-weight-medium text-white"
+          >
+            #{{ tag.name }}
+          </q-chip>
+        </div>
+        <div class="row items-center q-gutter-x-xs">
+          <q-btn
+            unelevated
+            dense
+            no-caps
+            size="xs"
+            color="teal-7"
+            icon="sym_r_add"
+            label="Aplicar etiquetas"
+            :loading="isApplyingTags"
+            class="q-px-sm"
+            @click="handleApplyAiTags"
+          />
+          <q-btn flat round dense size="xs" color="grey-4" icon="sym_r_close" @click="isTagsSuggestionDismissed = true" />
+        </div>
+      </div>
 
 
       <!-- Banner de Sugerencia MiniMax -->
@@ -2316,11 +2385,17 @@ import { useQuickMessages } from '@/modules/quick-messages/composables/useQuickM
 import { getNotes } from '@/modules/notes/api/notes.api'
 
 import type { Note } from '@/modules/notes/types/note.types'
-
 import { matchesNoteSearch, computeNoteSearchScore, isVideoMedia } from '@/modules/notes/utils/note-search'
 
-import { getHentleAiSuggestion, editMessage, openPrivateChat } from '../api/conversations.api'
-
+import {
+  getHentleAiSuggestion,
+  getConversationAiAnalysis,
+  applyAiStatus,
+  applyAiTags,
+  editMessage,
+  openPrivateChat,
+  type AiConversationAnalysis,
+} from '../api/conversations.api'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 
 import { useQueryClient } from '@tanstack/vue-query'
@@ -2665,18 +2740,93 @@ const isGeneratingAiSuggestion = ref(false)
 
 const aiSuggestionText = ref<string | null>(null)
 
+// Estados para Análisis del Copiloto (Fases 3, 4, 5)
+const aiAnalysis = ref<AiConversationAnalysis | null>(null)
+const isLoadingAiAnalysis = ref(false)
+const isStatusSuggestionDismissed = ref(false)
+const isTagsSuggestionDismissed = ref(false)
+const isApplyingStatus = ref(false)
+const isApplyingTags = ref(false)
+
+const aiSentimentBadge = computed(() => {
+  const sent = aiAnalysis.value?.sentiment
+  if (!sent) return null
+  return matchSentimentBadge(sent.sentiment, sent.is_frustrated)
+})
+
+function matchSentimentBadge(sentiment: string, isFrustrated: boolean) {
+  switch (sentiment) {
+    case 'positive':
+      return { label: 'Positivo', icon: 'sym_r_mood', color: 'positive', isFrustrated: false }
+    case 'hesitant':
+      return { label: 'Indeciso / Duda', icon: 'sym_r_sentiment_dissatisfied', color: 'warning', isFrustrated }
+    case 'frustrated':
+      return { label: 'Frustrado', icon: 'sym_r_sentiment_very_dissatisfied', color: 'negative', isFrustrated: true }
+    case 'angry':
+      return { label: 'Molesto / Reclamo', icon: 'sym_r_error', color: 'negative', isFrustrated: true }
+    default:
+      return { label: 'Neutral', icon: 'sym_r_sentiment_neutral', color: 'grey-7', isFrustrated }
+  }
+}
+
+async function loadAiAnalysis() {
+  if (!props.conversation?.id) return
+  try {
+    isLoadingAiAnalysis.value = true
+    isStatusSuggestionDismissed.value = false
+    isTagsSuggestionDismissed.value = false
+    aiAnalysis.value = await getConversationAiAnalysis(props.conversation.id)
+  } catch (err) {
+    console.debug('AI analysis fetch error:', err)
+  } finally {
+    isLoadingAiAnalysis.value = false
+  }
+}
+
+async function handleApplyAiStatus() {
+  if (!props.conversation?.id || !aiAnalysis.value?.status_recommendation) return
+  isApplyingStatus.value = true
+  try {
+    const rec = aiAnalysis.value.status_recommendation
+    await applyAiStatus(props.conversation.id, {
+      status: rec.suggested_status || undefined,
+      custom_status_id: rec.suggested_custom_status_id || undefined,
+    })
+    isStatusSuggestionDismissed.value = true
+    notify.success({ message: `Estado actualizado a '${rec.suggested_custom_status_name || rec.suggested_status}'.` })
+  } catch (err: any) {
+    notify.error({ message: err?.response?.data?.message || 'Error al actualizar estado.' })
+  } finally {
+    isApplyingStatus.value = false
+  }
+}
+
+async function handleApplyAiTags() {
+  if (!props.conversation?.id || !aiAnalysis.value?.tag_recommendations?.length) return
+  isApplyingTags.value = true
+  try {
+    const tagNames = aiAnalysis.value.tag_recommendations.map((t) => t.name)
+    await applyAiTags(props.conversation.id, tagNames)
+    isTagsSuggestionDismissed.value = true
+    notify.success({ message: `Se aplicaron ${tagNames.length} etiquetas sugeridas por IA.` })
+  } catch (err: any) {
+    notify.error({ message: err?.response?.data?.message || 'Error al aplicar etiquetas.' })
+  } finally {
+    isApplyingTags.value = false
+  }
+}
 
 
 watch(
 
   () => props.conversation?.id,
-
-  () => {
-
+  (newId) => {
     aiSuggestionText.value = null
-
+    if (newId) {
+      loadAiAnalysis()
+    }
   },
-
+  { immediate: true },
 )
 
 
@@ -4175,6 +4325,151 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.25);
 
   padding: 3px 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: #93c5fd;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.emoji-grid-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 6px 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--crm-transition-fast, 0.15s ease), transform var(--crm-transition-fast, 0.15s ease);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.2);
+  }
+}
+
+.image-zoom-card {
+  background: #0b1120 !important;
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.15));
+  border-radius: 14px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.image-zoom-header {
+  background: #070b14;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.image-zoom-body {
+  overflow: auto;
+  max-height: calc(90vh - 54px);
+}
+
+.image-zoom-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.pending-media-chip {
+  background: var(--crm-bg-surface-elevated, #162032);
+  border: 1px solid var(--crm-color-border, rgba(255, 255, 255, 0.15));
+  border-radius: 8px;
+}
+
+.pending-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.voice-recording-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+}
+
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+
+.pulse-recording {
+  animation: pulse-border 1.5s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.ai-suggestion-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 8px;
+}
+
+.ai-status-suggestion-banner {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-size: 0.8rem;
+}
+
+.ai-tag-suggestion-banner {
+  background: rgba(13, 148, 136, 0.12);
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  font-size: 0.8rem;
+}
+
+@keyframes pulseRadarAlert {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.pulse-radar-frustrated {
+  animation: pulseRadarAlert 1.8s infinite;
+}
+
+.keep-chat-note-item {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(51, 65, 85, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+  }
+}
 
   transition: all 0.2s ease;
 
