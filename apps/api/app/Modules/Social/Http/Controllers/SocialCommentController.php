@@ -141,9 +141,9 @@ class SocialCommentController extends Controller
                 $mid = (string) data_get($messaging, 'message.mid');
                 $platform = $isInstagram ? 'instagram' : ($account?->session_type ?? 'facebook');
 
-                // Deduplicación por external_message_id (MID de Meta)
+                // Deduplicación por provider_message_id (MID de Meta)
                 if ($mid) {
-                    $alreadyExists = WhatsAppMessageMapping::where('external_message_id', $mid)->exists();
+                    $alreadyExists = WhatsAppMessageMapping::where('provider_message_id', $mid)->exists();
                     if ($alreadyExists) {
                         return response()->json(['status' => 'ignored', 'reason' => 'duplicate_mid'], 200);
                     }
@@ -273,11 +273,15 @@ class SocialCommentController extends Controller
 
                 if ($mid) {
                     WhatsAppMessageMapping::firstOrCreate(
-                        ['external_message_id' => $mid],
+                        ['provider_message_id' => $mid],
                         [
                             'organization_id' => $orgId,
+                            'whatsapp_account_id' => $account?->id,
+                            'contact_id' => $contact->id,
+                            'conversation_id' => $conversation->id,
                             'message_id' => $msg->id,
-                            'channel' => $platform,
+                            'direction' => $isOutbound ? 'outbound' : 'inbound',
+                            'status' => $isOutbound ? 'delivered' : 'read',
                         ]
                     );
                 }
