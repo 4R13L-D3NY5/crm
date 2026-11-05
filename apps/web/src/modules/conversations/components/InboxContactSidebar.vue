@@ -1211,7 +1211,8 @@ watch(
   () => props.conversation?.id,
   () => {
     aiSummaryData.value = null
-    fetchAssignedCategories()
+    fetchAssignedCategories()
+    loadAiContactExtraction()
   },
   { immediate: true },
 )

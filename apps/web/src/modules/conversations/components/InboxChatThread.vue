@@ -4471,22 +4471,6 @@ onUnmounted(() => {
   }
 }
 
-  transition: all 0.2s ease;
-
-  flex-shrink: 0;
-
-
-
-  &:hover {
-
-    color: #93c5fd;
-
-    background: rgba(255, 255, 255, 0.1);
-
-  }
-
-}
-
 
 
 .inbox-chat-thread {
