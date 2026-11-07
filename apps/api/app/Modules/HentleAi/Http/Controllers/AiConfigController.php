@@ -63,7 +63,7 @@ class AiConfigController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:minimax,gemini,openai,deepseek,custom'],
+            'provider' => ['required', 'string', 'in:minimax,gemini,openai,deepseek,custom,bluesminds'],
             'model' => ['required', 'string', 'max:100'],
             'api_key' => ['nullable', 'string', 'max:500'],
             'base_url' => ['nullable', 'string', 'max:255'],
@@ -98,6 +98,7 @@ class AiConfigController extends Controller
         }
 
         $defaultBaseUrls = [
+            'bluesminds' => 'https://api.bluesminds.com/v1',
             'minimax' => 'https://api.minimax.io/v1',
             'openai' => 'https://api.openai.com/v1',
             'deepseek' => 'https://api.deepseek.com/v1',

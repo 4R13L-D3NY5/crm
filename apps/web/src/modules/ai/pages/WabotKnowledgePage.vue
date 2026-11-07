@@ -558,7 +558,8 @@ const isResettingBudget = ref(false)
 const testResult = ref<AiTestResult | null>(null)
 
 const providerOptions = [
-  { label: 'MiniMax (Recomendado)', value: 'minimax' },
+  { label: 'Bluesminds AI Gateway (Recomendado)', value: 'bluesminds' },
+  { label: 'MiniMax', value: 'minimax' },
   { label: 'Google Gemini', value: 'gemini' },
   { label: 'OpenAI (ChatGPT)', value: 'openai' },
   { label: 'DeepSeek', value: 'deepseek' },
@@ -566,6 +567,11 @@ const providerOptions = [
 ]
 
 const providerModelPresets: Record<string, string[]> = {
+  bluesminds: [
+    'meta/llama-3.2-11b-vision-instruct',
+    'openai/gpt-oss-20b',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+  ],
   minimax: ['MiniMax-Text-01', 'abab6.5s-chat', 'abab6.5-chat'],
   gemini: ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'],
   openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
@@ -574,6 +580,7 @@ const providerModelPresets: Record<string, string[]> = {
 }
 
 const defaultBaseUrls: Record<string, string> = {
+  bluesminds: 'https://api.bluesminds.com/v1',
   minimax: 'https://api.minimax.io/v1',
   gemini: 'https://generativelanguage.googleapis.com/v1beta',
   openai: 'https://api.openai.com/v1',
