@@ -28,6 +28,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
     'auto_reply_mode',
     'auto_reply_schedule',
     'auto_reply_cooldown_minutes',
+    'responder_type',
+    'ai_confidence_threshold',
+    'ai_escalation_enabled',
+    'ai_escalation_phone',
+    'ai_fallback_message',
 ])]
 class BusinessHoursConfig extends Model
 {
@@ -45,6 +50,9 @@ class BusinessHoursConfig extends Model
         'auto_reply_enabled' => true,
         'auto_reply_mode' => 'outside_hours',
         'auto_reply_cooldown_minutes' => 1440,
+        'responder_type' => 'static_text',
+        'ai_confidence_threshold' => 0.80,
+        'ai_escalation_enabled' => true,
     ];
 
     protected function casts(): array
@@ -58,6 +66,8 @@ class BusinessHoursConfig extends Model
             'auto_reply_cooldown_minutes' => 'integer',
             'start_date' => 'date',
             'end_date' => 'date',
+            'ai_confidence_threshold' => 'float',
+            'ai_escalation_enabled' => 'boolean',
         ];
     }
 
@@ -70,7 +80,15 @@ class BusinessHoursConfig extends Model
             if (empty($config->auto_reply_message)) {
                 $config->auto_reply_message = static::defaultAutoReplyMessage();
             }
+            if (empty($config->ai_fallback_message)) {
+                $config->ai_fallback_message = static::defaultAiFallbackMessage();
+            }
         });
+    }
+
+    public static function defaultAiFallbackMessage(): string
+    {
+        return 'Hola, gracias por comunicarte con nosotros. En este momento nuestros asesores están fuera de turno y no cuento con esa información específica en nuestro manual. Ya registré tu consulta y un asesor te responderá a primera hora.';
     }
 
     public function organization(): BelongsTo

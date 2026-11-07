@@ -58,17 +58,21 @@ class DispatchOutOfHoursAutoReplyAction
             return null;
         }
 
-        $messageText = trim((string) $config->auto_reply_message);
-        if (empty($messageText)) {
-            return null;
-        }
-
-        // 2. Verificar si corresponde auto-respuesta según regla de horario y modalidad configurada
         $tz = $config->timezone ?: 'America/La_Paz';
         $now = Carbon::now($tz);
 
         if (! $config->shouldSendAutoReply($now)) {
             // No corresponde auto-respuesta en este momento
+            return null;
+        }
+
+        // Si la modalidad de respuesta es Guardia IA Autónomo (Hentle-AI RAG)
+        if (($config->responder_type ?? 'static_text') === 'ai_rag_agent') {
+            return app(\App\Modules\Parameters\Services\OutOfHoursAiAgentService::class)->execute($conversation, $config);
+        }
+
+        $messageText = trim((string) $config->auto_reply_message);
+        if (empty($messageText)) {
             return null;
         }
 

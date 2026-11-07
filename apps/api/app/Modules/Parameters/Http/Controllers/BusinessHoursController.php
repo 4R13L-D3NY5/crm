@@ -172,6 +172,11 @@ class BusinessHoursController extends Controller
             'auto_reply_mode' => ['nullable', 'string', 'in:outside_hours,custom_schedule,always'],
             'auto_reply_schedule' => ['nullable', 'array'],
             'auto_reply_cooldown_minutes' => ['nullable', 'integer', 'min:1'],
+            'responder_type' => ['nullable', 'string', 'in:static_text,ai_rag_agent'],
+            'ai_confidence_threshold' => ['nullable', 'numeric', 'min:0.5', 'max:1.0'],
+            'ai_escalation_enabled' => ['nullable', 'boolean'],
+            'ai_escalation_phone' => ['nullable', 'string', 'max:50'],
+            'ai_fallback_message' => ['nullable', 'string', 'max:1500'],
             'user_ids' => ['nullable', 'array'],
             'user_ids.*' => ['string', 'exists:users,id'],
             'channel_ids' => ['nullable', 'array'],
@@ -204,6 +209,11 @@ class BusinessHoursController extends Controller
             'auto_reply_mode' => $validated['auto_reply_mode'] ?? 'outside_hours',
             'auto_reply_schedule' => $validated['auto_reply_schedule'] ?? null,
             'auto_reply_cooldown_minutes' => $validated['auto_reply_cooldown_minutes'] ?? 1440,
+            'responder_type' => $validated['responder_type'] ?? 'static_text',
+            'ai_confidence_threshold' => $validated['ai_confidence_threshold'] ?? 0.80,
+            'ai_escalation_enabled' => $validated['ai_escalation_enabled'] ?? true,
+            'ai_escalation_phone' => $validated['ai_escalation_phone'] ?? null,
+            'ai_fallback_message' => $validated['ai_fallback_message'] ?? null,
         ]);
 
         // Sincronizar relaciones
@@ -257,6 +267,11 @@ class BusinessHoursController extends Controller
             'auto_reply_mode' => ['nullable', 'string', 'in:outside_hours,custom_schedule,always'],
             'auto_reply_schedule' => ['nullable', 'array'],
             'auto_reply_cooldown_minutes' => ['nullable', 'integer', 'min:1'],
+            'responder_type' => ['nullable', 'string', 'in:static_text,ai_rag_agent'],
+            'ai_confidence_threshold' => ['nullable', 'numeric', 'min:0.5', 'max:1.0'],
+            'ai_escalation_enabled' => ['nullable', 'boolean'],
+            'ai_escalation_phone' => ['nullable', 'string', 'max:50'],
+            'ai_fallback_message' => ['nullable', 'string', 'max:1500'],
             'user_ids' => ['nullable', 'array'],
             'user_ids.*' => ['string', 'exists:users,id'],
             'channel_ids' => ['nullable', 'array'],
@@ -291,6 +306,11 @@ class BusinessHoursController extends Controller
             'auto_reply_mode' => $validated['auto_reply_mode'] ?? 'outside_hours',
             'auto_reply_schedule' => $validated['auto_reply_schedule'] ?? null,
             'auto_reply_cooldown_minutes' => $validated['auto_reply_cooldown_minutes'] ?? 1440,
+            'responder_type' => $validated['responder_type'] ?? 'static_text',
+            'ai_confidence_threshold' => $validated['ai_confidence_threshold'] ?? 0.80,
+            'ai_escalation_enabled' => $validated['ai_escalation_enabled'] ?? true,
+            'ai_escalation_phone' => $validated['ai_escalation_phone'] ?? null,
+            'ai_fallback_message' => $validated['ai_fallback_message'] ?? null,
         ]);
 
         if (isset($validated['user_ids'])) {
@@ -466,6 +486,7 @@ class BusinessHoursController extends Controller
             'should_auto_reply' => $shouldAutoReply,
             'auto_reply_enabled' => $config->auto_reply_enabled,
             'auto_reply_mode' => $config->auto_reply_mode ?? 'outside_hours',
+            'responder_type' => $config->responder_type ?? 'static_text',
             'auto_reply_message' => ($shouldAutoReply && $config->auto_reply_enabled) ? $config->auto_reply_message : null,
             'timezone' => $config->timezone,
             'current_day' => strtolower($now->format('l')),
