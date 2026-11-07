@@ -568,9 +568,10 @@ const providerOptions = [
 
 const providerModelPresets: Record<string, string[]> = {
   bluesminds: [
-    'meta/llama-3.2-11b-vision-instruct',
-    'openai/gpt-oss-20b',
+    'google/diffusiongemma-26b-a4b-it',
     'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+    'nvidia/nemotron-3.5-lightning-30b-a3b',
+    'meta/muse-glimmer-30b',
   ],
   minimax: ['MiniMax-Text-01', 'abab6.5s-chat', 'abab6.5-chat'],
   gemini: ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'],

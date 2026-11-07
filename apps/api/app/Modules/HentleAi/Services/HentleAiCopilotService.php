@@ -180,6 +180,9 @@ class HentleAiCopilotService
 
         $reply = $response->json('choices.0.message.content');
         if (empty($reply)) {
+            $reply = $response->json('choices.0.message.reasoning_content');
+        }
+        if (empty($reply)) {
             throw new \RuntimeException('La API respondió sin contenido de texto.');
         }
 
