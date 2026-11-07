@@ -820,8 +820,145 @@
             </div>
           </div>
 
-          <!-- Editor del Mensaje y Vista Previa -->
-          <div class="row q-col-gutter-lg q-mt-xs">
+          <!-- Selector de Modo de Respuesta: Texto Fijo vs Guardia IA Autónomo -->
+          <div class="q-mt-md">
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-grey-4 text-bold">MODALIDAD DE RESPUESTA EN AUSENCIA:</span>
+              <q-badge
+                :color="form.responder_type === 'ai_rag_agent' ? 'teal-9' : 'grey-8'"
+                class="text-caption text-bold"
+              >
+                {{ form.responder_type === 'ai_rag_agent' ? '🤖 Guardia Hentle-AI (RAG)' : '📄 Texto Fijo Tradicional' }}
+              </q-badge>
+            </div>
+
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-6">
+                <q-card
+                  flat
+                  bordered
+                  class="cursor-pointer q-pa-sm full-height transition-all"
+                  :class="form.responder_type === 'static_text' ? 'border-primary bg-primary-subtle' : 'border-subtle bg-dark-page'"
+                  @click="form.responder_type = 'static_text'"
+                >
+                  <div class="row items-center q-gutter-x-sm no-wrap">
+                    <q-radio v-model="form.responder_type" val="static_text" color="primary" dense />
+                    <div>
+                      <div class="text-caption text-bold text-white">📄 Mensaje Fijo Tradicional</div>
+                      <div class="text-grey-4" style="font-size: 0.72rem; line-height: 1.2;">
+                        Envía un texto predeterminado invariable (ej: saludo oficial e invitación a esperar).
+                      </div>
+                    </div>
+                  </div>
+                </q-card>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <q-card
+                  flat
+                  bordered
+                  class="cursor-pointer q-pa-sm full-height transition-all"
+                  :class="form.responder_type === 'ai_rag_agent' ? 'border-teal bg-teal-subtle' : 'border-subtle bg-dark-page'"
+                  @click="form.responder_type = 'ai_rag_agent'"
+                >
+                  <div class="row items-center q-gutter-x-sm no-wrap">
+                    <q-radio v-model="form.responder_type" val="ai_rag_agent" color="teal-4" dense />
+                    <div>
+                      <div class="text-caption text-bold text-teal-3">🤖 Guardia Inteligente Hentle-AI (RAG)</div>
+                      <div class="text-grey-4" style="font-size: 0.72rem; line-height: 1.2;">
+                        Responde consultas usando la Base de Conocimiento y Notas. Si no sabe, activa escalación al admin.
+                      </div>
+                    </div>
+                  </div>
+                </q-card>
+              </div>
+            </div>
+          </div>
+
+          <!-- Opciones Específicas del Guardia IA -->
+          <div v-if="form.responder_type === 'ai_rag_agent'" class="q-mt-sm q-pa-md rounded-borders bg-dark-page" style="border: 1px solid rgba(20, 184, 166, 0.35);">
+            <div class="row items-center q-gutter-x-xs q-mb-sm text-teal-3 text-caption text-bold">
+              <q-icon name="sym_r_psychology" size="18px" />
+              <span>PARÁMETROS DEL GUARDIA INTELIGENTE & ESCALACIÓN:</span>
+            </div>
+
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-6 q-gutter-y-xs">
+                <div class="row items-center justify-between text-caption text-grey-4">
+                  <span>Umbral de Certeza RAG:</span>
+                  <span class="text-teal-3 text-bold">{{ Math.round((form.ai_confidence_threshold || 0.8) * 100) }}%</span>
+                </div>
+                <q-slider
+                  v-model="form.ai_confidence_threshold"
+                  :min="0.6"
+                  :max="0.95"
+                  :step="0.05"
+                  color="teal-4"
+                  dark
+                  label
+                  :label-value="`${Math.round((form.ai_confidence_threshold || 0.8) * 100)}%`"
+                />
+                <div class="text-grey-5" style="font-size: 0.70rem;">
+                  Porcentaje mínimo de certeza en manual/notas para responder directamente.
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6 q-gutter-y-xs">
+                <div class="text-caption text-grey-4">WhatsApp del Administrador / Supervisor para Alertas:</div>
+                <q-input
+                  v-model="form.ai_escalation_phone"
+                  dense
+                  outlined
+                  dark
+                  placeholder="Ej: +59178901234"
+                  hint="Recibirá una notificación por WhatsApp si el cliente consulta algo que no está en el manual."
+                >
+                  <template #prepend>
+                    <q-icon name="sym_r_admin_panel_settings" color="teal-4" size="18px" />
+                  </template>
+                </q-input>
+              </div>
+            </div>
+
+            <div class="row items-center justify-between q-mt-sm">
+              <span class="text-caption text-grey-3">
+                Activar alerta al Administrador si la IA no tiene la información en el manual:
+              </span>
+              <q-toggle
+                v-model="form.ai_escalation_enabled"
+                color="teal-4"
+                dense
+              />
+            </div>
+
+            <div class="q-mt-sm">
+              <div class="row items-center justify-between q-mb-xs">
+                <span class="text-caption text-grey-4 text-bold">MENSAJE DE CORTESÍA CUANDO FALTE INFORMACIÓN:</span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="teal-3"
+                  icon="sym_r_restart_alt"
+                  label="Restablecer cortesía"
+                  @click="form.ai_fallback_message = defaultAiFallbackTemplate"
+                />
+              </div>
+              <q-input
+                v-model="form.ai_fallback_message"
+                type="textarea"
+                rows="2"
+                outlined
+                dark
+                maxlength="500"
+                placeholder="Mensaje que se enviará al cliente cuando la IA no tenga la certeza..."
+              />
+            </div>
+          </div>
+
+          <!-- Editor del Mensaje Fijo y Vista Previa (solo para texto fijo) -->
+          <div v-if="form.responder_type === 'static_text'" class="row q-col-gutter-lg q-mt-xs">
             <div class="col-12 col-md-7 q-gutter-y-sm">
               <div class="row items-center justify-between">
                 <span class="text-caption text-grey-4 text-bold">MENSAJE AUTOMÁTICO PROGRAMADO:</span>
@@ -855,6 +992,38 @@
                 <div class="xf-chat-bubble">
                   <div class="text-caption text-white" style="white-space: pre-line; line-height: 1.45;">
                     {{ form.auto_reply_message || '¡Hola! Gracias por comunicarte con nosotros...' }}
+                  </div>
+                  <div class="row justify-end items-center q-gutter-x-xs q-mt-xs">
+                    <span class="text-grey-4" style="font-size: 0.68rem;">{{ currentTime }}</span>
+                    <q-icon name="sym_r_done_all" size="14px" color="teal-3" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista Previa para Guardia IA -->
+          <div v-else class="row q-col-gutter-lg q-mt-xs">
+            <div class="col-12 col-md-7">
+              <q-banner rounded class="bg-dark text-white border-subtle q-pa-md">
+                <template #avatar>
+                  <q-icon name="sym_r_smart_toy" color="teal-4" size="32px" />
+                </template>
+                <div class="text-subtitle2 text-bold text-teal-3">Operación Autónoma Inteligente Activa</div>
+                <div class="text-caption text-grey-4 q-mt-xs">
+                  El Guardia IA atenderá las consultas entrantes cruzando en milisegundos tus artículos en la <strong>Base de Conocimiento</strong> y <strong>Notas Keep</strong>.
+                  <br />
+                  Si la pregunta está fuera del manual o tiene confianza menor al <strong>{{ Math.round((form.ai_confidence_threshold || 0.8) * 100) }}%</strong>, enviará el mensaje de cortesía predeterminado y {{ form.ai_escalation_enabled && form.ai_escalation_phone ? `alertará al WhatsApp ${form.ai_escalation_phone}` : 'generará una notificación interna en el CRM' }}.
+                </div>
+              </q-banner>
+            </div>
+
+            <div class="col-12 col-md-5">
+              <div class="text-caption text-grey-4 text-bold q-mb-xs">VISTA PREVIA EN WHATSAPP (SI FALTA INFO):</div>
+              <div class="xf-whatsapp-preview q-pa-md">
+                <div class="xf-chat-bubble" style="background: #115e59;">
+                  <div class="text-caption text-white" style="white-space: pre-line; line-height: 1.45;">
+                    {{ form.ai_fallback_message || defaultAiFallbackTemplate }}
                   </div>
                   <div class="row justify-end items-center q-gutter-x-xs q-mt-xs">
                     <span class="text-grey-4" style="font-size: 0.68rem;">{{ currentTime }}</span>
@@ -952,6 +1121,9 @@ const isCreatingNew = ref(false)
 
 const defaultMessageTemplate =
   '¡Hola! Gracias por comunicarte con nosotros. En este momento nos encontramos fuera de nuestro horario de atención habitual. Tu mensaje ha sido registrado y un asesor te responderá a la brevedad tan pronto retomemos actividades. ¡Agradecemos tu paciencia!'
+
+const defaultAiFallbackTemplate =
+  'Hola, gracias por comunicarte con nosotros. En este momento nuestros asesores están fuera de turno y no cuento con esa información específica en nuestro manual. Ya registré tu consulta y un asesor te responderá a primera hora.'
 
 const weekDays = [
   { key: 'monday', label: 'Lunes' },
@@ -1086,6 +1258,11 @@ const form = reactive({
   auto_reply_mode: 'outside_hours' as 'outside_hours' | 'custom_schedule' | 'always',
   auto_reply_schedule: defaultAutoReplySchedule(),
   auto_reply_cooldown_minutes: 1440,
+  responder_type: 'static_text' as 'static_text' | 'ai_rag_agent',
+  ai_confidence_threshold: 0.80,
+  ai_escalation_enabled: true,
+  ai_escalation_phone: '',
+  ai_fallback_message: defaultAiFallbackTemplate,
 })
 
 async function fetchConfigs() {
@@ -1143,6 +1320,11 @@ function selectConfig(cfg: any) {
       : defaultAutoReplySchedule().days,
   }
   form.auto_reply_cooldown_minutes = cfg.auto_reply_cooldown_minutes ?? 1440
+  form.responder_type = cfg.responder_type || 'static_text'
+  form.ai_confidence_threshold = Number(cfg.ai_confidence_threshold ?? 0.80)
+  form.ai_escalation_enabled = cfg.ai_escalation_enabled ?? true
+  form.ai_escalation_phone = cfg.ai_escalation_phone || ''
+  form.ai_fallback_message = cfg.ai_fallback_message || defaultAiFallbackTemplate
 
   // Normalizar schedule_days asegurando slots
   const mergedDays = { ...defaultDaysStructure(), ...(cfg.schedule_days || {}) }
@@ -1180,6 +1362,11 @@ function openNewConfigForm() {
   form.auto_reply_mode = 'outside_hours'
   form.auto_reply_schedule = defaultAutoReplySchedule()
   form.auto_reply_cooldown_minutes = 1440
+  form.responder_type = 'static_text'
+  form.ai_confidence_threshold = 0.80
+  form.ai_escalation_enabled = true
+  form.ai_escalation_phone = ''
+  form.ai_fallback_message = defaultAiFallbackTemplate
 }
 
 function cancelCreate() {
@@ -1315,6 +1502,11 @@ async function saveCurrentConfig() {
       auto_reply_mode: form.auto_reply_mode,
       auto_reply_schedule: form.auto_reply_mode === 'custom_schedule' ? form.auto_reply_schedule : null,
       auto_reply_cooldown_minutes: form.auto_reply_cooldown_minutes,
+      responder_type: form.responder_type,
+      ai_confidence_threshold: Number(form.ai_confidence_threshold),
+      ai_escalation_enabled: form.ai_escalation_enabled,
+      ai_escalation_phone: form.ai_escalation_phone ? form.ai_escalation_phone.trim() : null,
+      ai_fallback_message: form.ai_fallback_message ? form.ai_fallback_message.trim() : null,
     }
 
     if (isCreatingNew.value) {
@@ -1504,6 +1696,12 @@ onMounted(() => {
 }
 .border-negative {
   border-color: #ef4444 !important;
+}
+.bg-teal-subtle {
+  background: rgba(20, 184, 166, 0.12) !important;
+}
+.border-teal {
+  border-color: #14b8a6 !important;
 }
 .bg-dark-page {
   background: rgba(0, 0, 0, 0.35) !important;
