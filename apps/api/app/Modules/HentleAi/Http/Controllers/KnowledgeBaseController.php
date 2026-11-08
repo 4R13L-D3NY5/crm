@@ -285,9 +285,17 @@ class KnowledgeBaseController
             'articles.*.title' => ['required', 'string', 'max:200'],
             'articles.*.content' => ['required', 'string'],
             'articles.*.tags' => ['nullable', 'array'],
+            'articles.*.category_ids' => ['nullable', 'array'],
+            'articles.*.category_ids.*' => ['string'],
+            'articles.*.custom_status_ids' => ['nullable', 'array'],
+            'articles.*.custom_status_ids.*' => ['string'],
             'articles.*.create_note' => ['nullable', 'boolean'],
             'articles.*.shortcut' => ['nullable', 'string', 'max:50'],
             'create_notes' => ['nullable', 'boolean'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['string'],
+            'custom_status_ids' => ['nullable', 'array'],
+            'custom_status_ids.*' => ['string'],
             'knowledge_base_id' => ['nullable', 'string'],
             'filename' => ['nullable', 'string', 'max:255'],
         ]);
@@ -312,8 +320,13 @@ class KnowledgeBaseController
         $created = [];
         $notesCreated = 0;
         foreach ($validated['articles'] as $art) {
+            $artCategoryIds = !empty($art['category_ids']) ? $art['category_ids'] : ($validated['category_ids'] ?? []);
+            $artStatusIds = !empty($art['custom_status_ids']) ? $art['custom_status_ids'] : ($validated['custom_status_ids'] ?? []);
+
             $metadata = [
                 'tags' => $art['tags'] ?? ['documento'],
+                'category_ids' => $artCategoryIds,
+                'custom_status_ids' => $artStatusIds,
                 'source_file' => $validated['filename'] ?? 'importacion_ia',
                 'imported_at' => now()->toIso8601String(),
             ];
@@ -337,7 +350,7 @@ class KnowledgeBaseController
                     ? substr(ltrim($art['shortcut'], '#/'), 0, 50)
                     : \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($art['title'], 25, ''));
 
-                \App\Modules\Notes\Models\Note::create([
+                $note = \App\Modules\Notes\Models\Note::create([
                     'organization_id' => $organizationId,
                     'user_id' => $user->id,
                     'title' => $art['title'],
@@ -353,6 +366,14 @@ class KnowledgeBaseController
                         'from_ai_chunk_id' => $chunk->id,
                     ],
                 ]);
+
+                if (!empty($artCategoryIds)) {
+                    $note->categories()->sync($artCategoryIds);
+                }
+                if (!empty($artStatusIds)) {
+                    $note->customStatuses()->sync($artStatusIds);
+                }
+
                 $notesCreated++;
             }
         }
@@ -395,6 +416,13 @@ class KnowledgeBaseController
                 'from_ai_chunk_id' => $chunk->id,
             ],
         ]);
+
+        if (!empty($chunk->metadata['category_ids'])) {
+            $note->categories()->sync($chunk->metadata['category_ids']);
+        }
+        if (!empty($chunk->metadata['custom_status_ids'])) {
+            $note->customStatuses()->sync($chunk->metadata['custom_status_ids']);
+        }
 
         return response()->json([
             'data' => $note,

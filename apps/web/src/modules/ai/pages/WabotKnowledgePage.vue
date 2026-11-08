@@ -721,7 +721,7 @@
               <q-toggle v-model="createNotesGlobal" color="amber-5" @update:model-value="onGlobalNotesToggle" />
             </div>
 
-            <!-- Configuración masiva de Prefijo y Postfijo / Sufijo -->
+            <!-- Configuración masiva de Prefijo, Postfijo, Categorías y Estados -->
             <div
               v-if="createNotesGlobal || extractedArticles.some((a) => a.create_note)"
               class="q-mt-sm q-pt-sm"
@@ -729,21 +729,21 @@
             >
               <div class="row items-center justify-between q-mb-xs">
                 <div class="text-caption text-amber-3 text-weight-medium row items-center q-gutter-x-xs">
-                  <q-icon name="sym_r_tag" size="16px" />
-                  <span>Configurar prefijo o postfijo para todos los atajos (#):</span>
+                  <q-icon name="sym_r_tune" size="16px" />
+                  <span>Configuración masiva de atajos (#), categorías y estados:</span>
                 </div>
                 <div class="text-caption text-grey-4 font-mono" style="font-size: 11px;">
-                  Vista previa: <span class="text-amber-3 text-bold">#{{ previewShortcut }}</span>
+                  Vista previa atajo: <span class="text-amber-3 text-bold">#{{ previewShortcut }}</span>
                 </div>
               </div>
 
               <div class="row items-center q-col-gutter-sm">
-                <div class="col-12 col-sm-5">
+                <div class="col-12 col-sm-6 col-md-3">
                   <q-input
                     v-model="shortcutPrefix"
                     label="Prefijo global"
                     prefix="#"
-                    placeholder="ej: promo-, plan-, serv-"
+                    placeholder="ej: promo-"
                     outlined
                     dark
                     dense
@@ -755,11 +755,11 @@
                     </template>
                   </q-input>
                 </div>
-                <div class="col-12 col-sm-4">
+                <div class="col-12 col-sm-6 col-md-3">
                   <q-input
                     v-model="shortcutSuffix"
                     label="Sufijo / Postfijo"
-                    placeholder="ej: -2026, -bo, -vip"
+                    placeholder="ej: -2026"
                     outlined
                     dark
                     dense
@@ -771,32 +771,119 @@
                     </template>
                   </q-input>
                 </div>
-                <div class="col-12 col-sm-3 row items-center justify-end q-gutter-x-xs">
-                  <q-btn
-                    unelevated
-                    no-caps
+                <div class="col-12 col-sm-6 col-md-3">
+                  <q-select
+                    v-model="globalCategoryIds"
+                    multiple
                     dense
-                    size="sm"
-                    color="amber-8"
-                    icon="sym_r_auto_fix_high"
-                    label="Aplicar"
-                    class="q-px-sm"
-                    @click="applyAffixesToAllShortcuts"
+                    outlined
+                    dark
+                    clearable
+                    emit-value
+                    map-options
+                    use-input
+                    input-debounce="0"
+                    option-value="id"
+                    option-label="name"
+                    :options="filteredCategoriesOptions"
+                    label="Categorías (todos)"
+                    bg-color="dark-page"
+                    @filter="filterCategories"
+                    @update:model-value="applyGlobalCategoriesToAll"
                   >
-                    <q-tooltip>Reaplicar a todos los atajos</q-tooltip>
-                  </q-btn>
-                  <q-btn
-                    flat
-                    dense
-                    no-caps
-                    size="sm"
-                    color="grey-4"
-                    label="Limpiar"
-                    @click="resetAffixes"
-                  >
-                    <q-tooltip>Restablecer atajos originales</q-tooltip>
-                  </q-btn>
+                    <template #selected>
+                      <div v-if="globalCategoryIds?.length" class="row items-center no-wrap ellipsis text-caption text-white">
+                        <q-badge color="teal-8" class="q-mr-xs text-bold">{{ globalCategoryIds.length }}</q-badge>
+                        <span class="ellipsis">{{ getCategoryDisplay(globalCategoryIds[0]) }}</span>
+                        <span v-if="globalCategoryIds.length > 1" class="text-teal-3 text-bold q-ml-xs">
+                          (+{{ globalCategoryIds.length - 1 }})
+                        </span>
+                      </div>
+                    </template>
+                    <template #option="{ itemProps, opt, selected, toggleOption }">
+                      <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                        <q-item-section side class="q-pr-xs">
+                          <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                        </q-item-section>
+                        <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; display: inline-block;" :style="{ backgroundColor: opt.color || '#10b981' }"></span>
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                          <q-item-label caption class="text-teal-3 font-mono text-caption">{{ opt.display_path }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
                 </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                  <q-select
+                    v-model="globalCustomStatusIds"
+                    multiple
+                    dense
+                    outlined
+                    dark
+                    clearable
+                    emit-value
+                    map-options
+                    option-value="id"
+                    option-label="name"
+                    :options="statusesOptions"
+                    label="Estados (todos)"
+                    bg-color="dark-page"
+                    @update:model-value="applyGlobalStatusesToAll"
+                  >
+                    <template #selected>
+                      <div v-if="globalCustomStatusIds?.length" class="row items-center no-wrap ellipsis text-caption text-white">
+                        <q-badge color="blue-8" class="q-mr-xs text-bold">{{ globalCustomStatusIds.length }}</q-badge>
+                        <span class="ellipsis">{{ getStatusDisplay(globalCustomStatusIds[0]) }}</span>
+                        <span v-if="globalCustomStatusIds.length > 1" class="text-blue-3 text-bold q-ml-xs">
+                          (+{{ globalCustomStatusIds.length - 1 }})
+                        </span>
+                      </div>
+                    </template>
+                    <template #option="{ itemProps, opt, selected, toggleOption }">
+                      <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                        <q-item-section side class="q-pr-xs">
+                          <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                        </q-item-section>
+                        <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                          <span style="width: 8px; height: 8px; border-radius: 50%; display: inline-block;" :style="{ backgroundColor: opt.color || '#3b82f6' }"></span>
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
+                </div>
+              </div>
+
+              <div class="row items-center justify-end q-mt-xs q-gutter-x-xs">
+                <q-btn
+                  unelevated
+                  no-caps
+                  dense
+                  size="sm"
+                  color="amber-8"
+                  icon="sym_r_auto_fix_high"
+                  label="Aplicar todo a la lista"
+                  class="q-px-sm"
+                  @click="applyAllGlobalSettings"
+                >
+                  <q-tooltip>Reaplicar atajos, categorías y estados a todos los artículos</q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="sm"
+                  color="grey-4"
+                  label="Limpiar todo"
+                  @click="resetAffixes"
+                >
+                  <q-tooltip>Restablecer valores a los originales</q-tooltip>
+                </q-btn>
               </div>
             </div>
           </div>
@@ -889,19 +976,119 @@
               class="q-mb-sm"
             />
 
-            <q-select
-              v-model="art.tags"
-              label="Etiquetas (presiona Enter para agregar)"
-              use-input
-              use-chips
-              multiple
-              hide-dropdown-icon
-              new-value-mode="add-unique"
-              outlined
-              dark
-              dense
-              class="q-mb-sm"
-            />
+            <!-- Etiquetas, Categorías y Estados del Fragmento / Nota -->
+            <div class="row q-col-gutter-sm q-mb-sm">
+              <div class="col-12 col-md-4">
+                <q-select
+                  v-model="art.tags"
+                  label="Etiquetas (presiona Enter)"
+                  use-input
+                  use-chips
+                  multiple
+                  hide-dropdown-icon
+                  new-value-mode="add-unique"
+                  outlined
+                  dark
+                  dense
+                />
+              </div>
+              <div class="col-12 col-sm-6 col-md-4">
+                <q-select
+                  v-model="art.category_ids"
+                  multiple
+                  dense
+                  outlined
+                  dark
+                  clearable
+                  emit-value
+                  map-options
+                  use-input
+                  input-debounce="0"
+                  option-value="id"
+                  option-label="name"
+                  :options="filteredCategoriesOptions"
+                  label="Categorías / Subcategorías"
+                  @filter="filterCategories"
+                >
+                  <template #selected>
+                    <div v-if="art.category_ids && art.category_ids.length > 0" class="row items-center no-wrap ellipsis text-caption text-white" style="line-height: normal;">
+                      <q-badge color="teal-8" class="q-mr-xs text-bold">{{ art.category_ids.length }}</q-badge>
+                      <span class="ellipsis">{{ getCategoryDisplay(art.category_ids[0]) }}</span>
+                      <span v-if="art.category_ids.length > 1" class="text-teal-3 text-bold q-ml-xs">
+                        (+{{ art.category_ids.length - 1 }})
+                      </span>
+                    </div>
+                  </template>
+                  <template #option="{ itemProps, opt, selected, toggleOption }">
+                    <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                      <q-item-section side class="q-pr-xs">
+                        <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                      </q-item-section>
+                      <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; display: inline-block;" :style="{ backgroundColor: opt.color || '#10b981' }"></span>
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                        <q-item-label caption class="text-teal-3 font-mono text-caption">{{ opt.display_path }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <template #no-option>
+                    <q-item dark>
+                      <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                        No se encontraron categorías
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </div>
+              <div class="col-12 col-sm-6 col-md-4">
+                <q-select
+                  v-model="art.custom_status_ids"
+                  multiple
+                  dense
+                  outlined
+                  dark
+                  clearable
+                  emit-value
+                  map-options
+                  option-value="id"
+                  option-label="name"
+                  :options="statusesOptions"
+                  label="Estados de Lead"
+                >
+                  <template #selected>
+                    <div v-if="art.custom_status_ids && art.custom_status_ids.length > 0" class="row items-center no-wrap ellipsis text-caption text-white" style="line-height: normal;">
+                      <q-badge color="blue-8" class="q-mr-xs text-bold">{{ art.custom_status_ids.length }}</q-badge>
+                      <span class="ellipsis">{{ getStatusDisplay(art.custom_status_ids[0]) }}</span>
+                      <span v-if="art.custom_status_ids.length > 1" class="text-blue-3 text-bold q-ml-xs">
+                        (+{{ art.custom_status_ids.length - 1 }})
+                      </span>
+                    </div>
+                  </template>
+                  <template #option="{ itemProps, opt, selected, toggleOption }">
+                    <q-item v-bind="itemProps" dense dark class="cursor-pointer q-py-xs" @click="toggleOption(opt)">
+                      <q-item-section side class="q-pr-xs">
+                        <q-checkbox :model-value="selected" dense dark @update:model-value="toggleOption(opt)" />
+                      </q-item-section>
+                      <q-item-section avatar style="min-width: 22px" class="q-pr-xs">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; display: inline-block;" :style="{ backgroundColor: opt.color || '#3b82f6' }"></span>
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="text-body2 text-white">{{ opt.name }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <template #no-option>
+                    <q-item dark>
+                      <q-item-section class="text-grey-5 text-caption text-center q-pa-sm">
+                        No se encontraron estados
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </div>
+            </div>
 
             <!-- Opción de Guardar como Nota del CRM individualmente -->
             <div class="row items-center justify-between q-pt-xs" style="border-top: 1px dashed rgba(255, 255, 255, 0.08);">
@@ -976,6 +1163,7 @@ import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from '@/modules/auth/stores/auth.store'
 import { http } from '@/shared/api/http'
+import { formatCategoryDisplayPath, matchesCategorySearch } from '@/modules/parameters/utils/category-formatter'
 import {
   type AiConfigData,
   type AiTestResult,
@@ -1003,6 +1191,8 @@ interface ExtractedArticle {
   title: string
   content: string
   tags: string[]
+  category_ids?: string[]
+  custom_status_ids?: string[]
   create_note?: boolean
   shortcut?: string
   baseShortcut?: string
@@ -1015,12 +1205,93 @@ const extractionMode = ref<'marketing' | 'technical' | 'hybrid'>('marketing')
 const createNotesGlobal = ref(false)
 const shortcutPrefix = ref('')
 const shortcutSuffix = ref('')
+const globalCategoryIds = ref<string[]>([])
+const globalCustomStatusIds = ref<string[]>([])
 const documentFile = ref<File | null>(null)
 const documentRawText = ref('')
 const isExtracting = ref(false)
 const isSavingBatch = ref(false)
 const extractedFilename = ref('')
 const extractedArticles = ref<ExtractedArticle[]>([])
+const categoriesOptions = ref<Array<{ id: string; name: string; color?: string; code?: string; parent_id?: string | null; display_path?: string }>>([])
+const statusesOptions = ref<Array<{ id: string; name: string; color?: string }>>([])
+const categorySearchQuery = ref('')
+
+const formattedCategoriesOptions = computed(() => {
+  return categoriesOptions.value.map((c: any) => {
+    const displayPath = formatCategoryDisplayPath(c, categoriesOptions.value)
+    return {
+      ...c,
+      label: displayPath,
+      name: c.name,
+      display_path: displayPath,
+    }
+  })
+})
+
+const filteredCategoriesOptions = computed(() => {
+  const q = categorySearchQuery.value.toLowerCase().trim()
+  if (!q) return formattedCategoriesOptions.value
+  return formattedCategoriesOptions.value.filter((c: any) =>
+    matchesCategorySearch(c, q, c.display_path)
+  )
+})
+
+function filterCategories(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    categorySearchQuery.value = val
+  })
+}
+
+function getCategoryDisplay(id: string): string {
+  const cat = formattedCategoriesOptions.value.find((c: any) => c.id === id)
+  return cat ? cat.name : id
+}
+
+function getStatusDisplay(id: string): string {
+  const st = statusesOptions.value.find((s: any) => s.id === id)
+  return st ? st.name : id
+}
+
+async function loadCatalogOptions() {
+  try {
+    const [catRes, stRes] = await Promise.all([
+      http.get('/categories'),
+      http.get('/custom-statuses'),
+    ])
+    categoriesOptions.value = catRes.data?.data || []
+    statusesOptions.value = stRes.data?.data || []
+  } catch (err) {
+    console.warn('Error cargando categorías y estados para fragmentos de conocimiento:', err)
+  }
+}
+
+function applyGlobalCategoriesToAll() {
+  extractedArticles.value.forEach((art) => {
+    art.category_ids = [...globalCategoryIds.value]
+  })
+}
+
+function applyGlobalStatusesToAll() {
+  extractedArticles.value.forEach((art) => {
+    art.custom_status_ids = [...globalCustomStatusIds.value]
+  })
+}
+
+function applyAllGlobalSettings() {
+  applyAffixesToAllShortcuts()
+  if (globalCategoryIds.value.length > 0) {
+    applyGlobalCategoriesToAll()
+  }
+  if (globalCustomStatusIds.value.length > 0) {
+    applyGlobalStatusesToAll()
+  }
+  $q.notify({
+    type: 'positive',
+    message: 'Atajos, categorías y estados aplicados a todos los artículos.',
+    position: 'bottom-right',
+  })
+}
 
 const providerOptions = [
   { label: 'Bluesminds AI Gateway (Recomendado)', value: 'bluesminds' },
@@ -1137,7 +1408,7 @@ const newArticle = reactive({
 })
 
 onMounted(async () => {
-  await Promise.all([loadAiConfig(), loadArticles()])
+  await Promise.all([loadAiConfig(), loadArticles(), loadCatalogOptions()])
   if (route.path.includes('config') || route.query.config === 'true') {
     openConfigModal()
   }
@@ -1379,12 +1650,19 @@ function applyAffixesToAllShortcuts() {
 function resetAffixes() {
   shortcutPrefix.value = ''
   shortcutSuffix.value = ''
+  globalCategoryIds.value = []
+  globalCustomStatusIds.value = []
   extractedArticles.value.forEach((art) => {
     art.shortcut = art.baseShortcut || 'nota'
+    art.category_ids = []
+    art.custom_status_ids = []
   })
 }
 
 function openExtractorModal() {
+  if (categoriesOptions.value.length === 0) {
+    loadCatalogOptions()
+  }
   extractionStep.value = 1
   documentFile.value = null
   documentRawText.value = ''
@@ -1394,6 +1672,8 @@ function openExtractorModal() {
   createNotesGlobal.value = false
   shortcutPrefix.value = ''
   shortcutSuffix.value = ''
+  globalCategoryIds.value = []
+  globalCustomStatusIds.value = []
   isExtractorModalOpen.value = true
 }
 
@@ -1413,6 +1693,8 @@ function addManualExtractedArticle() {
     title: 'Nuevo artículo complementario',
     content: '',
     tags: ['general'],
+    category_ids: [...globalCategoryIds.value],
+    custom_status_ids: [...globalCustomStatusIds.value],
     create_note: createNotesGlobal.value,
     baseShortcut: base,
     shortcut: computeArticleShortcut(base, shortcutPrefix.value, shortcutSuffix.value),
@@ -1513,6 +1795,8 @@ async function analyzeDocumentWithAi() {
           title: cleanTitle,
           content: a.content || '',
           tags: Array.isArray(a.tags) ? a.tags : ['publicidad', 'redes'],
+          category_ids: [...globalCategoryIds.value],
+          custom_status_ids: [...globalCustomStatusIds.value],
           create_note: createNotesGlobal.value,
           baseShortcut: base,
           shortcut: computeArticleShortcut(base, shortcutPrefix.value, shortcutSuffix.value),
@@ -1561,9 +1845,13 @@ async function saveExtractedBatch() {
         title: a.title,
         content: a.content,
         tags: a.tags,
+        category_ids: a.category_ids || [],
+        custom_status_ids: a.custom_status_ids || [],
         create_note: a.create_note ?? createNotesGlobal.value,
         shortcut: a.shortcut,
       })),
+      category_ids: globalCategoryIds.value,
+      custom_status_ids: globalCustomStatusIds.value,
       create_notes: createNotesGlobal.value,
       filename: extractedFilename.value || (documentFile.value ? documentFile.value.name : 'importacion_ia'),
     })
