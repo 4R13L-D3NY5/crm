@@ -258,9 +258,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useQuasar } from 'quasar'
+import { http } from '@/shared/api/http'
 import AppEmptyState from '@/shared/components/AppEmptyState.vue'
 import { acceptTicket, closeTicket, transferTicket } from '../api/conversations.api'
 import type { Conversation, QueueSummary } from '../types/conversation.types'
+
+const $q = useQuasar()
 
 const props = defineProps<{
   conversation: Conversation | null
@@ -301,8 +305,23 @@ async function transcribeVoiceMessage(message: any) {
   if (!props.conversation) return
   try {
     transcribingMessageId.value = message.id
-    // Transcripción asistida en vivo
-    message.transcription = "Hola muy buenas tardes, quería consultar sobre los precios, cotizaciones y catálogo de productos disponibles para entrega inmediata. Muchas gracias."
+    const res = await http.post(`/conversations/${props.conversation.id}/messages/${message.id}/transcribe`)
+    if (res.data?.data?.transcription) {
+      message.transcription = res.data.data.transcription
+      message.transcription_status = 'completed'
+      $q.notify({
+        type: 'positive',
+        message: 'Nota de voz transcrita con éxito.',
+        position: 'bottom-right',
+      })
+    }
+  } catch (err: any) {
+    console.error('Error al transcribir audio:', err)
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al transcribir nota de voz con IA.',
+      position: 'bottom-right',
+    })
   } finally {
     transcribingMessageId.value = null
   }
