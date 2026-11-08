@@ -256,16 +256,17 @@ class HentleAiCopilotService
         }
 
         $systemInstruction = "Eres un arquitecto senior de información especializado en RAG (Retrieval-Augmented Generation) y Bases de Conocimiento corporativas.
-Tu labor es leer con atención el documento provisto y desglosarlo en fragmentos (chunks) atómicos de conocimiento altamente informativos, estructurados y auto-contenidos.
-Cada fragmento debe abarcar un tema concreto (ej. Precios y Paquetes, Requisitos Técnicos, Metodología de Trabajo, Políticas de Pago y Cancelación, etc.).
+Tu labor es leer con atención el documento provisto (manuales, directivas, listas de precios, tablas de Excel/CSV o catálogos) y desglosarlo en fragmentos (chunks) atómicos de conocimiento altamente informativos, estructurados y auto-contenidos.
+Cada fragmento debe abarcar un tema o categoría de productos concreto (ej. Precios y Tarifas, Planes de Suscripción, Requisitos Técnicos, Políticas de Pago y Cancelación, Catálogo de Productos por Familia, etc.).
+Si el documento es una tabla de catálogo o lista de precios (Excel/CSV), agrupa lógicamente los productos por categoría o crea artículos claros con los nombres, especificaciones y precios exactos para que los agentes de WhatsApp puedan consultar precios y detalles inmediatamente.
 
 REGLAS CRÍTICAS:
 1. Responde ÚNICAMENTE con un array JSON válido. NO incluyas explicaciones, saludos ni bloques de markdown con ```json.
 2. Cada objeto del array debe tener exactamente estos campos:
-   - \"title\": Título claro y conciso del tema o servicio (máximo 90 caracteres).
-   - \"content\": El contenido limpio y completo del fragmento (entre 60 y 250 palabras). Mantén datos numéricos exactos, precios, monedas, plazos, teléfonos y condiciones.
+   - \"title\": Título claro y conciso del tema o categoría de producto (máximo 90 caracteres).
+   - \"content\": El contenido limpio y completo del fragmento (entre 60 y 250 palabras). Mantén datos numéricos exactos, precios, monedas, códigos de producto, plazos, teléfonos y condiciones.
    - \"tags\": Array de 2 a 4 palabras clave relevantes.
-3. Si el documento contiene múltiples servicios o políticas, sepáralos en artículos individuales.";
+3. Si el documento contiene múltiples servicios, productos o políticas, sepáralos en artículos individuales.";
 
         $prompt = "DOCUMENTO A PROCESAR:\n\n" . mb_substr($text, 0, 15000) . "\n\nAnaliza y divide en fragmentos de conocimiento atómicos en formato JSON según las instrucciones:";
 

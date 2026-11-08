@@ -598,7 +598,7 @@
             <div class="text-caption text-grey-4">
               {{
                 extractionStep === 1
-                  ? 'Sube un archivo (.pdf, .docx, .txt, .md) o pega texto extenso. La IA estructurará automáticamente los conocimientos en fragmentos atómicos.'
+                  ? 'Sube un archivo Excel (.xlsx, .xls, .csv) o documento (.pdf, .docx, .txt, .md). La IA estructurará automáticamente catálogos, listas de precios y conocimientos.'
                   : `Archivo: ${extractedFilename} • Revisa, edita o elimina fragmentos antes de guardarlos y vectorizarlos.`
               }}
             </div>
@@ -611,16 +611,16 @@
           <div class="q-pa-md rounded-borders" style="background: rgba(0, 168, 132, 0.05); border: 2px dashed rgba(0, 168, 132, 0.35);">
             <div class="text-subtitle2 text-bold text-teal-3 q-mb-sm row items-center q-gutter-x-xs">
               <q-icon name="sym_r_upload_file" size="20px" />
-              <span>Opción 1: Subir Archivo (.pdf, .docx, .txt, .md, .csv)</span>
+              <span>Opción 1: Subir Archivo Excel, Documento o Catálogo (.xlsx, .xls, .csv, .pdf, .docx, .txt, .md)</span>
             </div>
             <q-file
               v-model="documentFile"
-              label="Seleccionar o soltar archivo (máx. 15MB)"
+              label="Seleccionar o soltar archivo (Excel, PDF, Word o Texto - máx. 15MB)"
               outlined
               dark
               dense
               clearable
-              accept=".pdf,.docx,.txt,.md,.json,.csv"
+              accept=".xlsx,.xls,.csv,.pdf,.docx,.txt,.md,.json"
               max-file-size="15728640"
             >
               <template #prepend>
@@ -653,7 +653,7 @@
           <div class="q-pa-sm rounded-borders bg-dark text-grey-4 text-caption row items-start q-gutter-x-sm border-subtle">
             <q-icon name="sym_r_lightbulb" color="amber-4" size="18px" class="q-mt-xs" />
             <div>
-              <strong>¿Cómo funciona?</strong> La IA activa ({{ activeProviderLabel }}) leerá el contenido completo, identificará las temáticas principales (servicios, precios, políticas, dudas frecuentes) y dividirá el documento en artículos concisos con etiquetas. Podrás revisar y ajustar cada artículo en el siguiente paso.
+              <strong>¿Cómo funciona con Excel y catálogos?</strong> La IA activa ({{ activeProviderLabel }}) interpreta las tablas, columnas de precios, códigos de producto y especificaciones de las hojas de cálculo (.xlsx, .xls, .csv). Agrupa y genera artículos limpios por producto o categoría para que el Copiloto pueda cotizar y responder con precisión en WhatsApp.
             </div>
           </div>
         </q-card-section>
@@ -1163,7 +1163,7 @@ async function analyzeDocumentWithAi() {
   if (!documentFile.value && !documentRawText.value.trim()) {
     $q.notify({
       type: 'warning',
-      message: 'Selecciona un archivo (.pdf, .docx, .txt, .md) o pega texto para analizar.',
+      message: 'Selecciona un archivo (.xlsx, .xls, .csv, .pdf, .docx, .txt, .md) o pega texto para analizar.',
       position: 'bottom-right',
     })
     return

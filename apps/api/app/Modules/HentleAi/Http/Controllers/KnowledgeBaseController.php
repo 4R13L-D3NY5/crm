@@ -195,15 +195,23 @@ class KnowledgeBaseController
                         'message' => 'Error al leer el archivo Word DOCX: ' . $e->getMessage(),
                     ], 422);
                 }
+            } elseif (in_array($ext, ['xlsx', 'xls', 'csv'])) {
+                try {
+                    $text = $this->extractTextFromSpreadsheet($file->getRealPath(), $ext);
+                } catch (\Throwable $e) {
+                    return response()->json([
+                        'message' => 'Error al leer hoja de cálculo (' . strtoupper($ext) . '): ' . $e->getMessage(),
+                    ], 422);
+                }
             } else {
-                // txt, md, json, csv
+                // txt, md, json
                 $text = file_get_contents($file->getRealPath());
             }
         } elseif ($request->filled('raw_text')) {
             $text = $request->input('raw_text');
         } else {
             return response()->json([
-                'message' => 'Debes proporcionar un archivo (.pdf, .docx, .txt, .md) o texto para analizar.',
+                'message' => 'Debes proporcionar un archivo (.pdf, .docx, .xlsx, .xls, .csv, .txt, .md) o texto para analizar.',
             ], 422);
         }
 
@@ -290,5 +298,115 @@ class KnowledgeBaseController
             'count' => count($created),
             'message' => count($created) . ' artículos de conocimiento registrados y vectorizados exitosamente.',
         ], 201);
+    }
+
+    /**
+     * Extrae y estructura el contenido tabular de archivos Excel (.xlsx, .xls) o CSV en formato Markdown.
+     */
+    protected function extractTextFromSpreadsheet(string $filePath, string $ext): string
+    {
+        $lines = [];
+
+        if ($ext === 'xlsx') {
+            if ($xlsx = \Shuchkin\SimpleXLSX::parse($filePath)) {
+                $sheetNames = $xlsx->sheetNames();
+                foreach ($sheetNames as $sheetIndex => $sheetName) {
+                    $rows = $xlsx->rows($sheetIndex);
+                    if (empty($rows)) {
+                        continue;
+                    }
+                    $lines[] = "### Hoja: " . $sheetName;
+                    foreach ($rows as $rowIndex => $row) {
+                        $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
+                        if (empty($nonEmpty)) {
+                            continue;
+                        }
+                        $cleanCells = array_map(
+                            fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
+                            $row
+                        );
+                        $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
+                        if ($rowIndex === 0) {
+                            $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
+                        }
+                    }
+                    $lines[] = '';
+                }
+                return implode("\n", $lines);
+            }
+            throw new \RuntimeException('No se pudo procesar el archivo Excel XLSX: ' . \Shuchkin\SimpleXLSX::parseError());
+        }
+
+        if ($ext === 'xls') {
+            // Verificar si es una exportación HTML con extensión .xls
+            $raw = file_get_contents($filePath);
+            if (stripos($raw, '<table') !== false || stripos($raw, '<tr') !== false) {
+                return trim(strip_tags(str_replace(['</tr>', '</td>', '</th>'], ["\n", "\t", "\t"], $raw)));
+            }
+
+            require_once app_path('Modules/HentleAi/Support/SimpleXLS.php');
+            if ($xls = \Shuchkin\SimpleXLS::parse($filePath)) {
+                $sheetNames = $xls->sheetNames();
+                foreach ($sheetNames as $sheetIndex => $sheetName) {
+                    $rows = $xls->rows($sheetIndex);
+                    if (empty($rows)) {
+                        continue;
+                    }
+                    $lines[] = "### Hoja: " . $sheetName;
+                    foreach ($rows as $rowIndex => $row) {
+                        $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
+                        if (empty($nonEmpty)) {
+                            continue;
+                        }
+                        $cleanCells = array_map(
+                            fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
+                            $row
+                        );
+                        $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
+                        if ($rowIndex === 0) {
+                            $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
+                        }
+                    }
+                    $lines[] = '';
+                }
+                return implode("\n", $lines);
+            }
+            throw new \RuntimeException('No se pudo procesar el archivo Excel XLS: ' . \Shuchkin\SimpleXLS::parseError());
+        }
+
+        if ($ext === 'csv') {
+            if (($handle = fopen($filePath, 'r')) !== false) {
+                $firstLine = fgets($handle);
+                rewind($handle);
+                $delimiter = ',';
+                if (substr_count($firstLine, ';') > substr_count($firstLine, ',')) {
+                    $delimiter = ';';
+                } elseif (substr_count($firstLine, "\t") > substr_count($firstLine, ',')) {
+                    $delimiter = "\t";
+                }
+
+                $rowIndex = 0;
+                while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+                    $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
+                    if (empty($nonEmpty)) {
+                        continue;
+                    }
+                    $cleanCells = array_map(
+                        fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
+                        $row
+                    );
+                    $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
+                    if ($rowIndex === 0) {
+                        $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
+                    }
+                    $rowIndex++;
+                }
+                fclose($handle);
+                return implode("\n", $lines);
+            }
+            return file_get_contents($filePath);
+        }
+
+        return file_get_contents($filePath);
     }
 }

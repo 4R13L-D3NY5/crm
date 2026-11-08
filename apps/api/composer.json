@@ -10,6 +10,8 @@
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
+        "shuchkin/simplexls": "*",
+        "shuchkin/simplexlsx": "^1.1",
         "smalot/pdfparser": "^2.13"
     },
     "require-dev": {
