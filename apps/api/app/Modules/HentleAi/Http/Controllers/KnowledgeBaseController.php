@@ -312,111 +312,110 @@ class KnowledgeBaseController
 
     /**
      * Extrae y estructura el contenido tabular de archivos Excel (.xlsx, .xls) o CSV en formato Markdown.
+     * Detecta automáticamente el formato interno real (OpenXML ZIP, OLE2 BIFF8, HTML o texto/CSV)
+     * independientemente de la extensión que tenga el archivo.
      */
     protected function extractTextFromSpreadsheet(string $filePath, string $ext): string
     {
-        $lines = [];
+        $handle = fopen($filePath, 'r');
+        $header = fread($handle, 8);
+        fclose($handle);
 
-        if ($ext === 'xlsx') {
+        $isZip = str_starts_with($header, "PK\x03\x04");
+        $isOle = str_starts_with($header, "\xD0\xCF\x11\xE0");
+
+        // 1. Si el archivo es un contenedor ZIP (OpenXML moderno .xlsx o .xls con contenido XLSX)
+        if ($isZip || $ext === 'xlsx') {
             if ($xlsx = \Shuchkin\SimpleXLSX::parse($filePath)) {
-                $sheetNames = $xlsx->sheetNames();
-                foreach ($sheetNames as $sheetIndex => $sheetName) {
-                    $rows = $xlsx->rows($sheetIndex);
-                    if (empty($rows)) {
-                        continue;
-                    }
-                    $lines[] = "### Hoja: " . $sheetName;
-                    foreach ($rows as $rowIndex => $row) {
-                        $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
-                        if (empty($nonEmpty)) {
-                            continue;
-                        }
-                        $cleanCells = array_map(
-                            fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
-                            $row
-                        );
-                        $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
-                        if ($rowIndex === 0) {
-                            $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
-                        }
-                    }
-                    $lines[] = '';
-                }
-                return implode("\n", $lines);
+                return $this->formatWorkbookToMarkdown($xlsx);
             }
-            throw new \RuntimeException('No se pudo procesar el archivo Excel XLSX: ' . \Shuchkin\SimpleXLSX::parseError());
         }
 
-        if ($ext === 'xls') {
-            // Verificar si es una exportación HTML con extensión .xls
-            $raw = file_get_contents($filePath);
-            if (stripos($raw, '<table') !== false || stripos($raw, '<tr') !== false) {
-                return trim(strip_tags(str_replace(['</tr>', '</td>', '</th>'], ["\n", "\t", "\t"], $raw)));
-            }
+        // 2. Si es una exportación HTML o XML con extensión .xls
+        $raw = file_get_contents($filePath);
+        if (stripos($raw, '<table') !== false || stripos($raw, '<tr') !== false) {
+            return trim(strip_tags(str_replace(['</tr>', '</td>', '</th>'], ["\n", "\t", "\t"], $raw)));
+        }
 
-            require_once app_path('Modules/HentleAi/Support/SimpleXLS.php');
+        // 3. Si es binario OLE2 (Excel 97-2003 BIFF8 .xls clásico)
+        require_once app_path('Modules/HentleAi/Support/SimpleXLS.php');
+        if ($isOle || $ext === 'xls') {
             if ($xls = \Shuchkin\SimpleXLS::parse($filePath)) {
-                $sheetNames = $xls->sheetNames();
-                foreach ($sheetNames as $sheetIndex => $sheetName) {
-                    $rows = $xls->rows($sheetIndex);
-                    if (empty($rows)) {
-                        continue;
-                    }
-                    $lines[] = "### Hoja: " . $sheetName;
-                    foreach ($rows as $rowIndex => $row) {
-                        $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
-                        if (empty($nonEmpty)) {
-                            continue;
-                        }
-                        $cleanCells = array_map(
-                            fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
-                            $row
-                        );
-                        $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
-                        if ($rowIndex === 0) {
-                            $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
-                        }
-                    }
-                    $lines[] = '';
-                }
-                return implode("\n", $lines);
+                return $this->formatWorkbookToMarkdown($xls);
             }
-            throw new \RuntimeException('No se pudo procesar el archivo Excel XLS: ' . \Shuchkin\SimpleXLS::parseError());
         }
 
-        if ($ext === 'csv') {
-            if (($handle = fopen($filePath, 'r')) !== false) {
-                $firstLine = fgets($handle);
-                rewind($handle);
-                $delimiter = ',';
-                if (substr_count($firstLine, ';') > substr_count($firstLine, ',')) {
-                    $delimiter = ';';
-                } elseif (substr_count($firstLine, "\t") > substr_count($firstLine, ',')) {
-                    $delimiter = "\t";
-                }
+        // 4. Intentar fallback cruzado con SimpleXLSX por si el header varió
+        if ($xlsx = \Shuchkin\SimpleXLSX::parse($filePath)) {
+            return $this->formatWorkbookToMarkdown($xlsx);
+        }
 
-                $rowIndex = 0;
-                while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
-                    $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
-                    if (empty($nonEmpty)) {
-                        continue;
-                    }
-                    $cleanCells = array_map(
-                        fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
-                        $row
-                    );
-                    $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
-                    if ($rowIndex === 0) {
-                        $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
-                    }
-                    $rowIndex++;
+        // 5. Formato CSV / Delimitado por comas, punto y coma o tabulación
+        if (($handle = fopen($filePath, 'r')) !== false) {
+            $firstLine = fgets($handle);
+            rewind($handle);
+            $delimiter = ',';
+            if (substr_count($firstLine, ';') > substr_count($firstLine, ',')) {
+                $delimiter = ';';
+            } elseif (substr_count($firstLine, "\t") > substr_count($firstLine, ',')) {
+                $delimiter = "\t";
+            }
+
+            $lines = [];
+            $rowIndex = 0;
+            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+                $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
+                if (empty($nonEmpty)) {
+                    continue;
                 }
-                fclose($handle);
+                $cleanCells = array_map(
+                    fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
+                    $row
+                );
+                $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
+                if ($rowIndex === 0) {
+                    $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
+                }
+                $rowIndex++;
+            }
+            fclose($handle);
+            if (!empty($lines)) {
                 return implode("\n", $lines);
             }
-            return file_get_contents($filePath);
         }
 
         return file_get_contents($filePath);
+    }
+
+    /**
+     * Convierte hojas y filas de SimpleXLSX o SimpleXLS en tablas Markdown legibles.
+     */
+    protected function formatWorkbookToMarkdown(object $workbook): string
+    {
+        $lines = [];
+        $sheetNames = $workbook->sheetNames();
+        foreach ($sheetNames as $sheetIndex => $sheetName) {
+            $rows = $workbook->rows($sheetIndex);
+            if (empty($rows)) {
+                continue;
+            }
+            $lines[] = "### Hoja: " . $sheetName;
+            foreach ($rows as $rowIndex => $row) {
+                $nonEmpty = array_filter($row, fn ($val) => trim((string) $val) !== '');
+                if (empty($nonEmpty)) {
+                    continue;
+                }
+                $cleanCells = array_map(
+                    fn ($c) => trim(str_replace(["\r", "\n", '|'], [' ', ' ', '/'], (string) $c)),
+                    $row
+                );
+                $lines[] = '| ' . implode(' | ', $cleanCells) . ' |';
+                if ($rowIndex === 0) {
+                    $lines[] = '| ' . implode(' | ', array_fill(0, count($cleanCells), '---')) . ' |';
+                }
+            }
+            $lines[] = '';
+        }
+        return implode("\n", $lines);
     }
 }
