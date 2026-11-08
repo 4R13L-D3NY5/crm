@@ -180,7 +180,7 @@ class KnowledgeBaseController
                         'message' => 'Error al leer el archivo PDF: ' . $e->getMessage(),
                     ], 422);
                 }
-            } elseif ($ext === 'docx') {
+            } elseif (in_array($ext, ['docx', 'doc'])) {
                 try {
                     $zip = new \ZipArchive();
                     if ($zip->open($file->getRealPath()) === true) {
@@ -189,10 +189,20 @@ class KnowledgeBaseController
                         if ($xml) {
                             $text = strip_tags(str_replace(['</w:p>', '</w:tr>'], ["\n", "\n"], $xml));
                         }
+                    } else {
+                        // Respaldo para documentos Word basados en RTF, HTML o texto
+                        $raw = file_get_contents($file->getRealPath());
+                        if (stripos($raw, '{\rtf') === 0 || stripos($raw, '<html') !== false || stripos($raw, '<body') !== false) {
+                            $text = strip_tags($raw);
+                        } else {
+                            // Extraer secuencias legibles UTF-8 / ASCII de binario .doc
+                            preg_match_all('/[\x20-\x7E\xA0-\xFF\r\n]{4,}/u', $raw, $matches);
+                            $text = implode("\n", $matches[0] ?? []);
+                        }
                     }
                 } catch (\Throwable $e) {
                     return response()->json([
-                        'message' => 'Error al leer el archivo Word DOCX: ' . $e->getMessage(),
+                        'message' => 'Error al leer el archivo Word (' . strtoupper($ext) . '): ' . $e->getMessage(),
                     ], 422);
                 }
             } elseif (in_array($ext, ['xlsx', 'xls', 'csv'])) {

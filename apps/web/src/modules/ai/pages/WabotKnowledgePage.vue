@@ -620,7 +620,7 @@
               dark
               dense
               clearable
-              accept=".xlsx,.xls,.csv,.pdf,.docx,.txt,.md,.json"
+              accept=".xlsx,.xls,.csv,.pdf,.docx,.doc,.txt,.md,.json"
               max-file-size="15728640"
             >
               <template #prepend>
