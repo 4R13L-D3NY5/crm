@@ -157,11 +157,13 @@ class KnowledgeBaseController
 
     public function extractDocument(Request $request, \App\Modules\HentleAi\Services\HentleAiCopilotService $copilotService): JsonResponse
     {
-        $request->validate([
+        $validatedInput = $request->validate([
             'file' => ['nullable', 'file', 'max:15360'], // 15MB
             'raw_text' => ['nullable', 'string', 'min:20'],
+            'mode' => ['nullable', 'string', 'in:technical,marketing,hybrid'],
         ]);
 
+        $mode = $validatedInput['mode'] ?? 'technical';
         $text = '';
         $filename = 'Texto pegado';
 
@@ -234,7 +236,7 @@ class KnowledgeBaseController
         }
 
         try {
-            $articles = $copilotService->extractArticlesFromDocument($cleanText, $request->user()->current_organization_id);
+            $articles = $copilotService->extractArticlesFromDocument($cleanText, $request->user()->current_organization_id, $mode);
 
             return response()->json([
                 'data' => [
@@ -251,6 +253,28 @@ class KnowledgeBaseController
         }
     }
 
+    public function transformArticle(Request $request, \App\Modules\HentleAi\Services\HentleAiCopilotService $copilotService): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:200'],
+            'content' => ['required', 'string'],
+            'target_style' => ['nullable', 'string', 'in:marketing,technical'],
+        ]);
+
+        $style = $validated['target_style'] ?? 'marketing';
+        $result = $copilotService->transformArticleStyle(
+            $validated['title'],
+            $validated['content'],
+            $style,
+            $request->user()->current_organization_id
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => $style === 'marketing' ? 'Artículo transformado a Copy Publicitario para Redes.' : 'Artículo adaptado a formato técnico.',
+        ]);
+    }
+
     public function batchStoreChunks(Request $request): JsonResponse
     {
         $organizationId = $request->user()->current_organization_id;
@@ -261,6 +285,9 @@ class KnowledgeBaseController
             'articles.*.title' => ['required', 'string', 'max:200'],
             'articles.*.content' => ['required', 'string'],
             'articles.*.tags' => ['nullable', 'array'],
+            'articles.*.create_note' => ['nullable', 'boolean'],
+            'articles.*.shortcut' => ['nullable', 'string', 'max:50'],
+            'create_notes' => ['nullable', 'boolean'],
             'knowledge_base_id' => ['nullable', 'string'],
             'filename' => ['nullable', 'string', 'max:255'],
         ]);
@@ -283,6 +310,7 @@ class KnowledgeBaseController
         }
 
         $created = [];
+        $notesCreated = 0;
         foreach ($validated['articles'] as $art) {
             $metadata = [
                 'tags' => $art['tags'] ?? ['documento'],
@@ -301,12 +329,76 @@ class KnowledgeBaseController
 
             $chunk->load(['user:id,name,email', 'knowledgeBase:id,name']);
             $created[] = $chunk;
+
+            // Crear Nota en el CRM si fue solicitado (global o por artículo)
+            $shouldCreateNote = !empty($validated['create_notes']) || !empty($art['create_note']);
+            if ($shouldCreateNote) {
+                $rawShortcut = !empty($art['shortcut'])
+                    ? ltrim($art['shortcut'], '#/')
+                    : \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($art['title'], 25, ''));
+
+                \App\Modules\Notes\Models\Note::create([
+                    'organization_id' => $organizationId,
+                    'user_id' => $user->id,
+                    'title' => $art['title'],
+                    'content' => $art['content'],
+                    'shortcut' => $rawShortcut ?: null,
+                    'color' => '#1e293b',
+                    'is_pinned' => false,
+                    'is_archived' => false,
+                    'visibility' => 'all',
+                    'metadata' => [
+                        'tags' => $art['tags'] ?? [],
+                        'source_file' => $validated['filename'] ?? 'importacion_ia',
+                        'from_ai_chunk_id' => $chunk->id,
+                    ],
+                ]);
+                $notesCreated++;
+            }
+        }
+
+        $msg = count($created) . ' artículos de conocimiento registrados y vectorizados exitosamente.';
+        if ($notesCreated > 0) {
+            $msg .= " Además se crearon {$notesCreated} Notas en el CRM.";
         }
 
         return response()->json([
             'data' => $created,
             'count' => count($created),
-            'message' => count($created) . ' artículos de conocimiento registrados y vectorizados exitosamente.',
+            'notes_count' => $notesCreated,
+            'message' => $msg,
+        ], 201);
+    }
+
+    public function createNoteFromChunk(Request $request, string $id): JsonResponse
+    {
+        $organizationId = $request->user()->current_organization_id;
+        $user = $request->user();
+
+        $chunk = AiKnowledgeChunk::where('organization_id', $organizationId)->findOrFail($id);
+
+        $shortcut = \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($chunk->title ?? 'nota', 25, ''));
+
+        $note = \App\Modules\Notes\Models\Note::create([
+            'organization_id' => $organizationId,
+            'user_id' => $user->id,
+            'title' => $chunk->title,
+            'content' => $chunk->content,
+            'shortcut' => $shortcut ?: null,
+            'color' => '#1e293b',
+            'is_pinned' => false,
+            'is_archived' => false,
+            'visibility' => 'all',
+            'metadata' => [
+                'tags' => $chunk->metadata['tags'] ?? [],
+                'source_file' => $chunk->metadata['source_file'] ?? 'base_conocimiento',
+                'from_ai_chunk_id' => $chunk->id,
+            ],
+        ]);
+
+        return response()->json([
+            'data' => $note,
+            'message' => "Nota '{$note->title}' creada exitosamente en el CRM.",
         ], 201);
     }
 

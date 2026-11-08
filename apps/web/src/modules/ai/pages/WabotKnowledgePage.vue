@@ -147,18 +147,31 @@
                   <span>Registrado por: <strong class="text-grey-3">{{ art.user?.name || 'Administración' }}</strong></span>
                   <span v-if="art.created_at" class="text-grey-6 font-mono">• {{ formatDate(art.created_at) }}</span>
                 </div>
-                <q-btn
-                  v-if="canDeleteArticle(art)"
-                  flat
-                  round
-                  dense
-                  icon="sym_r_delete"
-                  color="negative"
-                  size="sm"
-                  @click="deleteArticle(art.id)"
-                >
-                  <q-tooltip>Eliminar artículo</q-tooltip>
-                </q-btn>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    icon="sym_r_note_add"
+                    color="amber-4"
+                    size="sm"
+                    @click="createNoteFromArticleCard(art.id)"
+                  >
+                    <q-tooltip>Guardar también como Nota en el CRM</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    v-if="canDeleteArticle(art)"
+                    flat
+                    round
+                    dense
+                    icon="sym_r_delete"
+                    color="negative"
+                    size="sm"
+                    @click="deleteArticle(art.id)"
+                  >
+                    <q-tooltip>Eliminar artículo</q-tooltip>
+                  </q-btn>
+                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -608,10 +621,43 @@
 
         <!-- Paso 1: Carga de archivo o texto -->
         <q-card-section v-if="extractionStep === 1" class="q-gutter-y-md col scroll">
+          <!-- Selector de Estilo y Propósito del Contenido -->
+          <div class="q-pa-sm rounded-borders bg-dark border-subtle">
+            <div class="text-caption text-bold text-teal-3 q-mb-xs row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_tune" color="teal-4" size="18px" />
+              <span>Estilo y Propósito del Contenido Elaborado:</span>
+            </div>
+            <q-btn-toggle
+              v-model="extractionMode"
+              spread
+              no-caps
+              rounded
+              dense
+              toggle-color="teal-8"
+              color="grey-9"
+              text-color="grey-4"
+              toggle-text-color="white"
+              :options="[
+                { label: '🚀 Copy Publicitario & Redes (Emojis)', value: 'marketing' },
+                { label: '📚 FAQ & Base Técnica', value: 'technical' },
+                { label: '⚡ Híbrido (Ambos)', value: 'hybrid' }
+              ]"
+            />
+            <div class="text-caption text-grey-4 q-mt-xs" style="font-size: 11px;">
+              {{
+                extractionMode === 'marketing'
+                  ? '✨ Estructura tipo redes sociales con emojis elegantes (🔥, ✅, 📲), gancho comercial, viñetas de beneficios, precios y llamada a la acción (CTA) listo para WhatsApp y campañas.'
+                  : (extractionMode === 'technical'
+                      ? '📖 Estructura analítica, formal y precisa para respuestas de soporte al cliente, políticas y documentación corporativa.'
+                      : '⚡ Genera simultáneamente artículos técnicos y variantes de copy promocional para cada producto o servicio.')
+              }}
+            </div>
+          </div>
+
           <div class="q-pa-md rounded-borders" style="background: rgba(0, 168, 132, 0.05); border: 2px dashed rgba(0, 168, 132, 0.35);">
             <div class="text-subtitle2 text-bold text-teal-3 q-mb-sm row items-center q-gutter-x-xs">
               <q-icon name="sym_r_upload_file" size="20px" />
-              <span>Opción 1: Subir Archivo Excel, Documento o Catálogo (.xlsx, .xls, .csv, .pdf, .docx, .txt, .md)</span>
+              <span>Opción 1: Subir Archivo Excel, Documento o Catálogo (.xlsx, .xls, .csv, .pdf, .docx, .doc, .txt, .md)</span>
             </div>
             <q-file
               v-model="documentFile"
@@ -642,7 +688,7 @@
               v-model="documentRawText"
               label="Pega aquí el contenido (catálogos, listas de precios, políticas, notas, etc.)"
               type="textarea"
-              rows="6"
+              rows="5"
               outlined
               dark
               dense
@@ -660,6 +706,20 @@
 
         <!-- Paso 2: Vista previa y edición de artículos extraídos -->
         <q-card-section v-else class="q-gutter-y-md col scroll">
+          <!-- Barra de Generación en Notas del CRM -->
+          <div class="row items-center justify-between q-pa-sm rounded-borders border-subtle" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3);">
+            <div class="row items-center q-gutter-x-sm">
+              <q-icon name="sym_r_note_add" color="amber-4" size="22px" />
+              <div>
+                <div class="text-caption text-bold text-white">Generar también como Notas en el CRM</div>
+                <div class="text-caption text-grey-4" style="font-size: 11px;">
+                  Permite a los asesores acceder y enviar estos fragmentos en el chat usando atajos rápidos (ej: #plan-pro).
+                </div>
+              </div>
+            </div>
+            <q-toggle v-model="createNotesGlobal" color="amber-5" @update:model-value="onGlobalNotesToggle" />
+          </div>
+
           <div class="row items-center justify-between">
             <span class="text-caption text-grey-4">
               Asegúrate de que la información sea correcta. Puedes modificar títulos, contenido o etiquetas libremente.
@@ -686,7 +746,35 @@
             style="background: #182229;"
           >
             <div class="row items-center justify-between q-mb-sm">
-              <span class="text-caption text-bold text-teal-4">Artículo #{{ idx + 1 }}</span>
+              <div class="row items-center q-gutter-x-sm">
+                <span class="text-caption text-bold text-teal-4">Artículo #{{ idx + 1 }}</span>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="amber-4"
+                  icon="sym_r_auto_awesome"
+                  :loading="art.isTransforming"
+                  label="A Copy Redes (Emojis) ✨"
+                  @click="transformSingleArticle(art, 'marketing')"
+                >
+                  <q-tooltip>Reescribir con IA en formato publicitario con emojis y gancho comercial</q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat
+                  dense
+                  no-caps
+                  size="xs"
+                  color="grey-4"
+                  icon="sym_r_edit_note"
+                  :loading="art.isTransforming"
+                  label="A FAQ Técnico"
+                  @click="transformSingleArticle(art, 'technical')"
+                >
+                  <q-tooltip>Reescribir como ficha técnica analítica</q-tooltip>
+                </q-btn>
+              </div>
               <q-btn
                 flat
                 round
@@ -713,7 +801,7 @@
               v-model="art.content"
               label="Contenido"
               type="textarea"
-              rows="3"
+              rows="4"
               outlined
               dark
               dense
@@ -731,7 +819,24 @@
               outlined
               dark
               dense
+              class="q-mb-sm"
             />
+
+            <!-- Opción de Guardar como Nota del CRM individualmente -->
+            <div class="row items-center justify-between q-pt-xs" style="border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+              <q-checkbox v-model="art.create_note" label="Guardar como Nota en el CRM" dense dark size="sm" color="amber-5" />
+              <q-input
+                v-if="art.create_note"
+                v-model="art.shortcut"
+                label="Atajo en chat"
+                prefix="#"
+                outlined
+                dark
+                dense
+                style="max-width: 220px;"
+                hint="Ej: #promo-startup"
+              />
+            </div>
           </div>
         </q-card-section>
 
@@ -816,10 +921,15 @@ interface ExtractedArticle {
   title: string
   content: string
   tags: string[]
+  create_note?: boolean
+  shortcut?: string
+  isTransforming?: boolean
 }
 
 const isExtractorModalOpen = ref(false)
 const extractionStep = ref<1 | 2>(1)
+const extractionMode = ref<'marketing' | 'technical' | 'hybrid'>('marketing')
+const createNotesGlobal = ref(false)
 const documentFile = ref<File | null>(null)
 const documentRawText = ref('')
 const isExtracting = ref(false)
@@ -1144,7 +1254,15 @@ function openExtractorModal() {
   documentRawText.value = ''
   extractedArticles.value = []
   extractedFilename.value = ''
+  extractionMode.value = 'marketing'
+  createNotesGlobal.value = false
   isExtractorModalOpen.value = true
+}
+
+function onGlobalNotesToggle(val: boolean) {
+  extractedArticles.value.forEach((art) => {
+    art.create_note = val
+  })
 }
 
 function removeExtractedArticle(index: number) {
@@ -1156,7 +1274,60 @@ function addManualExtractedArticle() {
     title: 'Nuevo artículo complementario',
     content: '',
     tags: ['general'],
+    create_note: createNotesGlobal.value,
+    shortcut: 'promo',
+    isTransforming: false,
   })
+}
+
+async function transformSingleArticle(art: ExtractedArticle, targetStyle: 'marketing' | 'technical') {
+  art.isTransforming = true
+  try {
+    const res = await http.post('/ai/knowledge/transform-article', {
+      title: art.title,
+      content: art.content,
+      target_style: targetStyle,
+    })
+    const data = res.data?.data
+    if (data) {
+      art.title = data.title || art.title
+      art.content = data.content || art.content
+      if (Array.isArray(data.tags)) {
+        art.tags = data.tags
+      }
+      $q.notify({
+        type: 'positive',
+        message: targetStyle === 'marketing' ? 'Artículo adaptado a Copy Publicitario con emojis.' : 'Artículo adaptado a formato técnico.',
+        position: 'bottom-right',
+      })
+    }
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al transformar artículo con IA.',
+      position: 'bottom-right',
+    })
+  } finally {
+    art.isTransforming = false
+  }
+}
+
+async function createNoteFromArticleCard(articleId: string) {
+  try {
+    const res = await http.post(`/ai/knowledge-chunks/${articleId}/create-note`)
+    $q.notify({
+      type: 'positive',
+      icon: 'sym_r_note_add',
+      message: res.data?.message || 'Nota creada con éxito en el CRM.',
+      position: 'bottom-right',
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || 'Error al crear la nota en el CRM.',
+      position: 'bottom-right',
+    })
+  }
 }
 
 async function analyzeDocumentWithAi() {
@@ -1178,6 +1349,7 @@ async function analyzeDocumentWithAi() {
     if (documentRawText.value.trim()) {
       formData.append('raw_text', documentRawText.value.trim())
     }
+    formData.append('mode', extractionMode.value)
 
     const res = await http.post('/ai/knowledge/extract-document', formData, {
       headers: {
@@ -1187,11 +1359,25 @@ async function analyzeDocumentWithAi() {
 
     const data = res.data?.data
     if (data && Array.isArray(data.articles)) {
-      extractedArticles.value = data.articles.map((a: any) => ({
-        title: a.title || 'Sin título',
-        content: a.content || '',
-        tags: Array.isArray(a.tags) ? a.tags : ['documento'],
-      }))
+      extractedArticles.value = data.articles.map((a: any) => {
+        const cleanTitle = a.title || 'Sin título'
+        const autoShortcut = cleanTitle
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .substring(0, 20)
+
+        return {
+          title: cleanTitle,
+          content: a.content || '',
+          tags: Array.isArray(a.tags) ? a.tags : ['publicidad', 'redes'],
+          create_note: createNotesGlobal.value,
+          shortcut: autoShortcut || 'promo',
+          isTransforming: false,
+        }
+      })
       extractedFilename.value = data.filename || (documentFile.value ? documentFile.value.name : 'Texto importado')
       extractionStep.value = 2
       $q.notify({
@@ -1230,7 +1416,14 @@ async function saveExtractedBatch() {
   isSavingBatch.value = true
   try {
     const res = await http.post('/ai/knowledge-chunks/batch', {
-      articles: validArticles,
+      articles: validArticles.map((a) => ({
+        title: a.title,
+        content: a.content,
+        tags: a.tags,
+        create_note: a.create_note ?? createNotesGlobal.value,
+        shortcut: a.shortcut,
+      })),
+      create_notes: createNotesGlobal.value,
       filename: extractedFilename.value || (documentFile.value ? documentFile.value.name : 'importacion_ia'),
     })
 

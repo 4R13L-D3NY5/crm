@@ -247,15 +247,40 @@ class HentleAiCopilotService
 
     /**
      * Analiza y extrae artículos/fragmentos de conocimiento atómicos estructurados desde un documento.
+     * Soporta modos: 'technical' (Base técnica & FAQ), 'marketing' (Copy publicitario con emojis), 'hybrid' (Ambos).
      */
-    public function extractArticlesFromDocument(string $text, ?string $organizationId = null): array
+    public function extractArticlesFromDocument(string $text, ?string $organizationId = null, string $mode = 'technical'): array
     {
         $config = $this->getEffectiveConfig($organizationId);
         if (empty($config['api_key'])) {
             throw new \RuntimeException('No hay un proveedor de IA configurado con API Key. Por favor configura el motor IA primero.');
         }
 
-        $systemInstruction = "Eres un arquitecto senior de información especializado en RAG (Retrieval-Augmented Generation) y Bases de Conocimiento corporativas.
+        if ($mode === 'marketing') {
+            $systemInstruction = "Eres un copywriter senior y estratega de marketing digital para WhatsApp y redes sociales (Instagram, TikTok, Facebook).
+Tu labor es leer con atención el documento, catálogo o lista de precios y transformarlo en fragmentos de COPY PUBLICITARIO de alto impacto, elegantes y listos para enviar a prospectos o publicar en redes.
+
+ESTRUCTURA DE CADA COPY PUBLICITARIO:
+- \"title\": Título llamativo con emoji temático (ej: '🚀 Impulsa tus Ventas con XpertiFlow Pro').
+- \"content\": Formato comercial profesional y elegante:
+  1. Gancho inicial persuasivo con emoji (ej. 🔥, ✨, 💼).
+  2. Propuesta de valor y beneficios destacados con viñetas elegantes (ej. ✅, 💎, 📈).
+  3. Precios exactos, plazos o condiciones comerciales de la oferta.
+  4. Llamado a la acción (CTA) directo para WhatsApp o redes (ej. 📲 Escríbenos ahora para agendar tu demo).
+  Longitud: entre 70 y 250 palabras.
+- \"tags\": Array de 2 a 4 etiquetas (ej. ['publicidad', 'whatsapp', 'oferta', 'ventas']).
+
+REGLAS CRÍTICAS:
+1. Responde ÚNICAMENTE con un array JSON válido sin bloques markdown ```json.
+2. Cada objeto debe tener exactamente 'title', 'content' y 'tags'.
+3. Si hay múltiples productos, servicios o planes, genera un copy publicitario individual por cada uno.";
+        } elseif ($mode === 'hybrid') {
+            $systemInstruction = "Eres un estratega dual de contenido corporativo: dominas tanto la precisión técnica de la Base de Conocimiento (RAG) como el Copywriting persuasivo para ventas por WhatsApp y redes sociales.
+Tu labor es extraer fragmentos tanto de especificación técnica/tarifaria como copys publicitarios elegantes con emojis para cada producto o servicio detectado en el documento.
+Para los copys publicitarios usa títulos con emojis, viñetas (✅, 💎) y llamado a la acción (CTA 📲).
+Responde ÚNICAMENTE con un array JSON válido con campos 'title', 'content' y 'tags'.";
+        } else {
+            $systemInstruction = "Eres un arquitecto senior de información especializado en RAG (Retrieval-Augmented Generation) y Bases de Conocimiento corporativas.
 Tu labor es leer con atención el documento provisto (manuales, directivas, listas de precios, tablas de Excel/CSV o catálogos) y desglosarlo en fragmentos (chunks) atómicos de conocimiento altamente informativos, estructurados y auto-contenidos.
 Cada fragmento debe abarcar un tema o categoría de productos concreto (ej. Precios y Tarifas, Planes de Suscripción, Requisitos Técnicos, Políticas de Pago y Cancelación, Catálogo de Productos por Familia, etc.).
 Si el documento es una tabla de catálogo o lista de precios (Excel/CSV), agrupa lógicamente los productos por categoría o crea artículos claros con los nombres, especificaciones y precios exactos para que los agentes de WhatsApp puedan consultar precios y detalles inmediatamente.
@@ -267,6 +292,7 @@ REGLAS CRÍTICAS:
    - \"content\": El contenido limpio y completo del fragmento (entre 60 y 250 palabras). Mantén datos numéricos exactos, precios, monedas, códigos de producto, plazos, teléfonos y condiciones.
    - \"tags\": Array de 2 a 4 palabras clave relevantes.
 3. Si el documento contiene múltiples servicios, productos o políticas, sepáralos en artículos individuales.";
+        }
 
         $prompt = "DOCUMENTO A PROCESAR:\n\n" . mb_substr($text, 0, 15000) . "\n\nAnaliza y divide en fragmentos de conocimiento atómicos en formato JSON según las instrucciones:";
 
@@ -317,6 +343,77 @@ REGLAS CRÍTICAS:
                 'tags' => is_array($item['tags'] ?? null) ? $item['tags'] : ['general'],
             ];
         }, $parsed);
+    }
+
+    /**
+     * Transforma un artículo existente entre estilo técnico y copy publicitario / redes con emojis.
+     */
+    public function transformArticleStyle(string $title, string $content, string $targetStyle = 'marketing', ?string $organizationId = null): array
+    {
+        $config = $this->getEffectiveConfig($organizationId);
+        if (empty($config['api_key'])) {
+            throw new \RuntimeException('No hay un proveedor de IA configurado con API Key.');
+        }
+
+        if ($targetStyle === 'marketing') {
+            $systemInstruction = "Eres un copywriter senior y estratega de contenido publicitario para WhatsApp y redes sociales.
+Tu labor es tomar el artículo o contenido provisto y redactar un COPY PUBLICITARIO de alto impacto, elegante y persuasivo con emojis.
+Estructura del copy:
+1. Título llamativo con emoji temático.
+2. Gancho de apertura atractivo (🔥, ✨, 🚀).
+3. Beneficios y características con viñetas elegantes (✅, 💎, 📈).
+4. Precios, tarifas o condiciones claras.
+5. Llamado a la acción (CTA) directo para WhatsApp o redes (📲).
+
+REGLAS:
+- Responde ÚNICAMENTE con un JSON objeto: {\"title\": \"...\", \"content\": \"...\", \"tags\": [\"...\"]}.
+- NO uses bloques ```json.";
+            $prompt = "CONTENIDO ORIGINAL A TRANSFORMAR EN COPY PUBLICITARIO:\nTítulo: {$title}\nContenido: {$content}\n\nGenera el JSON con el copy publicitario elegante:";
+        } else {
+            $systemInstruction = "Eres un redactor técnico y documentador de bases de conocimiento corporativas (RAG).
+Tu labor es transformar el texto provisto en un artículo analítico, formal, preciso y limpio sin exceso de emojis, ideal para respuestas técnicas de atención al cliente y FAQ.
+Responde ÚNICAMENTE con un JSON objeto: {\"title\": \"...\", \"content\": \"...\", \"tags\": [\"...\"]}.";
+            $prompt = "CONTENIDO ORIGINAL A TRANSFORMAR EN ARTÍCULO TÉCNICO:\nTítulo: {$title}\nContenido: {$content}\n\nGenera el JSON técnico estructurado:";
+        }
+
+        $rawResponse = $this->sendDirectPrompt(
+            $prompt,
+            $config['provider'],
+            $config['api_key'],
+            $config['model'],
+            $config['base_url'],
+            $systemInstruction,
+            $organizationId,
+            false,
+            1200
+        );
+
+        $cleanJson = trim($rawResponse);
+        if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/s', $cleanJson, $matches)) {
+            $cleanJson = $matches[1];
+        } else {
+            $cleanJson = preg_replace('/^```(?:json)?\s*/i', '', $cleanJson);
+            $cleanJson = preg_replace('/```$/', '', $cleanJson);
+        }
+
+        $parsed = json_decode(trim($cleanJson), true);
+        if (!is_array($parsed) && preg_match('/\{.*\}/s', $cleanJson, $matches)) {
+            $parsed = json_decode($matches[0], true);
+        }
+
+        if (!is_array($parsed) || empty($parsed['content'])) {
+            return [
+                'title' => $title,
+                'content' => $content,
+                'tags' => ['marketing'],
+            ];
+        }
+
+        return [
+            'title' => (string) ($parsed['title'] ?? $title),
+            'content' => (string) ($parsed['content'] ?? $content),
+            'tags' => is_array($parsed['tags'] ?? null) ? $parsed['tags'] : ['marketing', 'publicidad'],
+        ];
     }
 
     /**
