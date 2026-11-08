@@ -120,6 +120,7 @@ class HentleAiCopilotService
         ?string $systemInstruction = null,
         ?string $organizationId = null,
         bool $bypassBudget = false,
+        int $maxTokens = 500,
     ): string {
         if (!$bypassBudget) {
             $this->assertBudgetAvailable($organizationId);
@@ -130,10 +131,10 @@ class HentleAiCopilotService
         }
 
         if ($provider === 'gemini') {
-            return $this->callGemini($prompt, $apiKey, $model, $systemInstruction, $organizationId);
+            return $this->callGemini($prompt, $apiKey, $model, $systemInstruction, $organizationId, $maxTokens);
         }
 
-        return $this->callOpenAiCompatible($prompt, $provider, $apiKey, $model, $baseUrl, $systemInstruction, $organizationId);
+        return $this->callOpenAiCompatible($prompt, $provider, $apiKey, $model, $baseUrl, $systemInstruction, $organizationId, $maxTokens);
     }
 
     protected function callOpenAiCompatible(
@@ -144,6 +145,7 @@ class HentleAiCopilotService
         string $baseUrl,
         ?string $systemInstruction = null,
         ?string $organizationId = null,
+        int $maxTokens = 500,
     ): string {
         $defaultUrls = [
             'bluesminds' => 'https://api.bluesminds.com/v1',
@@ -165,11 +167,11 @@ class HentleAiCopilotService
         $response = Http::withHeaders([
             'Authorization' => "Bearer {$apiKey}",
             'Content-Type' => 'application/json',
-        ])->timeout(30)->post($endpoint, [
+        ])->timeout(45)->post($endpoint, [
             'model' => $model,
             'messages' => $messages,
             'temperature' => 0.4,
-            'max_tokens' => 500,
+            'max_tokens' => $maxTokens,
         ]);
 
         if (!$response->successful()) {
@@ -201,6 +203,7 @@ class HentleAiCopilotService
         string $model,
         ?string $systemInstruction = null,
         ?string $organizationId = null,
+        int $maxTokens = 500,
     ): string {
         $cleanModel = !empty($model) ? $model : 'gemini-1.5-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$cleanModel}:generateContent?key={$apiKey}";
@@ -215,13 +218,13 @@ class HentleAiCopilotService
             ],
             'generationConfig' => [
                 'temperature' => 0.4,
-                'maxOutputTokens' => 500,
+                'maxOutputTokens' => $maxTokens,
             ],
         ];
 
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->timeout(30)->post($url, $payload);
+        ])->timeout(45)->post($url, $payload);
 
         if (!$response->successful()) {
             $errorBody = $response->json();
@@ -240,6 +243,79 @@ class HentleAiCopilotService
         $this->recordUsage($promptTokens, $completionTokens, 'gemini', $organizationId);
 
         return trim($text);
+    }
+
+    /**
+     * Analiza y extrae artículos/fragmentos de conocimiento atómicos estructurados desde un documento.
+     */
+    public function extractArticlesFromDocument(string $text, ?string $organizationId = null): array
+    {
+        $config = $this->getEffectiveConfig($organizationId);
+        if (empty($config['api_key'])) {
+            throw new \RuntimeException('No hay un proveedor de IA configurado con API Key. Por favor configura el motor IA primero.');
+        }
+
+        $systemInstruction = "Eres un arquitecto senior de información especializado en RAG (Retrieval-Augmented Generation) y Bases de Conocimiento corporativas.
+Tu labor es leer con atención el documento provisto y desglosarlo en fragmentos (chunks) atómicos de conocimiento altamente informativos, estructurados y auto-contenidos.
+Cada fragmento debe abarcar un tema concreto (ej. Precios y Paquetes, Requisitos Técnicos, Metodología de Trabajo, Políticas de Pago y Cancelación, etc.).
+
+REGLAS CRÍTICAS:
+1. Responde ÚNICAMENTE con un array JSON válido. NO incluyas explicaciones, saludos ni bloques de markdown con ```json.
+2. Cada objeto del array debe tener exactamente estos campos:
+   - \"title\": Título claro y conciso del tema o servicio (máximo 90 caracteres).
+   - \"content\": El contenido limpio y completo del fragmento (entre 60 y 250 palabras). Mantén datos numéricos exactos, precios, monedas, plazos, teléfonos y condiciones.
+   - \"tags\": Array de 2 a 4 palabras clave relevantes.
+3. Si el documento contiene múltiples servicios o políticas, sepáralos en artículos individuales.";
+
+        $prompt = "DOCUMENTO A PROCESAR:\n\n" . mb_substr($text, 0, 15000) . "\n\nAnaliza y divide en fragmentos de conocimiento atómicos en formato JSON según las instrucciones:";
+
+        $rawResponse = $this->sendDirectPrompt(
+            $prompt,
+            $config['provider'],
+            $config['api_key'],
+            $config['model'],
+            $config['base_url'],
+            $systemInstruction,
+            $organizationId,
+            false,
+            2000
+        );
+
+        $cleanJson = trim($rawResponse);
+        // Quitar bloques de markdown si vinieron
+        if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/s', $cleanJson, $matches)) {
+            $cleanJson = $matches[1];
+        } else {
+            $cleanJson = preg_replace('/^```(?:json)?\s*/i', '', $cleanJson);
+            $cleanJson = preg_replace('/```$/', '', $cleanJson);
+        }
+
+        $parsed = json_decode(trim($cleanJson), true);
+
+        if (!is_array($parsed)) {
+            if (preg_match('/\[\s*\{.*\}\s*\]/s', $cleanJson, $matches)) {
+                $parsed = json_decode($matches[0], true);
+            }
+        }
+
+        if (!is_array($parsed) || empty($parsed)) {
+            // Fallback si el LLM no generó JSON válido
+            return [
+                [
+                    'title' => 'Resumen de Documento',
+                    'content' => mb_substr($text, 0, 800),
+                    'tags' => ['general', 'documento'],
+                ]
+            ];
+        }
+
+        return array_map(function ($item) {
+            return [
+                'title' => (string) ($item['title'] ?? 'Sin título'),
+                'content' => (string) ($item['content'] ?? ''),
+                'tags' => is_array($item['tags'] ?? null) ? $item['tags'] : ['general'],
+            ];
+        }, $parsed);
     }
 
     /**

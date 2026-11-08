@@ -18,6 +18,8 @@ Route::post('ai/knowledge-bases', [KnowledgeBaseController::class, 'store']);
 Route::post('ai/knowledge-bases/{knowledgeBase}/chunks', [KnowledgeBaseController::class, 'addChunk']);
 Route::get('ai/knowledge-chunks', [KnowledgeBaseController::class, 'listChunks']);
 Route::post('ai/knowledge-chunks', [KnowledgeBaseController::class, 'createChunkDirect']);
+Route::post('ai/knowledge-chunks/batch', [KnowledgeBaseController::class, 'batchStoreChunks']);
+Route::post('ai/knowledge/extract-document', [KnowledgeBaseController::class, 'extractDocument']);
 Route::delete('ai/knowledge-chunks/{id}', [KnowledgeBaseController::class, 'deleteChunk']);
 
 Route::get('ai/config', [\App\Modules\HentleAi\Http\Controllers\AiConfigController::class, 'show']);

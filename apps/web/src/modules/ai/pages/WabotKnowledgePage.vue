@@ -34,6 +34,15 @@
           @click="openConfigModal"
         />
         <q-btn
+          outline
+          icon="sym_r_upload_file"
+          label="Subir Archivo con IA"
+          color="teal-4"
+          no-caps
+          class="whaticket-btn-outline"
+          @click="openExtractorModal"
+        />
+        <q-btn
           color="primary"
           label="+ Nuevo artículo"
           unelevated
@@ -65,92 +74,143 @@
       </button>
     </div>
 
-    <!-- Banner Informativo del Proveedor Activo -->
-    <div class="q-mb-md">
-      <q-banner rounded class="bg-dark text-white border-subtle q-pa-md">
-        <template #avatar>
-          <q-icon name="sym_r_psychology" color="primary" size="32px" />
-        </template>
-        <div class="row items-center justify-between">
-          <div>
-            <div class="text-subtitle2 text-bold text-white">
-              Proveedor Actual: {{ activeProviderLabel }} • Modelo: <span class="text-primary">{{ aiConfig.model }}</span>
+    <!-- Pestaña 1: Atención por Chat (Copiloto) -->
+    <div v-if="activeTab === 'chat'">
+      <!-- Banner Informativo del Proveedor Activo -->
+      <div class="q-mb-md">
+        <q-banner rounded class="bg-dark text-white border-subtle q-pa-md">
+          <template #avatar>
+            <q-icon name="sym_r_psychology" color="primary" size="32px" />
+          </template>
+          <div class="row items-center justify-between">
+            <div>
+              <div class="text-subtitle2 text-bold text-white">
+                Proveedor Actual: {{ activeProviderLabel }} • Modelo: <span class="text-primary">{{ aiConfig.model }}</span>
+              </div>
+              <div class="text-caption text-grey-4">
+                {{ aiConfig.has_api_key ? `API Key enlazada (${aiConfig.api_key_masked}). Listo para responder en la Bandeja Multicanal.` : 'Aún no se ha enlazado una API Key. Pulsa en "Configurar Motor IA" para ingresar tu clave.' }}
+              </div>
             </div>
-            <div class="text-caption text-grey-4">
-              {{ aiConfig.has_api_key ? `API Key enlazada (${aiConfig.api_key_masked}). Listo para responder en la Bandeja Multicanal.` : 'Aún no se ha enlazado una API Key. Pulsa en "Configurar Motor IA" para ingresar tu clave.' }}
-            </div>
+            <q-btn
+              v-if="isAdmin"
+              flat
+              dense
+              color="primary"
+              label="Probar o Cambiar Modelo"
+              icon="sym_r_bolt"
+              no-caps
+              class="q-px-sm"
+              @click="openConfigModal"
+            />
           </div>
+        </q-banner>
+      </div>
+
+      <!-- Listado de Artículos Vectorizados cuando sí hay datos -->
+      <div v-if="articles.length > 0" class="row q-col-gutter-md">
+        <div v-for="art in articles" :key="art.id" class="col-12 col-md-6">
+          <q-card flat bordered class="whaticket-article-card">
+            <q-card-section>
+              <div class="row items-center justify-between">
+                <div class="text-bold text-white text-subtitle1">{{ art.title }}</div>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-chip
+                    v-if="art.metadata?.source_file"
+                    dense
+                    size="sm"
+                    icon="sym_r_description"
+                    color="blue-grey-9"
+                    text-color="teal-2"
+                  >
+                    {{ art.metadata.source_file }}
+                  </q-chip>
+                  <q-badge color="positive" class="text-bold">Vectorizado (pgvector)</q-badge>
+                </div>
+              </div>
+              <p class="text-caption text-grey-4 q-mt-sm">{{ art.content }}</p>
+              <div v-if="art.metadata?.tags && art.metadata.tags.length > 0" class="row items-center q-gutter-xs q-mt-xs">
+                <q-badge
+                  v-for="tag in art.metadata.tags"
+                  :key="tag"
+                  color="dark"
+                  text-color="teal-3"
+                  class="border-subtle"
+                >
+                  #{{ tag }}
+                </q-badge>
+              </div>
+              <div class="row items-center justify-between text-caption text-grey-5 q-mt-md">
+                <div class="row items-center q-gutter-x-xs ellipsis" style="max-width: 80%">
+                  <q-avatar size="20px" color="teal-9" text-color="teal-2" class="text-weight-bold" style="font-size: 10px">
+                    {{ getInitials(art.user?.name) }}
+                  </q-avatar>
+                  <span>Registrado por: <strong class="text-grey-3">{{ art.user?.name || 'Administración' }}</strong></span>
+                  <span v-if="art.created_at" class="text-grey-6 font-mono">• {{ formatDate(art.created_at) }}</span>
+                </div>
+                <q-btn
+                  v-if="canDeleteArticle(art)"
+                  flat
+                  round
+                  dense
+                  icon="sym_r_delete"
+                  color="negative"
+                  size="sm"
+                  @click="deleteArticle(art.id)"
+                >
+                  <q-tooltip>Eliminar artículo</q-tooltip>
+                </q-btn>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+      </div>
+
+      <!-- Estado vacío -->
+      <div v-else class="whaticket-ai-status-card">
+        <div class="whaticket-ai-icon-box">
+          <q-icon name="sym_r_auto_awesome" size="36px" color="amber-4" />
+        </div>
+        <div class="text-h6 text-bold text-white q-mt-md">
+          No hay artículos en la Base de Conocimiento.
+        </div>
+        <div class="text-caption text-grey-4 q-mt-xs q-mb-lg" style="max-width: 500px">
+          Sube un documento con la IA o agrega preguntas frecuentes para que el copiloto de IA pueda citar datos precisos.
+        </div>
+        <div class="row items-center q-gutter-sm">
           <q-btn
-            v-if="isAdmin"
-            flat
-            dense
-            color="primary"
-            label="Probar o Cambiar Modelo"
-            icon="sym_r_bolt"
+            outline
+            color="teal-4"
+            icon="sym_r_upload_file"
+            label="Subir Archivo con IA"
             no-caps
-            class="q-px-sm"
-            @click="openConfigModal"
+            class="whaticket-btn-outline"
+            @click="openExtractorModal"
+          />
+          <q-btn
+            color="primary"
+            icon="sym_r_add"
+            label="Nuevo Artículo Manual"
+            unelevated
+            no-caps
+            class="whaticket-btn-primary"
+            @click="isArticleModalOpen = true"
           />
         </div>
-      </q-banner>
-    </div>
-
-    <!-- Listado de Artículos Vectorizados cuando sí hay datos -->
-    <div v-if="articles.length > 0" class="row q-col-gutter-md">
-      <div v-for="art in articles" :key="art.id" class="col-12 col-md-6">
-        <q-card flat bordered class="whaticket-article-card">
-          <q-card-section>
-            <div class="row items-center justify-between">
-              <div class="text-bold text-white text-subtitle1">{{ art.title }}</div>
-              <q-badge color="positive" class="text-bold">Vectorizado (pgvector)</q-badge>
-            </div>
-            <p class="text-caption text-grey-4 q-mt-sm">{{ art.content }}</p>
-            <div class="row items-center justify-between text-caption text-grey-5 q-mt-md">
-              <div class="row items-center q-gutter-x-xs ellipsis" style="max-width: 80%">
-                <q-avatar size="20px" color="teal-9" text-color="teal-2" class="text-weight-bold" style="font-size: 10px">
-                  {{ getInitials(art.user?.name) }}
-                </q-avatar>
-                <span>Registrado por: <strong class="text-grey-3">{{ art.user?.name || 'Administración' }}</strong></span>
-                <span v-if="art.created_at" class="text-grey-6 font-mono">• {{ formatDate(art.created_at) }}</span>
-              </div>
-              <q-btn
-                v-if="canDeleteArticle(art)"
-                flat
-                round
-                dense
-                icon="sym_r_delete"
-                color="negative"
-                size="sm"
-                @click="deleteArticle(art.id)"
-              >
-                <q-tooltip>Eliminar artículo</q-tooltip>
-              </q-btn>
-            </div>
-          </q-card-section>
-        </q-card>
       </div>
     </div>
 
-    <!-- Estado vacío -->
-    <div v-else class="whaticket-ai-status-card">
-      <div class="whaticket-ai-icon-box">
-        <q-icon name="sym_r_auto_awesome" size="36px" color="amber-4" />
+    <!-- Pestaña 2: Agenda tu Reunión (Roadmap/Integración) -->
+    <div v-else-if="activeTab === 'booking'" class="whaticket-ai-status-card">
+      <div class="whaticket-ai-icon-box" style="background: rgba(14, 165, 233, 0.12)">
+        <q-icon name="sym_r_calendar_month" size="36px" color="light-blue-4" />
       </div>
       <div class="text-h6 text-bold text-white q-mt-md">
-        No hay artículos en la Base de Conocimiento.
+        Agenda de Reuniones y Citas Automatizadas
       </div>
-      <div class="text-caption text-grey-4 q-mt-xs q-mb-lg" style="max-width: 500px">
-        Agrega preguntas frecuentes o información de productos y servicios para que el copiloto de IA pueda citar datos precisos.
+      <div class="text-caption text-grey-4 q-mt-xs q-mb-lg" style="max-width: 560px">
+        Permite a tus clientes y prospectos agendar reuniones de consultoría o demos directamente a través del chat de WhatsApp, sincronizándolo automáticamente con Google Calendar o Cal.com.
       </div>
-      <q-btn
-        color="primary"
-        icon="sym_r_add"
-        label="Nuevo Artículo"
-        unelevated
-        no-caps
-        class="whaticket-btn-primary"
-        @click="isArticleModalOpen = true"
-      />
+      <q-badge color="teal-9" text-color="teal-2" label="Módulo en Roadmap v2.2 — Próximamente" class="q-py-xs q-px-sm text-weight-bold" />
     </div>
 
     <!-- Modal Configuración de IA (Multi-proveedor: MiniMax, Gemini, OpenAI, DeepSeek) -->
@@ -525,6 +585,201 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Modal Extracción Inteligente de Documentos con IA -->
+    <q-dialog v-model="isExtractorModalOpen" persistent>
+      <q-card style="width: 820px; max-width: 95vw; max-height: 90vh;" class="whaticket-modal-card q-pa-md column no-wrap">
+        <q-card-section class="row items-center justify-between col-auto">
+          <div>
+            <div class="text-h6 text-bold text-white row items-center q-gutter-x-sm">
+              <q-icon name="sym_r_auto_awesome" color="teal-4" size="24px" />
+              <span>{{ extractionStep === 1 ? 'Importar Documento con IA' : `Revisar Artículos Detectados (${extractedArticles.length})` }}</span>
+            </div>
+            <div class="text-caption text-grey-4">
+              {{
+                extractionStep === 1
+                  ? 'Sube un archivo (.pdf, .docx, .txt, .md) o pega texto extenso. La IA estructurará automáticamente los conocimientos en fragmentos atómicos.'
+                  : `Archivo: ${extractedFilename} • Revisa, edita o elimina fragmentos antes de guardarlos y vectorizarlos.`
+              }}
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup :disable="isExtracting || isSavingBatch" />
+        </q-card-section>
+
+        <!-- Paso 1: Carga de archivo o texto -->
+        <q-card-section v-if="extractionStep === 1" class="q-gutter-y-md col scroll">
+          <div class="q-pa-md rounded-borders" style="background: rgba(0, 168, 132, 0.05); border: 2px dashed rgba(0, 168, 132, 0.35);">
+            <div class="text-subtitle2 text-bold text-teal-3 q-mb-sm row items-center q-gutter-x-xs">
+              <q-icon name="sym_r_upload_file" size="20px" />
+              <span>Opción 1: Subir Archivo (.pdf, .docx, .txt, .md, .csv)</span>
+            </div>
+            <q-file
+              v-model="documentFile"
+              label="Seleccionar o soltar archivo (máx. 15MB)"
+              outlined
+              dark
+              dense
+              clearable
+              accept=".pdf,.docx,.txt,.md,.json,.csv"
+              max-file-size="15728640"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_attach_file" color="teal-4" />
+              </template>
+            </q-file>
+            <div v-if="documentFile" class="text-caption text-teal-2 q-mt-xs font-mono">
+              Archivo seleccionado: {{ documentFile.name }} ({{ (documentFile.size / 1024).toFixed(1) }} KB)
+            </div>
+          </div>
+
+          <div class="text-center text-caption text-grey-5 font-bold">— O TAMBIÉN PUEDES PEGAR TEXTO DIRECTAMENTE —</div>
+
+          <div>
+            <div class="text-subtitle2 text-bold text-grey-3 q-mb-xs">
+              Opción 2: Pegar Texto o Contenido Extenso
+            </div>
+            <q-input
+              v-model="documentRawText"
+              label="Pega aquí el contenido (catálogos, listas de precios, políticas, notas, etc.)"
+              type="textarea"
+              rows="6"
+              outlined
+              dark
+              dense
+              hint="Mínimo 20 caracteres si no seleccionaste un archivo."
+            />
+          </div>
+
+          <div class="q-pa-sm rounded-borders bg-dark text-grey-4 text-caption row items-start q-gutter-x-sm border-subtle">
+            <q-icon name="sym_r_lightbulb" color="amber-4" size="18px" class="q-mt-xs" />
+            <div>
+              <strong>¿Cómo funciona?</strong> La IA activa ({{ activeProviderLabel }}) leerá el contenido completo, identificará las temáticas principales (servicios, precios, políticas, dudas frecuentes) y dividirá el documento en artículos concisos con etiquetas. Podrás revisar y ajustar cada artículo en el siguiente paso.
+            </div>
+          </div>
+        </q-card-section>
+
+        <!-- Paso 2: Vista previa y edición de artículos extraídos -->
+        <q-card-section v-else class="q-gutter-y-md col scroll">
+          <div class="row items-center justify-between">
+            <span class="text-caption text-grey-4">
+              Asegúrate de que la información sea correcta. Puedes modificar títulos, contenido o etiquetas libremente.
+            </span>
+            <q-btn
+              flat
+              dense
+              no-caps
+              icon="sym_r_add"
+              color="teal-4"
+              label="+ Agregar Fragmento Manual"
+              @click="addManualExtractedArticle"
+            />
+          </div>
+
+          <div v-if="extractedArticles.length === 0" class="text-center text-grey-5 q-py-lg">
+            No hay artículos para guardar.
+          </div>
+
+          <div
+            v-for="(art, idx) in extractedArticles"
+            :key="idx"
+            class="q-pa-md rounded-borders border-subtle q-mb-sm"
+            style="background: #182229;"
+          >
+            <div class="row items-center justify-between q-mb-sm">
+              <span class="text-caption text-bold text-teal-4">Artículo #{{ idx + 1 }}</span>
+              <q-btn
+                flat
+                round
+                dense
+                size="sm"
+                icon="sym_r_delete"
+                color="negative"
+                @click="removeExtractedArticle(idx)"
+              >
+                <q-tooltip>Eliminar este fragmento</q-tooltip>
+              </q-btn>
+            </div>
+
+            <q-input
+              v-model="art.title"
+              label="Título del artículo"
+              outlined
+              dark
+              dense
+              class="q-mb-sm"
+            />
+
+            <q-input
+              v-model="art.content"
+              label="Contenido"
+              type="textarea"
+              rows="3"
+              outlined
+              dark
+              dense
+              class="q-mb-sm"
+            />
+
+            <q-select
+              v-model="art.tags"
+              label="Etiquetas (presiona Enter para agregar)"
+              use-input
+              use-chips
+              multiple
+              hide-dropdown-icon
+              new-value-mode="add-unique"
+              outlined
+              dark
+              dense
+            />
+          </div>
+        </q-card-section>
+
+        <!-- Acciones del Modal -->
+        <q-card-actions align="between" class="q-px-md q-pb-md col-auto">
+          <div>
+            <q-btn
+              v-if="extractionStep === 2"
+              flat
+              color="grey-4"
+              icon="sym_r_arrow_back"
+              label="Volver a subir"
+              no-caps
+              :disable="isSavingBatch"
+              @click="extractionStep = 1"
+            />
+          </div>
+
+          <div class="row items-center q-gutter-x-sm">
+            <q-btn flat label="Cancelar" color="grey-4" no-caps v-close-popup :disable="isExtracting || isSavingBatch" />
+            <q-btn
+              v-if="extractionStep === 1"
+              unelevated
+              color="teal-5"
+              icon="sym_r_auto_awesome"
+              label="Analizar con IA"
+              no-caps
+              class="whaticket-btn-primary"
+              :loading="isExtracting"
+              :disable="!documentFile && !documentRawText.trim()"
+              @click="analyzeDocumentWithAi"
+            />
+            <q-btn
+              v-else
+              unelevated
+              color="primary"
+              icon="sym_r_check_circle"
+              :label="`Guardar y Vectorizar (${extractedArticles.length})`"
+              no-caps
+              class="whaticket-btn-primary"
+              :loading="isSavingBatch"
+              :disable="extractedArticles.length === 0"
+              @click="saveExtractedBatch"
+            />
+          </div>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -556,6 +811,21 @@ const isTesting = ref(false)
 const isSaving = ref(false)
 const isResettingBudget = ref(false)
 const testResult = ref<AiTestResult | null>(null)
+
+interface ExtractedArticle {
+  title: string
+  content: string
+  tags: string[]
+}
+
+const isExtractorModalOpen = ref(false)
+const extractionStep = ref<1 | 2>(1)
+const documentFile = ref<File | null>(null)
+const documentRawText = ref('')
+const isExtracting = ref(false)
+const isSavingBatch = ref(false)
+const extractedFilename = ref('')
+const extractedArticles = ref<ExtractedArticle[]>([])
 
 const providerOptions = [
   { label: 'Bluesminds AI Gateway (Recomendado)', value: 'bluesminds' },
@@ -641,6 +911,12 @@ interface ArticleItem {
     id: string
     name: string
     email: string
+  }
+  metadata?: {
+    tags?: string[]
+    source_file?: string
+    imported_at?: string
+    [key: string]: any
   }
   created_at?: string
 }
@@ -859,6 +1135,126 @@ async function deleteArticle(id: string) {
       message: err?.response?.data?.message || 'Error al eliminar artículo.',
       position: 'bottom-right',
     })
+  }
+}
+
+function openExtractorModal() {
+  extractionStep.value = 1
+  documentFile.value = null
+  documentRawText.value = ''
+  extractedArticles.value = []
+  extractedFilename.value = ''
+  isExtractorModalOpen.value = true
+}
+
+function removeExtractedArticle(index: number) {
+  extractedArticles.value.splice(index, 1)
+}
+
+function addManualExtractedArticle() {
+  extractedArticles.value.push({
+    title: 'Nuevo artículo complementario',
+    content: '',
+    tags: ['general'],
+  })
+}
+
+async function analyzeDocumentWithAi() {
+  if (!documentFile.value && !documentRawText.value.trim()) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecciona un archivo (.pdf, .docx, .txt, .md) o pega texto para analizar.',
+      position: 'bottom-right',
+    })
+    return
+  }
+
+  isExtracting.value = true
+  try {
+    const formData = new FormData()
+    if (documentFile.value) {
+      formData.append('file', documentFile.value)
+    }
+    if (documentRawText.value.trim()) {
+      formData.append('raw_text', documentRawText.value.trim())
+    }
+
+    const res = await http.post('/ai/knowledge/extract-document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+
+    const data = res.data?.data
+    if (data && Array.isArray(data.articles)) {
+      extractedArticles.value = data.articles.map((a: any) => ({
+        title: a.title || 'Sin título',
+        content: a.content || '',
+        tags: Array.isArray(a.tags) ? a.tags : ['documento'],
+      }))
+      extractedFilename.value = data.filename || (documentFile.value ? documentFile.value.name : 'Texto importado')
+      extractionStep.value = 2
+      $q.notify({
+        type: 'positive',
+        message: res.data?.message || `Se extrajeron ${extractedArticles.value.length} artículos exitosamente.`,
+        position: 'bottom-right',
+      })
+    } else {
+      throw new Error('La IA no devolvió artículos utilizables a partir del documento.')
+    }
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || err?.message || 'Error al analizar el documento con IA.',
+      position: 'bottom-right',
+    })
+  } finally {
+    isExtracting.value = false
+  }
+}
+
+async function saveExtractedBatch() {
+  const validArticles = extractedArticles.value.filter(
+    (a) => a.title.trim() && a.content.trim()
+  )
+
+  if (validArticles.length === 0) {
+    $q.notify({
+      type: 'warning',
+      message: 'Todos los artículos deben tener al menos un título y contenido.',
+      position: 'bottom-right',
+    })
+    return
+  }
+
+  isSavingBatch.value = true
+  try {
+    const res = await http.post('/ai/knowledge-chunks/batch', {
+      articles: validArticles,
+      filename: extractedFilename.value || (documentFile.value ? documentFile.value.name : 'importacion_ia'),
+    })
+
+    const created = res.data?.data
+    if (created && Array.isArray(created)) {
+      articles.value.unshift(...created)
+    } else {
+      await loadArticles()
+    }
+
+    isExtractorModalOpen.value = false
+    $q.notify({
+      type: 'positive',
+      message: res.data?.message || `${validArticles.length} artículos indexados y vectorizados en la base de datos.`,
+      position: 'bottom-right',
+    })
+  } catch (err: any) {
+    $q.notify({
+      type: 'negative',
+      message: err?.response?.data?.message || err?.message || 'Error al guardar fragmentos.',
+      position: 'bottom-right',
+    })
+  } finally {
+    isSavingBatch.value = false
   }
 }
 
