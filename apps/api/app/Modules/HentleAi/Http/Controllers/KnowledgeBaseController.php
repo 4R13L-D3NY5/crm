@@ -334,7 +334,7 @@ class KnowledgeBaseController
             $shouldCreateNote = !empty($validated['create_notes']) || !empty($art['create_note']);
             if ($shouldCreateNote) {
                 $rawShortcut = !empty($art['shortcut'])
-                    ? ltrim($art['shortcut'], '#/')
+                    ? substr(ltrim($art['shortcut'], '#/'), 0, 50)
                     : \Illuminate\Support\Str::slug(\Illuminate\Support\Str::limit($art['title'], 25, ''));
 
                 \App\Modules\Notes\Models\Note::create([

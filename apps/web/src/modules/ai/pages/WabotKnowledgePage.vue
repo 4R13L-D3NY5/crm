@@ -707,17 +707,98 @@
         <!-- Paso 2: Vista previa y edición de artículos extraídos -->
         <q-card-section v-else class="q-gutter-y-md col scroll">
           <!-- Barra de Generación en Notas del CRM -->
-          <div class="row items-center justify-between q-pa-sm rounded-borders border-subtle" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3);">
-            <div class="row items-center q-gutter-x-sm">
-              <q-icon name="sym_r_note_add" color="amber-4" size="22px" />
-              <div>
-                <div class="text-caption text-bold text-white">Generar también como Notas en el CRM</div>
-                <div class="text-caption text-grey-4" style="font-size: 11px;">
-                  Permite a los asesores acceder y enviar estos fragmentos en el chat usando atajos rápidos (ej: #plan-pro).
+          <div class="q-pa-sm rounded-borders border-subtle" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3);">
+            <div class="row items-center justify-between">
+              <div class="row items-center q-gutter-x-sm">
+                <q-icon name="sym_r_note_add" color="amber-4" size="22px" />
+                <div>
+                  <div class="text-caption text-bold text-white">Generar también como Notas en el CRM</div>
+                  <div class="text-caption text-grey-4" style="font-size: 11px;">
+                    Permite a los asesores acceder y enviar estos fragmentos en el chat usando atajos rápidos (ej: #plan-pro).
+                  </div>
+                </div>
+              </div>
+              <q-toggle v-model="createNotesGlobal" color="amber-5" @update:model-value="onGlobalNotesToggle" />
+            </div>
+
+            <!-- Configuración masiva de Prefijo y Postfijo / Sufijo -->
+            <div
+              v-if="createNotesGlobal || extractedArticles.some((a) => a.create_note)"
+              class="q-mt-sm q-pt-sm"
+              style="border-top: 1px dashed rgba(245, 158, 11, 0.25);"
+            >
+              <div class="row items-center justify-between q-mb-xs">
+                <div class="text-caption text-amber-3 text-weight-medium row items-center q-gutter-x-xs">
+                  <q-icon name="sym_r_tag" size="16px" />
+                  <span>Configurar prefijo o postfijo para todos los atajos (#):</span>
+                </div>
+                <div class="text-caption text-grey-4 font-mono" style="font-size: 11px;">
+                  Vista previa: <span class="text-amber-3 text-bold">#{{ previewShortcut }}</span>
+                </div>
+              </div>
+
+              <div class="row items-center q-col-gutter-sm">
+                <div class="col-12 col-sm-5">
+                  <q-input
+                    v-model="shortcutPrefix"
+                    label="Prefijo global"
+                    prefix="#"
+                    placeholder="ej: promo-, plan-, serv-"
+                    outlined
+                    dark
+                    dense
+                    bg-color="dark-page"
+                    @update:model-value="applyAffixesToAllShortcuts"
+                  >
+                    <template #append v-if="shortcutPrefix">
+                      <q-icon name="sym_r_close" class="cursor-pointer" size="xs" @click="shortcutPrefix = ''; applyAffixesToAllShortcuts()" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-sm-4">
+                  <q-input
+                    v-model="shortcutSuffix"
+                    label="Sufijo / Postfijo"
+                    placeholder="ej: -2026, -bo, -vip"
+                    outlined
+                    dark
+                    dense
+                    bg-color="dark-page"
+                    @update:model-value="applyAffixesToAllShortcuts"
+                  >
+                    <template #append v-if="shortcutSuffix">
+                      <q-icon name="sym_r_close" class="cursor-pointer" size="xs" @click="shortcutSuffix = ''; applyAffixesToAllShortcuts()" />
+                    </template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-sm-3 row items-center justify-end q-gutter-x-xs">
+                  <q-btn
+                    unelevated
+                    no-caps
+                    dense
+                    size="sm"
+                    color="amber-8"
+                    icon="sym_r_auto_fix_high"
+                    label="Aplicar"
+                    class="q-px-sm"
+                    @click="applyAffixesToAllShortcuts"
+                  >
+                    <q-tooltip>Reaplicar a todos los atajos</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    size="sm"
+                    color="grey-4"
+                    label="Limpiar"
+                    @click="resetAffixes"
+                  >
+                    <q-tooltip>Restablecer atajos originales</q-tooltip>
+                  </q-btn>
                 </div>
               </div>
             </div>
-            <q-toggle v-model="createNotesGlobal" color="amber-5" @update:model-value="onGlobalNotesToggle" />
           </div>
 
           <div class="row items-center justify-between">
@@ -833,7 +914,8 @@
                 outlined
                 dark
                 dense
-                style="max-width: 220px;"
+                maxlength="50"
+                style="max-width: 240px;"
                 hint="Ej: #promo-startup"
               />
             </div>
@@ -923,6 +1005,7 @@ interface ExtractedArticle {
   tags: string[]
   create_note?: boolean
   shortcut?: string
+  baseShortcut?: string
   isTransforming?: boolean
 }
 
@@ -930,6 +1013,8 @@ const isExtractorModalOpen = ref(false)
 const extractionStep = ref<1 | 2>(1)
 const extractionMode = ref<'marketing' | 'technical' | 'hybrid'>('marketing')
 const createNotesGlobal = ref(false)
+const shortcutPrefix = ref('')
+const shortcutSuffix = ref('')
 const documentFile = ref<File | null>(null)
 const documentRawText = ref('')
 const isExtracting = ref(false)
@@ -1248,6 +1333,57 @@ async function deleteArticle(id: string) {
   }
 }
 
+function sanitizeAffix(val: string): string {
+  if (!val) return ''
+  return val
+    .trim()
+    .toLowerCase()
+    .replace(/^#+/, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]+/g, '-')
+}
+
+function computeArticleShortcut(base: string, prefix: string, suffix: string): string {
+  const cleanPref = sanitizeAffix(prefix)
+  const cleanSuff = sanitizeAffix(suffix)
+  const cleanBase = sanitizeAffix(base) || 'nota'
+
+  let prefPart = cleanPref
+  if (prefPart && !prefPart.endsWith('-') && !prefPart.endsWith('_')) {
+    prefPart = `${prefPart}-`
+  }
+
+  let suffPart = cleanSuff
+  if (suffPart && !suffPart.startsWith('-') && !suffPart.startsWith('_')) {
+    suffPart = `-${suffPart}`
+  }
+
+  let combined = `${prefPart}${cleanBase}${suffPart}`
+  combined = combined.replace(/-+/g, '-').replace(/^-+|-+$/g, '')
+  return combined.substring(0, 48) || 'nota'
+}
+
+const previewShortcut = computed(() => {
+  return computeArticleShortcut('ejemplo', shortcutPrefix.value, shortcutSuffix.value)
+})
+
+function applyAffixesToAllShortcuts() {
+  extractedArticles.value.forEach((art) => {
+    const base = art.baseShortcut || sanitizeAffix(art.shortcut || '') || 'nota'
+    art.baseShortcut = base
+    art.shortcut = computeArticleShortcut(base, shortcutPrefix.value, shortcutSuffix.value)
+  })
+}
+
+function resetAffixes() {
+  shortcutPrefix.value = ''
+  shortcutSuffix.value = ''
+  extractedArticles.value.forEach((art) => {
+    art.shortcut = art.baseShortcut || 'nota'
+  })
+}
+
 function openExtractorModal() {
   extractionStep.value = 1
   documentFile.value = null
@@ -1256,6 +1392,8 @@ function openExtractorModal() {
   extractedFilename.value = ''
   extractionMode.value = 'marketing'
   createNotesGlobal.value = false
+  shortcutPrefix.value = ''
+  shortcutSuffix.value = ''
   isExtractorModalOpen.value = true
 }
 
@@ -1270,12 +1408,14 @@ function removeExtractedArticle(index: number) {
 }
 
 function addManualExtractedArticle() {
+  const base = 'nota'
   extractedArticles.value.push({
     title: 'Nuevo artículo complementario',
     content: '',
     tags: ['general'],
     create_note: createNotesGlobal.value,
-    shortcut: 'promo',
+    baseShortcut: base,
+    shortcut: computeArticleShortcut(base, shortcutPrefix.value, shortcutSuffix.value),
     isTransforming: false,
   })
 }
@@ -1361,20 +1501,21 @@ async function analyzeDocumentWithAi() {
     if (data && Array.isArray(data.articles)) {
       extractedArticles.value = data.articles.map((a: any) => {
         const cleanTitle = a.title || 'Sin título'
-        const autoShortcut = cleanTitle
+        const base = cleanTitle
           .toLowerCase()
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '')
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '')
-          .substring(0, 20)
+          .substring(0, 20) || 'nota'
 
         return {
           title: cleanTitle,
           content: a.content || '',
           tags: Array.isArray(a.tags) ? a.tags : ['publicidad', 'redes'],
           create_note: createNotesGlobal.value,
-          shortcut: autoShortcut || 'promo',
+          baseShortcut: base,
+          shortcut: computeArticleShortcut(base, shortcutPrefix.value, shortcutSuffix.value),
           isTransforming: false,
         }
       })
