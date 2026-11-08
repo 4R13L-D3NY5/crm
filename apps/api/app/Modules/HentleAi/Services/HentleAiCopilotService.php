@@ -121,6 +121,7 @@ class HentleAiCopilotService
         ?string $organizationId = null,
         bool $bypassBudget = false,
         int $maxTokens = 500,
+        int $timeoutSeconds = 60,
     ): string {
         if (!$bypassBudget) {
             $this->assertBudgetAvailable($organizationId);
@@ -131,10 +132,10 @@ class HentleAiCopilotService
         }
 
         if ($provider === 'gemini') {
-            return $this->callGemini($prompt, $apiKey, $model, $systemInstruction, $organizationId, $maxTokens);
+            return $this->callGemini($prompt, $apiKey, $model, $systemInstruction, $organizationId, $maxTokens, $timeoutSeconds);
         }
 
-        return $this->callOpenAiCompatible($prompt, $provider, $apiKey, $model, $baseUrl, $systemInstruction, $organizationId, $maxTokens);
+        return $this->callOpenAiCompatible($prompt, $provider, $apiKey, $model, $baseUrl, $systemInstruction, $organizationId, $maxTokens, $timeoutSeconds);
     }
 
     protected function callOpenAiCompatible(
@@ -146,6 +147,7 @@ class HentleAiCopilotService
         ?string $systemInstruction = null,
         ?string $organizationId = null,
         int $maxTokens = 500,
+        int $timeoutSeconds = 60,
     ): string {
         $defaultUrls = [
             'bluesminds' => 'https://api.bluesminds.com/v1',
@@ -164,15 +166,25 @@ class HentleAiCopilotService
         }
         $messages[] = ['role' => 'user', 'content' => $prompt];
 
-        $response = Http::withHeaders([
-            'Authorization' => "Bearer {$apiKey}",
-            'Content-Type' => 'application/json',
-        ])->timeout(45)->post($endpoint, [
-            'model' => $model,
-            'messages' => $messages,
-            'temperature' => 0.4,
-            'max_tokens' => $maxTokens,
-        ]);
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$apiKey}",
+                'Content-Type' => 'application/json',
+            ])
+            ->timeout($timeoutSeconds)
+            ->connectTimeout(15)
+            ->post($endpoint, [
+                'model' => $model,
+                'messages' => $messages,
+                'temperature' => 0.4,
+                'max_tokens' => $maxTokens,
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            if (str_contains($e->getMessage(), 'timed out') || str_contains($e->getMessage(), 'cURL error 28')) {
+                throw new \RuntimeException("El proveedor de IA ({$provider}) demoró más de {$timeoutSeconds}s en responder. Por favor intenta de nuevo o prueba con un modelo más veloz como Gemini o MiniMax.");
+            }
+            throw new \RuntimeException("Error de conexión con el proveedor de IA: {$e->getMessage()}");
+        }
 
         if (!$response->successful()) {
             $errorBody = $response->json();
@@ -204,6 +216,7 @@ class HentleAiCopilotService
         ?string $systemInstruction = null,
         ?string $organizationId = null,
         int $maxTokens = 500,
+        int $timeoutSeconds = 60,
     ): string {
         $cleanModel = !empty($model) ? $model : 'gemini-1.5-flash';
         $url = "https://generativelanguage.googleapis.com/v1beta/models/{$cleanModel}:generateContent?key={$apiKey}";
@@ -222,9 +235,19 @@ class HentleAiCopilotService
             ],
         ];
 
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->timeout(45)->post($url, $payload);
+        try {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])
+            ->timeout($timeoutSeconds)
+            ->connectTimeout(15)
+            ->post($url, $payload);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            if (str_contains($e->getMessage(), 'timed out') || str_contains($e->getMessage(), 'cURL error 28')) {
+                throw new \RuntimeException("Google Gemini demoró más de {$timeoutSeconds}s en responder. Por favor intenta de nuevo.");
+            }
+            throw new \RuntimeException("Error de conexión con Google Gemini: {$e->getMessage()}");
+        }
 
         if (!$response->successful()) {
             $errorBody = $response->json();
@@ -305,7 +328,8 @@ REGLAS CRÍTICAS:
             $systemInstruction,
             $organizationId,
             false,
-            2000
+            2000,
+            120
         );
 
         $cleanJson = trim($rawResponse);
@@ -385,7 +409,8 @@ Responde ÚNICAMENTE con un JSON objeto: {\"title\": \"...\", \"content\": \"...
             $systemInstruction,
             $organizationId,
             false,
-            1200
+            1200,
+            60
         );
 
         $cleanJson = trim($rawResponse);

@@ -247,8 +247,12 @@ class KnowledgeBaseController
                 'message' => 'Documento analizado con éxito. Se detectaron ' . count($articles) . ' fragmentos de conocimiento.',
             ]);
         } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'cURL error 28') || str_contains($msg, 'timed out')) {
+                $msg = 'El motor de IA demoró más de lo esperado en procesar el documento (tiempo de espera agotado). Podés reintentar ahora o seleccionar un modelo más ágil (como Gemini o MiniMax) desde Configurar Motor IA.';
+            }
             return response()->json([
-                'message' => 'Error durante el análisis del documento: ' . $e->getMessage(),
+                'message' => 'Error durante el análisis del documento: ' . $msg,
             ], 422);
         }
     }
