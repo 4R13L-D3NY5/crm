@@ -1,0 +1,80 @@
+================================================================================
+BASE DE CONOCIMIENTO CORPORATIVA — XPERTIA+ (TU SOCIO TECNOLÓGICO)
+Fuente Oficial: https://xpertiaplus.claure.pro/
+================================================================================
+
+1. INFORMACIÓN INSTITUCIONAL & CANALES DE CONTACTO
+- Nombre Comercial: XpertIA+
+- Slogan / Propuesta de Valor: "Tu Socio Tecnológico — Un solo equipo. Todo lo que tu negocio necesita."
+- Propósito: Proveer un equipo técnico multidisciplinario e integral que cubre estrategia, desarrollo de software, inteligencia artificial, ciberseguridad, marketing digital y plataformas académicas bajo un único interlocutor.
+- Teléfono / WhatsApp de Contacto y Soporte: +591 78311416 (https://wa.me/59178311416)
+- Correo Electrónico: contacto@xpertia.com
+- Sitio Web: https://xpertiaplus.claure.pro/
+- Horario de Oficina: Lunes a viernes de 09:00 a 18:00 (Hora de Bolivia / GMT-4).
+- Atención Fuera de Horario: Copiloto de Inteligencia Artificial activo 24/7 con derivación a guardia técnica en emergencias al WhatsApp +591 78311416.
+
+2. CATÁLOGO DE LOS 6 SERVICIOS PRINCIPALES
+
+[Servicio 1: Consultoría Estratégica (Visión & Futuro)]
+- Qué es: Ayuda a directores y empresas a decidir en qué tecnología invertir y en qué orden implementarla con retorno de inversión claro.
+- Revisión de sistemas existentes: Evaluación de código legacy, cuellos de botella, seguridad y rendimiento con informe de prioridades.
+- Plan de trabajo por etapas: Fases claras, fechas de entrega, KPIs, estimación presupuestaria y acompañamiento en gestión del cambio.
+- Dirección de proyectos: Metodologías ágiles Scrum/Kanban, seguimiento en Jira y reportes quincenales de avance.
+- Asesoría académica de posgrado: Asesoramiento en tesis de grado, maestrías y doctorados en informática, software y telecomunicaciones (metodología, desarrollo de prototipos, análisis estadístico y defensa).
+
+[Servicio 2: Desarrollo de Software a Medida (Hecho a tu Medida)]
+- Qué es: Aplicaciones web, móviles y sistemas empresariales personalizados, rápidos, robustos y diseñados para escalar sin caerse.
+- Sistemas web: ERP, CRM, inventarios, facturación electrónica y dashboards en tiempo real (React, Vue, Laravel, Node.js).
+- Aplicaciones móviles: Apps nativas e híbridas en Flutter, React Native, Swift y Kotlin publicadas en Google Play Store y App Store.
+- Modernización legacy: Refactorización y migración gradual de sistemas antiguos sin cortes operativos ni pérdida de datos.
+- Microservicios y escalabilidad: Docker, Kubernetes, Kafka, APIs RESTful y tolerancia a fallos por componente.
+- DevOps & CI/CD: Automatización de pruebas y despliegues con GitHub Actions, GitLab CI y Terraform (Zero Downtime).
+- Stack tecnológico: React, Vue.js, Angular, Next.js, Node.js, Python, Laravel 12, Java, .NET Core, PostgreSQL (pgvector), MySQL, Redis, MongoDB.
+
+[Servicio 3: Ciencia de Datos & Inteligencia Artificial (Inteligencia Aplicada)]
+- Qué es: Convierte los datos de la empresa en decisiones automatizadas y predicciones con menor trabajo manual.
+- Modelos de IA a medida: Predicción de ventas, prevención de abandono de clientes (churn), procesamiento de lenguaje natural (NLP) y visión artificial.
+- Big Data & Business Intelligence: Pipelines de datos con Apache Spark y Google BigQuery, tableros ejecutivos en Power BI.
+- Automatización Robótica de Procesos (RPA): Robots de software en Python, Power Automate y UiPath para extracción de datos de documentos, conciliaciones y tareas administrativas repetitivas.
+- Capacitación técnica: Talleres prácticos in-company en IA generativa, analítica y cloud.
+
+[Servicio 4: Redes y Ciberseguridad (Protección Total)]
+- Qué es: Protección contra ciberataques, filtraciones de datos y caídas de red para garantizar la continuidad operativa.
+- Redes corporativas: Cableado estructurado certificado categoría 6A/7, VLANs, Wi-Fi empresarial de alta densidad, balanceo multi-WAN.
+- Infraestructura Cloud: Aprovisionamiento y optimización de costos en AWS y Azure, servidores dedicados contenerizados con backups automáticos inmutables.
+- Pentesting y Auditorías: Pruebas de penetración controladas (Ethical Hacking), escaneo de vulnerabilidades e informes de mitigación.
+- Seguridad perimetral: Firewalls (Fortinet, pfSense, Cisco), VPNs cifradas (WireGuard, OpenVPN), políticas Zero Trust y autenticación 2FA/MFA.
+- Respuesta a incidentes (DFIR): Contención de brechas de seguridad, informática forense y activación de planes de continuidad.
+
+[Servicio 5: Marketing Digital (Crecimiento & Alcance)]
+- Qué es: Posiciona la marca frente a compradores calificados mediante datos, contenido persuasivo y pauta publicitaria optimizada.
+- SEO Técnico & SEM: Optimización de Core Web Vitals en Google, SEO on-page/off-page y campañas de Google Ads orientadas a conversión (ROAS).
+- Contenidos estratégicos: Copywriting para páginas de aterrizaje, blogs técnicos, guiones de video y secuencias de email marketing.
+- Redes sociales: Planificación de contenido y diseño gráfico para LinkedIn, Instagram, Facebook y TikTok, con gestión activa de comunidad.
+- Analítica y Atribución: Configuración de GA4 y Google Tag Manager para rastrear el origen exacto de cada venta.
+
+[Servicio 6: Diseño Web & Plataformas Académicas (Experiencias que Convierten)]
+- Qué es: Diseño UX/UI intuitivo y desarrollo de portales web para empresas y plataformas especializadas en educación y ciencia.
+- Diseño UX/UI: Prototipado interactivo en Figma centrado en conversión y accesibilidad móvil.
+- Sitios web autogestionables: Portales dinámicos en WordPress o Strapi Headless que el equipo puede actualizar sin programar. Carga en menos de 2 segundos.
+- Aulas Virtuales Moodle LMS: Instalación, diseño personalizado, matriculación, cursos, exámenes, certificados automáticos con QR y soporte para miles de alumnos concurrentes.
+- Revistas Científicas con OJS (Open Journal Systems): Implementación de OJS 3.x, flujo editorial de revisión por pares a doble ciego, asignación de DOI con Crossref, metadatos Dublin Core y asesoría para indexación en Scopus, SciELO y Latindex.
+
+3. METODOLOGÍA DE TRABAJO EN 5 ETAPAS (PROCESO XPERTIA+)
+- 01 Descubrimiento: Diagnóstico inicial sin costo para entender negocio, problemas y alcance.
+- 02 Planificación: Cronograma con fechas concretas, arquitectura técnica y presupuesto cerrado.
+- 03 Desarrollo por Sprints: Entregas quincenales para que el cliente pruebe avances tangibles en staging.
+- 04 Calidad y Seguridad: Testing automatizado, auditoría de código, escaneo de seguridad y pruebas de carga.
+- 05 Lanzamiento y Soporte: Despliegue asistido en producción, capacitación y póliza de acompañamiento continuo.
+
+4. PREGUNTAS FRECUENTES (FAQS)
+- ¿Cuánto tiempo toma un proyecto?: Depende del alcance; en Descubrimiento entregamos fechas fijas y mostramos avances quincenales.
+- ¿Trabajan con empresas de cualquier tamaño?: Sí, desde startups y proyectos puntuales hasta ERPs corporativos y universidades.
+- ¿Qué pasa tras el lanzamiento?: Ofrecemos garantía técnica y planes de soporte post-lanzamiento para resolver incidencias y actualizaciones.
+- ¿La primera consultoría tiene costo?: Es 100% gratuita y sin compromiso de contratación.
+- ¿Cómo cotizan?: Tras entender el alcance en Descubrimiento, presentamos una propuesta transparente de precio cerrado sin costos ocultos.
+- ¿Quién es dueño del código?: El cliente es 100% propietario del código fuente, repositorios y accesos al culminar el proyecto.
+
+5. ROLES DEL EQUIPO TÉCNICO
+Estrategia y Consultoría, Dirección Técnica y Arquitectura Cloud, Calidad y Desarrollo (QA), IA y Desarrollo Senior, Ciberseguridad y Redes, Desarrolladores Frontend y Backend.
+================================================================================
