@@ -319,26 +319,18 @@ export interface CloseTicketPayload {
 
 
 export interface CreateConversationPayload {
-
-  subject: string
-
-  status: 'open' | 'pending' | 'closed'
-
-  channel: 'manual' | 'whatsapp' | 'email'
-
+  subject?: string | null
+  status?: 'open' | 'pending' | 'closed' | 'resolved'
+  channel: 'manual' | 'whatsapp' | 'email' | 'facebook' | 'instagram' | 'tiktok'
+  whatsapp_account_id?: string | null
   queue_id?: string | null
-
-  contact_id: string | null
-
-  company_id: string | null
-
+  contact_id?: string | null
+  phone?: string | null
+  contact_name?: string | null
+  company_id?: string | null
   message: string
-
-  assigned_to_user_id: string | null
-
+  assigned_to_user_id?: string | null
 }
-
-
 
 export interface InternalMessagePayload {
 
