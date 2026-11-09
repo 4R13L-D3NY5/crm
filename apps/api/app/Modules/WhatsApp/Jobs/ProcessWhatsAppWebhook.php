@@ -113,8 +113,86 @@ class ProcessWhatsAppWebhook implements ShouldQueue
 
         $phone = $messagePayload['from'] ?? null;
         $profileName = $contactPayload['profile']['name'] ?? $phone ?? 'Contacto WhatsApp';
-        $body = $messagePayload['text']['body'] ?? '[mensaje sin soporte en MVP]';
         $sentAt = isset($messagePayload['timestamp']) ? Carbon::createFromTimestamp((int) $messagePayload['timestamp']) : now();
+
+        $rawType = $messagePayload['type'] ?? 'text';
+        $mediaType = null;
+        $mediaUrl = null;
+        $mediaId = null;
+        $mimeType = null;
+        $caption = null;
+
+        switch ($rawType) {
+            case 'text':
+                $body = $messagePayload['text']['body'] ?? '';
+                break;
+            case 'image':
+                $mediaType = 'image';
+                $caption = $messagePayload['image']['caption'] ?? null;
+                $mediaId = $messagePayload['image']['id'] ?? null;
+                $mimeType = $messagePayload['image']['mime_type'] ?? 'image/jpeg';
+                $body = $caption ? "📷 [Imagen]: {$caption}" : '📷 [Imagen]';
+                break;
+            case 'audio':
+            case 'voice':
+                $mediaType = 'audio';
+                $mediaId = $messagePayload['audio']['id'] ?? $messagePayload['voice']['id'] ?? null;
+                $mimeType = $messagePayload['audio']['mime_type'] ?? $messagePayload['voice']['mime_type'] ?? 'audio/ogg';
+                $isVoice = ! empty($messagePayload['audio']['voice']) || $rawType === 'voice';
+                $body = $isVoice ? '🎤 [Nota de voz]' : '🎵 [Audio]';
+                break;
+            case 'video':
+                $mediaType = 'video';
+                $caption = $messagePayload['video']['caption'] ?? null;
+                $mediaId = $messagePayload['video']['id'] ?? null;
+                $mimeType = $messagePayload['video']['mime_type'] ?? 'video/mp4';
+                $body = $caption ? "🎥 [Video]: {$caption}" : '🎥 [Video]';
+                break;
+            case 'document':
+                $mediaType = 'document';
+                $filename = $messagePayload['document']['filename'] ?? 'archivo';
+                $caption = $messagePayload['document']['caption'] ?? null;
+                $mediaId = $messagePayload['document']['id'] ?? null;
+                $mimeType = $messagePayload['document']['mime_type'] ?? 'application/pdf';
+                $body = $caption ? "📄 [Documento] {$filename}: {$caption}" : "📄 [Documento]: {$filename}";
+                break;
+            case 'sticker':
+                $mediaType = 'sticker';
+                $mediaId = $messagePayload['sticker']['id'] ?? null;
+                $mimeType = $messagePayload['sticker']['mime_type'] ?? 'image/webp';
+                $body = '🏷️ [Sticker]';
+                break;
+            case 'location':
+                $loc = $messagePayload['location'] ?? [];
+                $name = $loc['name'] ?? $loc['address'] ?? '';
+                $body = "📍 [Ubicación]: {$loc['latitude']}, {$loc['longitude']}".($name ? " ({$name})" : '');
+                break;
+            case 'contacts':
+                $contactName = data_get($messagePayload, 'contacts.0.name.formatted_name', 'Contacto');
+                $body = "👤 [Contacto compartido]: {$contactName}";
+                break;
+            case 'button':
+            case 'interactive':
+                $interactiveText = data_get($messagePayload, 'interactive.button_reply.title')
+                    ?? data_get($messagePayload, 'interactive.list_reply.title')
+                    ?? data_get($messagePayload, 'button.text');
+                $body = $interactiveText ? "🔘 {$interactiveText}" : '[Respuesta interactiva]';
+                break;
+            default:
+                $body = $messagePayload['text']['body'] ?? "[Mensaje ({$rawType})]";
+                break;
+        }
+
+        // Si viene multimedia en Cloud API, intentamos descargarla a storage público
+        if ($mediaId && filled($account->access_token)) {
+            try {
+                /** @var \App\Modules\WhatsApp\Services\MetaWhatsAppClient $metaClient */
+                $metaClient = app(\App\Modules\WhatsApp\Services\MetaWhatsAppClient::class);
+                $mediaUrl = $metaClient->downloadMedia($account, $mediaId, $mimeType);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Error intentando descargar media Meta {$mediaId}: {$e->getMessage()}");
+            }
+        }
 
         $rawReferral = $messagePayload['referral'] ?? null;
         $referral = null;
@@ -214,17 +292,41 @@ class ProcessWhatsAppWebhook implements ShouldQueue
             }
         }
 
+        $messageMetadata = [];
+        if ($referral) {
+            $messageMetadata['referral'] = $referral;
+        }
+        if ($mediaId) {
+            $messageMetadata['media_id'] = $mediaId;
+        }
+        if ($caption) {
+            $messageMetadata['caption'] = $caption;
+        }
+        if ($mimeType) {
+            $messageMetadata['mime_type'] = $mimeType;
+        }
+
         $message = Message::query()->create([
             'organization_id' => $account->organization_id,
             'conversation_id' => $conversation->getKey(),
             'user_id' => null,
             'direction' => 'inbound',
-            'message_type' => $messagePayload['type'] ?? 'text',
+            'message_type' => $mediaType ?? ($messagePayload['type'] ?? 'text'),
+            'media_type' => $mediaType,
+            'media_url' => $mediaUrl,
             'message_status' => 'received',
             'body' => $body,
-            'metadata' => $referral ? ['referral' => $referral] : null,
+            'metadata' => ! empty($messageMetadata) ? $messageMetadata : null,
             'sent_at' => $sentAt,
         ]);
+
+        if ($mediaType === 'audio' && $mediaUrl) {
+            try {
+                app(\App\Modules\Conversations\Services\VoiceTranscriptionService::class)->transcribe($message);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Error en transcripción de audio para mensaje {$message->id}: {$e->getMessage()}");
+            }
+        }
 
         if ($referral) {
             $cf = (array) ($contact->custom_fields ?? []);

@@ -70,6 +70,61 @@ class MetaWhatsAppClient implements WhatsAppClient
         return $response->json();
     }
 
+    public function downloadMedia(WhatsAppAccount $account, string $mediaId, ?string $mimeType = null): ?string
+    {
+        try {
+            $baseUrl = rtrim((string) config('services.whatsapp.base_url', 'https://graph.facebook.com/v23.0'), '/');
+
+            // 1. Obtener la URL temporal del archivo multimedia desde Meta
+            $metaRes = Http::baseUrl($baseUrl)
+                ->withToken((string) $account->access_token)
+                ->acceptJson()
+                ->get("/{$mediaId}");
+
+            if ($metaRes->failed()) {
+                \Illuminate\Support\Facades\Log::warning("Meta Graph API error al consultar media {$mediaId}: " . $metaRes->body());
+                return null;
+            }
+
+            $downloadUrl = $metaRes->json('url');
+            $detectedMime = $metaRes->json('mime_type') ?? $mimeType ?? 'image/jpeg';
+
+            if (! $downloadUrl) {
+                return null;
+            }
+
+            // 2. Descargar el archivo binario usando el Bearer token (Meta lookaside requiere auth)
+            $fileRes = Http::withToken((string) $account->access_token)->get($downloadUrl);
+
+            if ($fileRes->failed() || empty($fileRes->body())) {
+                \Illuminate\Support\Facades\Log::warning("Error descargando binario de media {$mediaId} desde {$downloadUrl}");
+                return null;
+            }
+
+            // 3. Determinar extensión de archivo
+            $extension = match ($detectedMime) {
+                'image/jpeg', 'image/jpg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                'image/gif' => 'gif',
+                'audio/ogg; codecs=opus', 'audio/ogg' => 'ogg',
+                'audio/mp4', 'audio/aac', 'audio/m4a' => 'm4a',
+                'audio/mpeg', 'audio/mp3' => 'mp3',
+                'video/mp4' => 'mp4',
+                'application/pdf' => 'pdf',
+                default => 'bin',
+            };
+
+            $fileName = "whatsapp_media/{$mediaId}.{$extension}";
+            \Illuminate\Support\Facades\Storage::disk('public')->put($fileName, $fileRes->body());
+
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($fileName);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("No se pudo descargar multimedia {$mediaId} de Meta: {$e->getMessage()}");
+            return null;
+        }
+    }
+
     public function editTextMessage(WhatsAppAccount $account, string $to, string $messageId, string $newBody): array
     {
         throw new \BadMethodCallException('Meta Cloud API no permite la edición de mensajes salientes.');
