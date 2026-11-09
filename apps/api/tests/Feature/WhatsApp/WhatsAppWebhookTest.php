@@ -148,6 +148,58 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertSame('ad_meta_cloud_112233', $contact->custom_fields['last_ad_referral']['source_id'] ?? null);
     }
 
+    
+    public function test_incoming_image_message_parses_caption_and_media_type(): void
+    {
+        $organization = Organization::factory()->create();
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => '555123456789',
+        ]);
+
+        $payload = [
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'id' => '123456789',
+                'changes' => [[
+                    'field' => 'messages',
+                    'value' => [
+                        'messaging_product' => 'whatsapp',
+                        'metadata' => [
+                            'display_phone_number' => '+59170000001',
+                            'phone_number_id' => $account->phone_number_id,
+                        ],
+                        'contacts' => [[
+                            'profile' => ['name' => 'Ariel Test'],
+                            'wa_id' => '59179326793',
+                        ]],
+                        'messages' => [[
+                            'from' => '59179326793',
+                            'id' => 'wamid.HBgLNTkxNzkzMjY3OTMVAAB',
+                            'timestamp' => '1777171717',
+                            'type' => 'image',
+                            'image' => [
+                                'caption' => 'ya llego comprobante',
+                                'mime_type' => 'image/jpeg',
+                                'id' => 'media_12345',
+                            ],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ];
+
+        $response = $this->postJson('/api/whatsapp/webhook', $payload);
+        $response->assertStatus(202);
+
+        $message = Message::query()->where('body', 'like', '%ya llego comprobante%')->first();
+        $this->assertNotNull($message);
+        $this->assertSame('image', $message->message_type);
+        $this->assertSame('image', $message->media_type);
+        $this->assertSame('📷 [Imagen]: ya llego comprobante', $message->body);
+        $this->assertSame('media_12345', $message->metadata['media_id'] ?? null);
+    }
+
     private function payload(
         string $phoneNumberId,
         string $messageId,
