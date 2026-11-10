@@ -11,6 +11,13 @@ class CreateNoteRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('visibility') && $this->input('visibility') === 'public') {
+            $this->merge(['visibility' => 'all']);
+        }
+    }
+
     public function rules(): array
     {
         return [
