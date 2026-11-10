@@ -40,6 +40,29 @@ class SendWhatsAppMessageAction
             // no colapsen los saltos de línea en un único espacio en blanco.
             $body = preg_replace("/\r\n|\r/", "\n", $body);
         }
+
+        $isTemplate = ! empty($payload['is_template']) || filled($payload['template_name'] ?? null);
+        $metadata = null;
+        if ($isTemplate) {
+            $templateName = $payload['template_name'] ?? 'saludo_inicial';
+            $templateLanguage = $payload['template_language'] ?? 'en_US';
+            $templateParams = $payload['template_params'] ?? [];
+            if (empty($templateParams)) {
+                $contactName = $conversation->contact?->name ?? 'Docente';
+                $templateParams = [$contactName];
+            }
+            $metadata = [
+                'template_name' => $templateName,
+                'template_language' => $templateLanguage,
+                'template_params' => $templateParams,
+            ];
+
+            if (blank($body)) {
+                $greetingName = $templateParams[0] ?? ($conversation->contact?->name ?? 'Docente');
+                $body = "Hola {$greetingName}, te saludamos de parte del equipo de atención del sistema de evaluaciones para dar seguimiento a tu solicitud.";
+            }
+        }
+
         if (blank($body) && filled($mediaType)) {
             $body = match ($mediaType) {
                 'image' => '[Imagen]',
@@ -55,12 +78,13 @@ class SendWhatsAppMessageAction
             'conversation_id' => $conversation->getKey(),
             'user_id' => $user->getKey(),
             'direction' => 'outbound',
-            'message_type' => $mediaType ?: 'text',
+            'message_type' => $isTemplate ? 'template' : ($mediaType ?: 'text'),
             'media_url' => $mediaUrl,
             'media_type' => $mediaType,
             'message_status' => 'pending',
             'delivery_status' => 'pending',
             'body' => $body,
+            'metadata' => $metadata,
             'sent_at' => null,
         ]);
 

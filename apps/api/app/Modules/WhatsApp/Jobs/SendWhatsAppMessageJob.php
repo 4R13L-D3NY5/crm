@@ -114,16 +114,27 @@ class SendWhatsAppMessageJob implements ShouldQueue
             $isMetaCloud = $account->session_type !== 'qr_baileys' && ($account->session_type === 'meta_cloud' || (filled($account->access_token) && filled($account->phone_number_id)));
 
             $hasMedia = filled($message->media_url) && filled($message->media_type) && $message->media_type !== 'text';
+            $isTemplate = $message->message_type === 'template' || filled(data_get($message->metadata, 'template_name'));
 
             if ($isMetaCloud) {
-                if ($hasMedia) {
+                if ($isTemplate) {
+                    $templateName = (string) data_get($message->metadata, 'template_name', 'saludo_inicial');
+                    $templateLang = (string) data_get($message->metadata, 'template_language', 'en_US');
+                    $templateParams = (array) data_get($message->metadata, 'template_params', []);
+                    $response = $client->sendTemplateMessage($account, $to, $templateName, $templateLang, $templateParams);
+                } elseif ($hasMedia) {
                     $response = $client->sendMediaMessage($account, $to, (string) $message->media_url, (string) $message->media_type, $message->body);
                 } else {
                     $response = $client->sendTextMessage($account, $to, (string) $message->body);
                 }
             } else {
                 $baileysClient = app(\App\Modules\WhatsApp\Services\BaileysWhatsAppClient::class);
-                if ($hasMedia) {
+                if ($isTemplate) {
+                    $templateName = (string) data_get($message->metadata, 'template_name', 'saludo_inicial');
+                    $templateLang = (string) data_get($message->metadata, 'template_language', 'en_US');
+                    $templateParams = (array) data_get($message->metadata, 'template_params', []);
+                    $response = $baileysClient->sendTemplateMessage($account, $to, $templateName, $templateLang, $templateParams);
+                } elseif ($hasMedia) {
                     $response = $baileysClient->sendMediaMessage($account, $to, (string) $message->media_url, (string) $message->media_type, $message->body);
                 } else {
                     $response = $baileysClient->sendTextMessage($account, $to, (string) $message->body);

@@ -70,6 +70,54 @@ class MetaWhatsAppClient implements WhatsAppClient
         return $response->json();
     }
 
+    public function sendTemplateMessage(WhatsAppAccount $account, string $to, string $templateName, string $languageCode = 'en_US', array $parameters = []): array
+    {
+        $baseUrl = rtrim((string) config('services.whatsapp.base_url', 'https://graph.facebook.com/v23.0'), '/');
+
+        $components = [];
+        if (! empty($parameters)) {
+            $paramsList = [];
+            foreach ($parameters as $param) {
+                $paramsList[] = [
+                    'type' => 'text',
+                    'text' => (string) $param,
+                ];
+            }
+            $components[] = [
+                'type' => 'body',
+                'parameters' => $paramsList,
+            ];
+        }
+
+        $payload = [
+            'messaging_product' => 'whatsapp',
+            'recipient_type' => 'individual',
+            'to' => $to,
+            'type' => 'template',
+            'template' => [
+                'name' => $templateName,
+                'language' => [
+                    'code' => $languageCode,
+                ],
+            ],
+        ];
+
+        if (! empty($components)) {
+            $payload['template']['components'] = $components;
+        }
+
+        $response = Http::baseUrl($baseUrl)
+            ->withToken((string) $account->access_token)
+            ->acceptJson()
+            ->post("/{$account->phone_number_id}/messages", $payload);
+
+        if ($response->failed()) {
+            throw new RequestException($response);
+        }
+
+        return $response->json();
+    }
+
     public function downloadMedia(WhatsAppAccount $account, string $mediaId, ?string $mimeType = null): ?string
     {
         try {

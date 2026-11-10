@@ -814,6 +814,22 @@
                 </q-tooltip>
               </span>
 
+              <q-btn
+                v-if="(msg.delivery_status === 'failed' || msg.message_status === 'failed') && (msg.error_message?.includes('Re-engagement') || msg.error_message?.includes('131047'))"
+                dense
+                unelevated
+                size="xs"
+                color="positive"
+                text-color="dark"
+                icon="sym_r_mark_chat_unread"
+                label="Enviar Plantilla"
+                class="q-ml-xs text-weight-bold"
+                style="font-size: 0.65rem;"
+                @click.stop="openTemplateDialog"
+              >
+                <q-tooltip>Iniciar conversación con la plantilla oficial aprobada por Meta</q-tooltip>
+              </q-btn>
+
               <!-- Indicadores normales de entrega -->
               <q-icon
                 v-else
@@ -1023,6 +1039,21 @@
 
               <q-tooltip>Programar mensaje diferido para este contacto</q-tooltip>
 
+            </q-btn>
+
+            <!-- Plantilla Oficial Meta (WhatsApp) -->
+            <q-btn
+              v-if="conversation.channel === 'whatsapp'"
+              flat
+              dense
+              size="sm"
+              color="positive"
+              icon="sym_r_mark_chat_unread"
+              class="composer-tool-btn q-px-xs"
+              @click="openTemplateDialog"
+            >
+              <span class="composer-btn-text q-ml-xs">Plantilla (Meta)</span>
+              <q-tooltip>Enviar plantilla aprobada por Meta (Saludo Inicial) para iniciar conversación</q-tooltip>
             </q-btn>
 
 
@@ -1727,6 +1758,68 @@
     </q-dialog>
 
 
+
+    <!-- Modal Enviar Plantilla Oficial Meta -->
+    <q-dialog v-model="showTemplateModal">
+      <q-card style="width: 500px; max-width: 95vw; background: #0f172a; color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px;">
+        <q-card-section class="row items-center justify-between q-pb-none">
+          <div class="row items-center q-gutter-x-sm">
+            <q-avatar size="32px" color="positive" text-color="dark">
+              <q-icon name="sym_r_mark_chat_unread" size="18px" />
+            </q-avatar>
+            <div>
+              <div class="text-subtitle1 text-weight-bold">Plantilla Oficial WhatsApp</div>
+              <div class="text-caption text-grey-4">Meta Cloud API • saludo_inicial</div>
+            </div>
+          </div>
+          <q-btn flat round dense icon="sym_r_close" color="grey-4" v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-py-md q-gutter-y-md">
+          <div class="text-caption text-grey-3">
+            Esta plantilla está aprobada por Meta para iniciar o reanudar conversaciones fuera de la ventana de 24 horas con docentes o contactos.
+          </div>
+
+          <div>
+            <div class="text-caption text-weight-medium text-grey-4 q-mb-xs">Nombre o tratamiento del destinatario:</div>
+            <q-input
+              v-model="templateContactName"
+              dense
+              outlined
+              placeholder="Ej: Ing. Ariel Denys, Lic. Juan Pérez..."
+              class="bg-slate-800 rounded-borders"
+            >
+              <template #prepend>
+                <q-icon name="sym_r_person" color="teal-4" size="18px" />
+              </template>
+            </q-input>
+          </div>
+
+          <!-- Previsualización de la burbuja -->
+          <div>
+            <div class="text-caption text-weight-medium text-grey-4 q-mb-xs">Vista previa del mensaje:</div>
+            <div class="q-pa-md rounded-borders" style="background: #064e3b; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.88rem; line-height: 1.5; color: #ffffff;">
+              Hola <strong class="text-amber-3">{{ templateContactName.trim() || 'Docente' }}</strong>, te saludamos de parte del equipo de atención del sistema de evaluaciones para dar seguimiento a tu solicitud.
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-separator dark />
+
+        <q-card-actions align="right" class="q-pa-sm">
+          <q-btn flat label="Cancelar" color="grey-4" v-close-popup />
+          <q-btn
+            unelevated
+            color="positive"
+            text-color="dark"
+            icon="sym_r_send"
+            label="Enviar Plantilla a WhatsApp"
+            class="text-weight-bold"
+            @click="confirmSendTemplate"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Modal Seleccionar Nota de Conocimiento para el Chat -->
 
@@ -2571,17 +2664,15 @@ const emit = defineEmits<{
   (e: 'toggle-profile'): void
 
   (e: 'send-message', payload: {
-
     body: string
-
     is_internal: boolean
-
     file?: File | null
-
     media_url?: string | null
-
     media_type?: string | null
-
+    is_template?: boolean
+    template_name?: string
+    template_language?: string
+    template_params?: string[]
   }): void
 
 }>()
@@ -4028,6 +4119,31 @@ function applyKeepNote(note: Note) {
 
   showKeepNotesModal.value = false
 
+}
+
+// Plantilla Oficial Meta
+const showTemplateModal = ref(false)
+const templateContactName = ref('')
+
+function openTemplateDialog() {
+  templateContactName.value = props.conversation.contact?.name || ''
+  showTemplateModal.value = true
+}
+
+function confirmSendTemplate() {
+  const contactName = templateContactName.value.trim() || props.conversation.contact?.name || 'Docente'
+  const messageBody = `Hola ${contactName}, te saludamos de parte del equipo de atención del sistema de evaluaciones para dar seguimiento a tu solicitud.`
+
+  emit('send-message', {
+    body: messageBody,
+    is_internal: false,
+    is_template: true,
+    template_name: 'saludo_inicial',
+    template_language: 'en_US',
+    template_params: [contactName],
+  })
+
+  showTemplateModal.value = false
 }
 
 

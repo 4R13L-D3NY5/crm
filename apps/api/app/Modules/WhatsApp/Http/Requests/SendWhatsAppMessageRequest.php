@@ -18,10 +18,14 @@ class SendWhatsAppMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['nullable', 'string', 'max:5000', 'required_without_all:file,media_url'],
+            'body' => ['nullable', 'string', 'max:5000', 'required_without_all:file,media_url,template_name,is_template'],
             'file' => ['nullable', 'file', 'max:51200'],
             'media_url' => ['nullable', 'string', 'max:2000'],
             'media_type' => ['nullable', 'string', 'in:image,audio,document,video,sticker'],
+            'is_template' => ['nullable', 'boolean'],
+            'template_name' => ['nullable', 'string', 'max:255'],
+            'template_language' => ['nullable', 'string', 'max:20'],
+            'template_params' => ['nullable', 'array'],
         ];
     }
 }

@@ -492,12 +492,20 @@ function handleSendMessage({
   file,
   media_url,
   media_type,
+  is_template,
+  template_name,
+  template_language,
+  template_params,
 }: {
   body: string
   is_internal: boolean
   file?: File | null
   media_url?: string | null
   media_type?: string | null
+  is_template?: boolean
+  template_name?: string
+  template_language?: string
+  template_params?: string[]
 }) {
   if (!selectedConversationId.value) return
   const convId = selectedConversationId.value
@@ -568,7 +576,13 @@ function handleSendMessage({
     } else {
       mutations.whatsappMessageMutation.mutate({
         id: convId,
-        payload: { body },
+        payload: {
+          body,
+          is_template,
+          template_name,
+          template_language,
+          template_params,
+        },
       }, {
         onError: onErrorHandler,
       })

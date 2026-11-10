@@ -10,5 +10,7 @@ interface WhatsAppClient
 
     public function sendMediaMessage(WhatsAppAccount $account, string $to, string $mediaUrl, string $mediaType, ?string $caption = null): array;
 
+    public function sendTemplateMessage(WhatsAppAccount $account, string $to, string $templateName, string $languageCode = 'en_US', array $parameters = []): array;
+
     public function editTextMessage(WhatsAppAccount $account, string $to, string $messageId, string $newBody): array;
 }
