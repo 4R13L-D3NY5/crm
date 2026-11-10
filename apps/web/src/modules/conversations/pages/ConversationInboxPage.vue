@@ -18,6 +18,7 @@
       @select="selectConversation"
       @select-contact="handleSelectContactFromSearch"
       @create-ticket="isNewTicketModalOpen = true"
+      @bulk-completed="handleBulkCompleted"
     />
 
     <!-- Columna 2: Chat en Vivo o Pantalla Vacía de Selección -->
@@ -628,6 +629,14 @@ watch(
   },
   { immediate: true },
 )
+
+// Manejador tras ejecutar acción masiva por texto
+function handleBulkCompleted() {
+  conversationsQuery.refetch()
+  if (selectedConversationId.value) {
+    activeConversationQuery.refetch()
+  }
+}
 
 // Auto-refresco del chat en vivo cada 2.5 segundos
 let chatPollingTimer: ReturnType<typeof setInterval> | null = null

@@ -239,3 +239,98 @@ export async function openPrivateChat(conversationId: string): Promise<Conversat
   const response = await http.post<{ data: Conversation }>(`/social/conversations/${conversationId}/private-chat`)
   return response.data.data
 }
+
+export interface BulkTextPreviewPayload {
+  text: string
+  direction?: 'both' | 'inbound' | 'outbound'
+  whatsapp_account_id?: string
+  date_from?: string
+  date_to?: string
+  format?: 'xlsx' | 'csv'
+}
+
+export interface BulkTextPreviewSample {
+  id: string
+  contact_name: string
+  contact_phone: string | null
+  status: string
+  channel: string
+  account_name: string
+}
+
+export interface BulkTextPreviewResult {
+  conversations_count: number
+  contacts_count: number
+  sample: BulkTextPreviewSample[]
+}
+
+export interface BulkTextClassifyPayload {
+  text: string
+  direction?: 'both' | 'inbound' | 'outbound'
+  whatsapp_account_id?: string
+  date_from?: string
+  date_to?: string
+  tag_ids?: string[]
+  new_tag_name?: string
+  category_ids?: string[]
+  status?: 'open' | 'pending' | 'closed'
+  custom_status_id?: string
+}
+
+export interface BulkTextClassifyResult {
+  affected_conversations: number
+  affected_contacts: number
+  tags_applied: number
+  categories_applied: number
+}
+
+export async function previewBulkTextMatches(
+  payload: BulkTextPreviewPayload,
+): Promise<BulkTextPreviewResult> {
+  const response = await http.post<{ data: BulkTextPreviewResult }>(
+    '/conversations/bulk-text-preview',
+    payload,
+  )
+  return response.data.data
+}
+
+export async function executeBulkTextClassify(
+  payload: BulkTextClassifyPayload,
+): Promise<BulkTextClassifyResult> {
+  const response = await http.post<{ success: boolean; data: BulkTextClassifyResult; message: string }>(
+    '/conversations/bulk-text-classify',
+    payload,
+  )
+  return response.data.data
+}
+
+export async function exportBulkTextMatches(
+  payload: BulkTextPreviewPayload,
+): Promise<{ blob: Blob; filename?: string }> {
+  const response = await http.get('/conversations/bulk-text-export', {
+    params: {
+      ...payload,
+      format: payload.format || 'xlsx',
+    },
+    responseType: 'blob',
+  })
+
+  let filename = ''
+  const headers = response.headers as any
+  const disposition = headers?.['content-disposition'] || (typeof headers?.get === 'function' ? headers.get('content-disposition') : '')
+  if (disposition && typeof disposition === 'string' && disposition.includes('filename=')) {
+    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition)
+    if (matches && matches[1]) {
+      filename = matches[1].replace(/['"]/g, '').trim()
+    }
+  }
+
+  return { blob: response.data, filename }
+}
+
+export async function exportBulkTextMatchesCsv(
+  payload: BulkTextPreviewPayload,
+): Promise<Blob> {
+  const result = await exportBulkTextMatches(payload)
+  return result.blob
+}
