@@ -12,6 +12,7 @@
         "laravel/tinker": "^3.0",
         "shuchkin/simplexls": "*",
         "shuchkin/simplexlsx": "^1.1",
+        "shuchkin/simplexlsxgen": "^1.5",
         "smalot/pdfparser": "^2.13"
     },
     "require-dev": {

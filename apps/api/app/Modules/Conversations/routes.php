@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Conversations\Http\Controllers\ConversationAssignmentController;
+use App\Modules\Conversations\Http\Controllers\ConversationBulkTextActionController;
 use App\Modules\Conversations\Http\Controllers\ConversationController;
 use App\Modules\Conversations\Http\Controllers\ConversationMessageController;
 use App\Modules\Conversations\Http\Controllers\ConversationStatusController;
@@ -28,6 +29,11 @@ Route::post('conversations/{conversation}/messages/supervisor', [SupervisorMessa
 // Transcripción de Audio y Síntesis de Voz (Voice-to-Text / TTS)
 Route::post('conversations/{conversation}/messages/{message}/transcribe', [VoiceTranscriptionController::class, 'transcribe'])->name('conversations.messages.transcribe');
 Route::post('conversations/{conversation}/voice-notes/synthesize', [VoiceTranscriptionController::class, 'synthesize'])->name('conversations.voice-notes.synthesize');
+
+// Clasificación y Segmentación Masiva Retroactiva por Texto de Mensajes
+Route::post('conversations/bulk-text-preview', [ConversationBulkTextActionController::class, 'preview'])->name('conversations.bulk-text-preview');
+Route::post('conversations/bulk-text-classify', [ConversationBulkTextActionController::class, 'classify'])->name('conversations.bulk-text-classify');
+Route::get('conversations/bulk-text-export', [ConversationBulkTextActionController::class, 'export'])->name('conversations.bulk-text-export');
 
 // Rutas base
 Route::put('conversations/{conversation}/assignment', [ConversationAssignmentController::class, 'update']);

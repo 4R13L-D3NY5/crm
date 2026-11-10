@@ -315,7 +315,8 @@ export function useSessionTimeout() {
     reauthError.value = null
 
     try {
-      await authStore.login(email, password)
+      // Force takeover of previous stale session from this same device/user
+      await authStore.login(email, password, true)
 
       const now = Date.now()
       updateLocalActivity(now)
