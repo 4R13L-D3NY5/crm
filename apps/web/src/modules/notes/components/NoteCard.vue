@@ -1,6 +1,7 @@
 <template>
   <div
     class="xf-keep-card"
+    :class="{ 'xf-keep-card--light': isLightBg }"
     :style="{ backgroundColor: cardBgColor, borderColor: cardBorderColor }"
   >
     <!-- Card Header: Título y Botón Pin -->
@@ -291,6 +292,17 @@ const cardBorderColor = computed(() => {
   return 'rgba(255, 255, 255, 0.08)'
 })
 
+const isLightBg = computed(() => {
+  const hex = cardBgColor.value
+  if (!hex || hex.length < 7) return false
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return false
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.55
+})
+
 const visibilityLabel = computed(() => {
   switch (props.note.visibility) {
     case 'categories':
@@ -373,6 +385,16 @@ async function copyContent() {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  &--light {
+    color: #0f172a !important;
+    .xf-keep-card__title {
+      color: #0f172a !important;
+    }
+    .xf-keep-card__text {
+      color: #1e293b !important;
+    }
   }
 
   &__title {

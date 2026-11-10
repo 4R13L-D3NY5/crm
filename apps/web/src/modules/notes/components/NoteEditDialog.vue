@@ -1181,7 +1181,8 @@ watch(
         form.is_pinned = props.note.is_pinned || false
         form.is_archived = props.note.is_archived || false
         form.shortcut = props.note.shortcut || ''
-        form.visibility = props.note.visibility || 'all'
+        const validVis = ['all', 'categories', 'private']
+        form.visibility = validVis.includes(props.note.visibility as string) ? (props.note.visibility as 'all' | 'categories' | 'private') : 'all'
         form.category_ids = props.note.categories?.map((c) => c.id) || []
         form.custom_status_ids = props.note.custom_statuses?.map((s) => s.id) || []
         form.tag_ids = props.note.tags?.map((t) => t.id) || []
@@ -1416,6 +1417,10 @@ function applyAiChanges() {
 
 async function handleSubmit() {
   if (!form.content.trim()) return
+  const validVis = ['all', 'categories', 'private']
+  if (!validVis.includes(form.visibility as string)) {
+    form.visibility = 'all'
+  }
   try {
     const saved = await saveNote(form, props.note?.id)
     if (saved) {
@@ -1446,7 +1451,10 @@ async function handleSubmit() {
 }
 
 .xf-note-dialog__header {
-  background: rgba(15, 23, 42, 0.95);
+  background: #0f172a;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .ai-toolbar {

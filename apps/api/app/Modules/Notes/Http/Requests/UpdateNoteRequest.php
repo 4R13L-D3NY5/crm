@@ -24,6 +24,13 @@ class UpdateNoteRequest extends FormRequest
         return $note && $note->user_id === $user->id;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('visibility') && $this->input('visibility') === 'public') {
+            $this->merge(['visibility' => 'all']);
+        }
+    }
+
     public function rules(): array
     {
         return [
