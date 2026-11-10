@@ -349,6 +349,10 @@ export interface WhatsAppMessagePayload {
   media_type?: string | null
 
   file?: File | null
+  is_template?: boolean
+  template_name?: string
+  template_language?: string
+  template_params?: string[]
 
 }
 

@@ -105,6 +105,14 @@ class BaileysWhatsAppClient implements WhatsAppClient
         ];
     }
 
+    public function sendTemplateMessage(WhatsAppAccount $account, string $to, string $templateName, string $languageCode = 'en_US', array $parameters = []): array
+    {
+        $saludo = ! empty($parameters[0]) ? "Hola {$parameters[0]}" : "Hola";
+        $text = "{$saludo}, te saludamos de parte del equipo de atención del sistema de evaluaciones para dar seguimiento a tu solicitud.";
+
+        return $this->sendTextMessage($account, $to, $text);
+    }
+
     public function editTextMessage(WhatsAppAccount $account, string $to, string $messageId, string $newBody): array
     {
         $baseUrl = rtrim((string) config('services.whatsapp.baileys_url', 'http://whatsapp-service:3000'), '/');

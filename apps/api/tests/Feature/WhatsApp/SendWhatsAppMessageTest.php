@@ -406,6 +406,67 @@ class SendWhatsAppMessageTest extends TestCase
         });
     }
 
+    public function test_user_can_send_outbound_template_message_to_meta_cloud(): void
+    {
+        [$user, $organization] = $this->createMembership();
+
+        $account = WhatsAppAccount::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'phone_number_id' => '1379424651914337',
+            'access_token' => 'meta-cloud-token',
+            'session_type' => 'meta_cloud',
+            'is_active' => true,
+        ]);
+
+        $contact = Contact::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'first_name' => 'Ariel',
+            'last_name' => 'Denys',
+            'phone' => '59170381174',
+        ]);
+
+        $conversation = Conversation::factory()->create([
+            'organization_id' => $organization->getKey(),
+            'contact_id' => $contact->getKey(),
+            'channel' => 'whatsapp',
+            'whatsapp_account_id' => $account->getKey(),
+            'status' => 'open',
+        ]);
+
+        Http::fake([
+            'https://graph.facebook.com/*' => Http::response([
+                'messaging_product' => 'whatsapp',
+                'messages' => [
+                    ['id' => 'wamid.HBgLNTkx...'],
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->actingAs($user)->postJson("/api/conversations/{$conversation->getKey()}/messages/whatsapp", [
+            'is_template' => true,
+            'template_name' => 'saludo_inicial',
+            'template_language' => 'en_US',
+            'template_params' => ['Ariel Denys'],
+        ]);
+
+        $response->assertCreated();
+
+        $message = Message::query()->latest()->first();
+        $this->assertNotNull($message);
+        $this->assertSame('outbound', $message->direction);
+        $this->assertSame('template', $message->message_type);
+        $this->assertStringContainsString('Hola Ariel Denys', $message->body);
+        $this->assertSame('sent', $message->message_status);
+
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return str_contains($request->url(), '/1379424651914337/messages') &&
+                   $request['type'] === 'template' &&
+                   $request['template']['name'] === 'saludo_inicial' &&
+                   $request['template']['language']['code'] === 'en_US' &&
+                   $request['template']['components'][0]['parameters'][0]['text'] === 'Ariel Denys';
+        });
+    }
+
     private function createMembership(): array
     {
         $organization = Organization::factory()->create();
