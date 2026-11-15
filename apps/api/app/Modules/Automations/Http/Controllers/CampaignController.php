@@ -90,7 +90,7 @@ class CampaignController extends Controller
             'name' => ['required', 'string', 'max:200'],
             'whatsapp_account_id' => ['nullable', 'string', 'exists:whatsapp_accounts,id'],
             'message_template' => ['required', 'string', 'max:4000'],
-            'delay_seconds' => ['nullable', 'integer', 'min:5', 'max:120'],
+            'delay_seconds' => ['nullable', 'integer', 'min:0', 'max:120'],
             'target_mode' => ['nullable', 'string', 'in:all,categories,tags,mixed'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['string', 'exists:categories,id'],
