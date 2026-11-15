@@ -140,15 +140,47 @@ class DispatchCampaignRecipientsCommand extends Command
                         $conversation->update($updateData);
                     }
 
+                    // Detectar si la cuenta remitente es Meta Cloud API
+                    $account = $campaign->whatsappAccount;
+                    if (!$account && $campaign->whatsapp_account_id) {
+                        $account = \App\Modules\WhatsApp\Models\WhatsAppAccount::find($campaign->whatsapp_account_id);
+                    }
+
+                    $isMetaCloud = $account && $account->session_type !== 'qr_baileys' && (
+                        $account->session_type === 'meta_cloud' ||
+                        (filled($account->access_token) && filled($account->phone_number_id))
+                    );
+
+                    $messageType = 'text';
+                    $metadata = [];
+
+                    if ($isMetaCloud) {
+                        $messageType = 'template';
+                        if (preg_match('/\[template:([a-z0-9_]+)(?::([a-z_A-Z]+))?\]/i', (string) $campaign->message_template, $m)) {
+                            $metadata = [
+                                'template_name' => $m[1],
+                                'template_language' => $m[2] ?? 'es_ES',
+                                'template_params' => [],
+                            ];
+                        } else {
+                            $metadata = [
+                                'template_name' => 'beca_anticipada_1_2027',
+                                'template_language' => 'es_ES',
+                                'template_params' => [],
+                            ];
+                        }
+                    }
+
                     // Mensaje
                     $message = Message::create([
                         'organization_id' => $campaign->organization_id,
                         'conversation_id' => $conversation->id,
                         'user_id' => null,
                         'direction' => 'outbound',
-                        'message_type' => 'text',
+                        'message_type' => $messageType,
                         'message_status' => 'pending',
                         'body' => $body,
+                        'metadata' => !empty($metadata) ? $metadata : null,
                         'sent_at' => null,
                     ]);
 
@@ -164,9 +196,11 @@ class DispatchCampaignRecipientsCommand extends Command
                         ]);
                     }
 
-                    $delaySeconds = max(3, (int) ($campaign->delay_seconds ?? 15));
+                    $rawDelay = (int) ($campaign->delay_seconds ?? 0);
+                    $delaySeconds = $isMetaCloud ? max(0, $rawDelay) : max(3, $rawDelay);
+
                     $job = new SendWhatsAppMessageJob($message->id);
-                    if ($index > 0 && config('queue.default') !== 'sync') {
+                    if ($index > 0 && $delaySeconds > 0 && config('queue.default') !== 'sync') {
                         $job->delay(now()->addSeconds($index * $delaySeconds));
                     }
                     dispatch($job);

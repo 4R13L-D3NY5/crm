@@ -603,21 +603,34 @@
           <div class="xf-anti-ban-box q-pa-md rounded-borders">
             <div class="row items-center justify-between">
               <div class="row items-center q-gutter-x-xs">
-                <q-icon name="sym_r_shield" size="20px" color="positive" />
-                <span class="text-subtitle2 text-bold text-ink">Protección Anti-Baneo de WhatsApp</span>
+                <q-icon
+                  :name="isCloudAccountSelected ? 'sym_r_bolt' : 'sym_r_shield'"
+                  size="20px"
+                  :color="isCloudAccountSelected ? 'primary' : 'positive'"
+                />
+                <span class="text-subtitle2 text-bold text-ink">
+                  {{ isCloudAccountSelected ? 'Modo API Cloud Oficial (Alta Velocidad)' : 'Protección Anti-Baneo de WhatsApp' }}
+                </span>
               </div>
-              <q-badge color="positive" class="text-bold">{{ form.delay_seconds }}s intervalo promedio</q-badge>
+              <q-badge :color="isCloudAccountSelected ? 'primary' : 'positive'" class="text-bold">
+                {{ form.delay_seconds === 0 ? 'Sin espera (Ráfaga instantánea)' : `${form.delay_seconds}s intervalo promedio` }}
+              </q-badge>
             </div>
             <p class="text-caption text-muted q-mt-xs q-mb-sm">
-              Un intervalo dinámico entre cada mensaje simula el comportamiento humano y previene restricciones por parte de Meta.
+              <span v-if="isCloudAccountSelected">
+                La API Cloud oficial de Meta está exenta de riesgo de baneo por velocidad. Puede enviar de forma inmediata (0s) o con intervalo controlado. Se despachará con la plantilla oficial aprobada.
+              </span>
+              <span v-else>
+                Un intervalo dinámico entre cada mensaje simula el comportamiento humano y previene restricciones por parte de Meta.
+              </span>
             </p>
 
             <q-slider
               v-model="form.delay_seconds"
-              :min="10"
+              :min="isCloudAccountSelected ? 0 : 10"
               :max="60"
-              :step="5"
-              color="primary"
+              :step="isCloudAccountSelected ? 1 : 5"
+              :color="isCloudAccountSelected ? 'primary' : 'positive'"
               label
               class="q-mt-md"
             />
@@ -924,12 +937,38 @@ async function loadCampaigns() {
   }
 }
 
+const rawAccounts = ref<any[]>([])
+
+const isCloudAccountSelected = computed(() => {
+  const selected = rawAccounts.value.find((a: any) => a.id === form.whatsapp_account_id)
+  if (!selected) return false
+  return (
+    selected.session_type === 'meta_cloud' ||
+    selected.session_type === 'whatsapp_cloud' ||
+    Boolean(selected.access_token && selected.phone_number_id && selected.session_type !== 'qr_baileys') ||
+    String(selected.name || '').toLowerCase().includes('cloud')
+  )
+})
+
+watch(isCloudAccountSelected, (isCloud) => {
+  if (isCloud) {
+    if (form.delay_seconds > 5) {
+      form.delay_seconds = 0
+    }
+  } else {
+    if (form.delay_seconds < 10) {
+      form.delay_seconds = 20
+    }
+  }
+})
+
 async function loadChannels() {
   try {
     const res = await http.get('/whatsapp/accounts')
     if (res.data?.data) {
+      rawAccounts.value = res.data.data
       channelOptions.value = res.data.data.map((a: any) => ({
-        label: `${a.name} (${a.display_phone_number || 'Conectado'})`,
+        label: `${a.name} (${a.display_phone_number || a.phone_number || 'Conectado'})`,
         value: a.id,
       }))
       if (channelOptions.value.length > 0 && !form.whatsapp_account_id) {
