@@ -178,8 +178,16 @@ class CampaignController extends Controller
             'scheduled_at' => Carbon::now(),
         ]);
 
+        // Immediate dispatch of recipients and execution of whatsapp queue
+        try {
+            \Illuminate\Support\Facades\Artisan::call('campaigns:dispatch-recipients', ['--limit' => 100]);
+            \Illuminate\Support\Facades\Artisan::call('queue:work', ['--queue' => 'whatsapp,automations,default', '--stop-when-empty' => true]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Immediate campaign dispatch warning: " . $e->getMessage());
+        }
+
         return response()->json([
-            'data' => $campaign,
+            'data' => $campaign->fresh(),
             'message' => 'Campaña iniciada. Los mensajes se despacharán con intervalos anti-bloqueo.',
         ]);
     }
@@ -208,8 +216,15 @@ class CampaignController extends Controller
             'status' => 'processing',
         ]);
 
+        try {
+            \Illuminate\Support\Facades\Artisan::call('campaigns:dispatch-recipients', ['--limit' => 100]);
+            \Illuminate\Support\Facades\Artisan::call('queue:work', ['--queue' => 'whatsapp,automations,default', '--stop-when-empty' => true]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Immediate campaign resume warning: " . $e->getMessage());
+        }
+
         return response()->json([
-            'data' => $campaign,
+            'data' => $campaign->fresh(),
             'message' => 'Campaña reanudada.',
         ]);
     }

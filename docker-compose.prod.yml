@@ -77,7 +77,7 @@ services:
     container_name: ${CRM_INSTANCE_NAME:-crm}-social-sync
     restart: unless-stopped
     environment:
-      APP_NAME: "CRM Social Sync"
+      APP_NAME: "CRM Social Sync & Worker"
       APP_ENV: production
       APP_DEBUG: "false"
       APP_KEY: "${APP_KEY:-base64:CyU1JHIJ1c4G7un/AMwKEf76+5Vp8zn9Gatjb8GeqWI=}"
@@ -87,6 +87,8 @@ services:
       DB_DATABASE: ${DB_DATABASE:-crm}
       DB_USERNAME: ${DB_USERNAME:-crm}
       DB_PASSWORD: ${DB_PASSWORD:-crm_secret_2026}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,7 +96,7 @@ services:
         condition: service_started
     networks:
       - crm-internal
-    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; sleep 5; done"]
+    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; php artisan messages:dispatch-scheduled > /dev/null 2>&1; php artisan campaigns:dispatch-recipients > /dev/null 2>&1; php artisan queue:work --stop-when-empty --queue=whatsapp,automations,default > /dev/null 2>&1; sleep 3; done"]
 
   whatsapp-service:
     image: ${CRM_INSTANCE_NAME:-crm}-whatsapp-service:production
