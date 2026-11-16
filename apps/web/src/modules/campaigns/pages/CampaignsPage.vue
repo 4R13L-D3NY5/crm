@@ -232,8 +232,8 @@
 
             <!-- Delay -->
             <td class="text-left">
-              <q-badge outline color="primary" class="text-weight-medium">
-                {{ c.delay_seconds }}s intervalo
+              <q-badge outline :color="c.delay_seconds === 0 ? 'positive' : 'primary'" class="text-weight-medium">
+                {{ c.delay_seconds === 0 ? '0s Ráfaga Cloud ⚡' : `${c.delay_seconds}s intervalo` }}
               </q-badge>
             </td>
 
@@ -571,7 +571,7 @@
           <!-- 3. Redacción del Mensaje y Variables -->
           <div class="xf-section-box q-pa-md rounded-borders">
             <!-- Selector de Plantilla Oficial de Meta para Cloud API -->
-            <div v-if="isCloudAccountSelected" class="q-mb-md q-pa-sm rounded-borders bg-indigo-1 border-indigo">
+            <div v-if="isCloudAccountSelected" class="xf-meta-template-box q-mb-md q-pa-md rounded-borders">
               <div class="row items-center justify-between q-mb-xs">
                 <div class="row items-center q-gutter-x-xs">
                   <q-icon name="sym_r_verified" color="primary" size="20px" />
@@ -600,20 +600,20 @@
                 map-options
                 outlined
                 dense
-                bg-color="white"
                 label="Plantilla Aprobada en Meta *"
                 :loading="loadingTemplates"
                 placeholder="Elige una plantilla autorizada..."
+                class="xf-dark-select"
                 @update:model-value="onSelectTemplate"
               >
                 <template #prepend>
                   <q-icon name="sym_r_description" color="primary" size="18px" />
                 </template>
                 <template #option="{ itemProps, opt }">
-                  <q-item v-bind="itemProps">
+                  <q-item v-bind="itemProps" class="cursor-pointer">
                     <q-item-section>
                       <q-item-label class="text-bold text-ink">{{ opt.label }}</q-item-label>
-                      <q-item-label caption class="text-caption text-grey-7">
+                      <q-item-label caption class="text-caption text-muted">
                         Categoría: {{ opt.category }} | Idioma: {{ opt.language }}
                       </q-item-label>
                     </q-item-section>
@@ -660,15 +660,23 @@
             <!-- Preview interactivo en tiempo real -->
             <div class="q-mt-sm">
               <div class="text-caption text-bold text-muted q-mb-xs">Vista Previa Estimada del Cliente:</div>
-              <div class="xf-whatsapp-preview q-pa-sm rounded-borders">
-                <div v-if="templateHeader" class="text-bold text-primary q-mb-xs" style="font-size: 13px;">
+              <div class="xf-whatsapp-preview q-pa-md rounded-borders">
+                <div v-if="templateHeader" class="text-bold text-teal-4 q-mb-xs" style="font-size: 13px; letter-spacing: 0.3px;">
                   {{ templateHeader }}
                 </div>
-                <div class="text-caption text-ink" style="white-space: pre-wrap;">{{ previewText }}</div>
-                <div class="text-right text-caption text-muted" style="font-size: 10px;">14:30 ✓✓</div>
-                <div v-if="templateButtons.length > 0" class="q-mt-sm q-pt-xs" style="border-top: 1px dashed rgba(0,0,0,0.1);">
+                <div class="text-body2 text-ink" style="white-space: pre-wrap; line-height: 1.5;">{{ previewText }}</div>
+                <div class="text-right text-caption text-muted q-mt-xs" style="font-size: 11px;">14:30 ✓✓</div>
+                <div v-if="templateButtons.length > 0" class="q-mt-sm q-pt-xs" style="border-top: 1px solid rgba(255, 255, 255, 0.1);">
                   <div v-for="(btn, idx) in templateButtons" :key="idx" class="q-my-xs text-center">
-                    <q-btn outline dense no-caps color="primary" class="full-width text-weight-medium bg-white" icon="sym_r_reply" :label="btn.text" />
+                    <q-btn
+                      flat
+                      dense
+                      no-caps
+                      color="teal-3"
+                      class="full-width text-weight-bold xf-preview-action-btn"
+                      icon="sym_r_reply"
+                      :label="btn.text"
+                    />
                   </div>
                 </div>
               </div>
@@ -1008,7 +1016,7 @@ async function loadCampaigns() {
         sent_count: c.sent_count || 0,
         failed_count: c.failed_count || 0,
         progress: c.total_contacts > 0 ? Math.round((c.sent_count / c.total_contacts) * 100) : 0,
-        delay_seconds: c.delay_seconds || 20,
+        delay_seconds: c.delay_seconds ?? 20,
         status: c.status || 'draft',
         target_type: c.target_type || 'all',
         target_summary: c.target_summary || '',
@@ -1692,9 +1700,37 @@ function formatDate(isoDate?: string) {
   border-color: rgba(245, 158, 11, 0.35);
 }
 
+.xf-meta-template-box {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.body--light .xf-meta-template-box {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
 .xf-whatsapp-preview {
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 10px;
+}
+
+.xf-preview-action-btn {
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(20, 184, 166, 0.2);
+    border-color: rgba(20, 184, 166, 0.5);
+  }
+}
+
+.body--light .xf-preview-action-btn {
+  background: #f0fdf4;
+  border-color: #86efac;
 }
 
 .xf-anti-ban-box {
