@@ -96,6 +96,8 @@ class CampaignController extends Controller
             'category_ids.*' => ['string', 'exists:categories,id'],
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['string', 'exists:tags,id'],
+            'template_name' => ['nullable', 'string', 'max:255'],
+            'template_language' => ['nullable', 'string', 'max:20'],
         ]);
 
         $targetMode = $validated['target_mode'] ?? null;
@@ -140,6 +142,8 @@ class CampaignController extends Controller
                 'target_mode' => $targetMode,
                 'category_ids' => array_values($categoryIds),
                 'tag_ids' => array_values($tagIds),
+                'template_name' => $validated['template_name'] ?? null,
+                'template_language' => $validated['template_language'] ?? null,
             ],
             'total_contacts' => $contacts->count(),
             'sent_count' => 0,

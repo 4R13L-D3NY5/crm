@@ -570,13 +570,77 @@
 
           <!-- 3. Redacción del Mensaje y Variables -->
           <div class="xf-section-box q-pa-md rounded-borders">
+            <!-- Selector de Plantilla Oficial de Meta para Cloud API -->
+            <div v-if="isCloudAccountSelected" class="q-mb-md q-pa-sm rounded-borders bg-indigo-1 border-indigo">
+              <div class="row items-center justify-between q-mb-xs">
+                <div class="row items-center q-gutter-x-xs">
+                  <q-icon name="sym_r_verified" color="primary" size="20px" />
+                  <span class="text-subtitle2 text-bold text-ink">Plantilla Autorizada por Meta (Cloud API)</span>
+                </div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  size="sm"
+                  icon="sym_r_refresh"
+                  color="primary"
+                  :loading="loadingTemplates"
+                  @click="loadTemplatesForSelectedAccount"
+                >
+                  <q-tooltip>Actualizar plantillas desde Meta</q-tooltip>
+                </q-btn>
+              </div>
+              <div class="text-caption text-muted q-mb-sm">
+                Selecciona la plantilla aprobada en tu WhatsApp Manager. El CRM vinculará automáticamente el HSM con sus botones interactivos.
+              </div>
+              <q-select
+                v-model="selectedTemplateOption"
+                :options="cloudTemplateOptions"
+                emit-value
+                map-options
+                outlined
+                dense
+                bg-color="white"
+                label="Plantilla Aprobada en Meta *"
+                :loading="loadingTemplates"
+                placeholder="Elige una plantilla autorizada..."
+                @update:model-value="onSelectTemplate"
+              >
+                <template #prepend>
+                  <q-icon name="sym_r_description" color="primary" size="18px" />
+                </template>
+                <template #option="{ itemProps, opt }">
+                  <q-item v-bind="itemProps">
+                    <q-item-section>
+                      <q-item-label class="text-bold text-ink">{{ opt.label }}</q-item-label>
+                      <q-item-label caption class="text-caption text-grey-7">
+                        Categoría: {{ opt.category }} | Idioma: {{ opt.language }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-badge :color="opt.status === 'APPROVED' ? 'positive' : 'grey-7'" text-color="white">
+                        {{ opt.status === 'APPROVED' ? 'Aprobada' : opt.status }}
+                      </q-badge>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+
             <div class="row items-center justify-between q-mb-xs">
-              <div class="text-subtitle2 text-bold text-ink">Plantilla del Mensaje</div>
-              <div class="row items-center q-gutter-x-xs">
+              <div class="text-subtitle2 text-bold text-ink">
+                {{ isCloudAccountSelected ? 'Contenido del Mensaje Oficial' : 'Plantilla del Mensaje' }}
+              </div>
+              <div v-if="!isCloudAccountSelected" class="row items-center q-gutter-x-xs">
                 <span class="text-caption text-muted">Insertar:</span>
                 <q-btn size="xs" outline color="primary" label="{nombre}" no-caps @click="insertVariable('{name}')" />
                 <q-btn size="xs" outline color="primary" label="{telefono}" no-caps @click="insertVariable('{phone}')" />
                 <q-btn size="xs" outline color="amber-8" label="Spintax Saludo" no-caps @click="insertVariable('{Hola|Buen día|Estimado/a}')" />
+              </div>
+              <div v-else class="row items-center q-gutter-x-xs">
+                <q-badge color="primary" outline class="text-caption">
+                  {{ form.template_name ? `HSM: ${form.template_name}` : 'Meta Cloud Template' }}
+                </q-badge>
               </div>
             </div>
 
@@ -587,14 +651,26 @@
               outlined
               placeholder="Escribe el mensaje aquí... ej: {Hola|Buen día} {name}, queremos informarte que..."
               class="q-mt-xs"
+              :readonly="isCloudAccountSelected && !!form.template_name"
             />
+            <div v-if="isCloudAccountSelected && !!form.template_name" class="text-caption text-muted q-mt-xs">
+              🔒 <em>El texto está sincronizado con la plantilla aprobada en Meta para garantizar la entrega.</em>
+            </div>
 
             <!-- Preview interactivo en tiempo real -->
             <div class="q-mt-sm">
               <div class="text-caption text-bold text-muted q-mb-xs">Vista Previa Estimada del Cliente:</div>
               <div class="xf-whatsapp-preview q-pa-sm rounded-borders">
+                <div v-if="templateHeader" class="text-bold text-primary q-mb-xs" style="font-size: 13px;">
+                  {{ templateHeader }}
+                </div>
                 <div class="text-caption text-ink" style="white-space: pre-wrap;">{{ previewText }}</div>
                 <div class="text-right text-caption text-muted" style="font-size: 10px;">14:30 ✓✓</div>
+                <div v-if="templateButtons.length > 0" class="q-mt-sm q-pt-xs" style="border-top: 1px dashed rgba(0,0,0,0.1);">
+                  <div v-for="(btn, idx) in templateButtons" :key="idx" class="q-my-xs text-center">
+                    <q-btn outline dense no-caps color="primary" class="full-width text-weight-medium bg-white" icon="sym_r_reply" :label="btn.text" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -891,7 +967,15 @@ const form = reactive({
   tag_ids: [] as string[],
   message_template: '{Hola|Buen día} {name}, te escribimos de UNITEPC para informarte sobre el inicio de clases y beneficios de matrícula de este periodo.',
   delay_seconds: 20,
+  template_name: '',
+  template_language: '',
 })
+
+const cloudTemplates = ref<any[]>([])
+const loadingTemplates = ref(false)
+const selectedTemplateOption = ref<string | null>(null)
+const templateHeader = ref<string>('')
+const templateButtons = ref<Array<{ type: string; text: string }>>([])
 
 const targetModeLabel = computed(() => {
   switch (targetMode.value) {
@@ -950,15 +1034,105 @@ const isCloudAccountSelected = computed(() => {
   )
 })
 
+const cloudTemplateOptions = computed(() => {
+  return cloudTemplates.value.map((t: any) => ({
+    label: `${t.name} (${t.language})`,
+    value: t.name,
+    category: t.category,
+    language: t.language,
+    status: t.status,
+    raw: t,
+  }))
+})
+
+function onSelectTemplate(templateName: string) {
+  selectedTemplateOption.value = templateName
+  const tpl = cloudTemplates.value.find((t: any) => t.name === templateName)
+  if (!tpl) return
+
+  form.template_name = tpl.name
+  form.template_language = tpl.language
+
+  let headerText = ''
+  let bodyText = ''
+  const buttons: Array<{ type: string; text: string }> = []
+
+  if (Array.isArray(tpl.components)) {
+    for (const comp of tpl.components) {
+      if (comp.type === 'HEADER') {
+        headerText = comp.text || ''
+      } else if (comp.type === 'BODY') {
+        bodyText = comp.text || ''
+      } else if (comp.type === 'BUTTONS' && Array.isArray(comp.buttons)) {
+        for (const b of comp.buttons) {
+          buttons.push({
+            type: b.type,
+            text: b.text || 'Botón',
+          })
+        }
+      }
+    }
+  }
+
+  templateHeader.value = headerText
+  templateButtons.value = buttons
+
+  if (bodyText) {
+    form.message_template = bodyText
+  }
+}
+
+async function loadTemplatesForSelectedAccount() {
+  if (!form.whatsapp_account_id || !isCloudAccountSelected.value) {
+    cloudTemplates.value = []
+    selectedTemplateOption.value = null
+    templateHeader.value = ''
+    templateButtons.value = []
+    return
+  }
+  loadingTemplates.value = true
+  try {
+    const res = await http.get(`/whatsapp/accounts/${form.whatsapp_account_id}/templates`)
+    if (res.data?.data && Array.isArray(res.data.data)) {
+      cloudTemplates.value = res.data.data
+      const approved = res.data.data.filter((t: any) => t.status === 'APPROVED')
+      if (approved.length > 0) {
+        const match = approved.find((t: any) => t.name === form.template_name) || approved[0]
+        onSelectTemplate(match.name)
+      }
+    } else {
+      cloudTemplates.value = []
+    }
+  } catch (err: any) {
+    console.warn('Error al cargar plantillas de Meta Cloud:', err)
+    cloudTemplates.value = []
+  } finally {
+    loadingTemplates.value = false
+  }
+}
+
 watch(isCloudAccountSelected, (isCloud) => {
   if (isCloud) {
     if (form.delay_seconds > 5) {
       form.delay_seconds = 0
     }
+    loadTemplatesForSelectedAccount()
   } else {
     if (form.delay_seconds < 10) {
       form.delay_seconds = 20
     }
+    cloudTemplates.value = []
+    selectedTemplateOption.value = null
+    templateHeader.value = ''
+    templateButtons.value = []
+    form.template_name = ''
+    form.template_language = ''
+  }
+})
+
+watch(() => form.whatsapp_account_id, (newId) => {
+  if (isCloudAccountSelected.value && newId) {
+    loadTemplatesForSelectedAccount()
   }
 })
 
@@ -1127,9 +1301,12 @@ function openCreateDialog() {
   form.category_ids = []
   form.tag_ids = []
   targetMode.value = 'categories'
-  form.delay_seconds = 20
+  form.delay_seconds = isCloudAccountSelected.value ? 0 : 20
   isDialogOpen.value = true
   fetchRecipientPreview()
+  if (isCloudAccountSelected.value) {
+    loadTemplatesForSelectedAccount()
+  }
 }
 
 // Auto-sugerir nombre descriptivo de campaña según la primera categoría seleccionada
@@ -1209,6 +1386,8 @@ async function handleSaveCampaign(startImmediately = false) {
       target_mode: targetMode.value,
       category_ids: targetMode.value === 'categories' || targetMode.value === 'mixed' ? form.category_ids : undefined,
       tag_ids: targetMode.value === 'tags' || targetMode.value === 'mixed' ? form.tag_ids : undefined,
+      template_name: isCloudAccountSelected.value ? form.template_name || undefined : undefined,
+      template_language: isCloudAccountSelected.value ? form.template_language || undefined : undefined,
     }
 
     const res = await http.post('/campaigns', payload)
