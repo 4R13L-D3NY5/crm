@@ -156,19 +156,24 @@ class DispatchCampaignRecipientsCommand extends Command
 
                     if ($isMetaCloud) {
                         $messageType = 'template';
-                        if (preg_match('/\[template:([a-z0-9_]+)(?::([a-z_A-Z]+))?\]/i', (string) $campaign->message_template, $m)) {
-                            $metadata = [
-                                'template_name' => $m[1],
-                                'template_language' => $m[2] ?? 'es_ES',
-                                'template_params' => [],
-                            ];
-                        } else {
-                            $metadata = [
-                                'template_name' => 'beca_anticipada_1_2027',
-                                'template_language' => 'es_ES',
-                                'template_params' => [],
-                            ];
+                        $tplName = data_get($campaign->target_criteria, 'template_name');
+                        $tplLang = data_get($campaign->target_criteria, 'template_language');
+
+                        if (empty($tplName) && preg_match('/\[template:([a-z0-9_]+)(?::([a-z_A-Z]+))?\]/i', (string) $campaign->message_template, $m)) {
+                            $tplName = $m[1];
+                            $tplLang = $m[2] ?? 'es_ES';
                         }
+
+                        if (empty($tplName)) {
+                            $tplName = 'beca_anticipada_1_2027';
+                            $tplLang = 'es_ES';
+                        }
+
+                        $metadata = [
+                            'template_name' => $tplName,
+                            'template_language' => $tplLang ?: 'es_ES',
+                            'template_params' => [],
+                        ];
                     }
 
                     // Mensaje

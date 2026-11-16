@@ -306,5 +306,27 @@ class WhatsAppAccountController
             'data' => (new WhatsAppAccountResource($account->fresh()))->resolve(),
         ]);
     }
+
+    public function templates(string $id): JsonResponse
+    {
+        $organization = request()->user()?->currentOrganization;
+        $query = WhatsAppAccount::query();
+        if ($organization) {
+            $query->where('organization_id', $organization->id);
+        }
+        $account = $query->findOrFail($id);
+
+        $isCloud = $account->session_type === 'meta_cloud' ||
+                   (filled($account->access_token) && filled($account->business_account_id) && $account->session_type !== 'qr_baileys');
+
+        if (! $isCloud) {
+            return response()->json(['data' => []]);
+        }
+
+        $client = app(\App\Modules\WhatsApp\Services\MetaWhatsAppClient::class);
+        $templates = $client->getTemplates($account);
+
+        return response()->json(['data' => $templates]);
+    }
 }
 

@@ -177,4 +177,33 @@ class MetaWhatsAppClient implements WhatsAppClient
     {
         throw new \BadMethodCallException('Meta Cloud API no permite la edición de mensajes salientes.');
     }
+
+    public function getTemplates(WhatsAppAccount $account): array
+    {
+        if (empty($account->business_account_id) || empty($account->access_token)) {
+            return [];
+        }
+
+        try {
+            $baseUrl = rtrim((string) config('services.whatsapp.base_url', 'https://graph.facebook.com/v23.0'), '/');
+
+            $response = Http::baseUrl($baseUrl)
+                ->withToken((string) $account->access_token)
+                ->acceptJson()
+                ->get("/{$account->business_account_id}/message_templates", [
+                    'limit' => 100,
+                    'fields' => 'id,name,status,category,language,components',
+                ]);
+
+            if ($response->failed()) {
+                \Illuminate\Support\Facades\Log::warning("Error al obtener plantillas de Meta WABA {$account->business_account_id}: " . $response->body());
+                return [];
+            }
+
+            return $response->json('data') ?? [];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Excepción consultando plantillas de Meta: {$e->getMessage()}");
+            return [];
+        }
+    }
 }

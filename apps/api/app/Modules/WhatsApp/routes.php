@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('whatsapp/accounts', [WhatsAppAccountController::class, 'index']);
 Route::get('whatsapp/accounts/current', [WhatsAppAccountController::class, 'show']);
+Route::get('whatsapp/accounts/{id}/templates', [WhatsAppAccountController::class, 'templates'])->name('whatsapp.accounts.templates');
 
 Route::post('conversations/{conversation}/messages/whatsapp', [ConversationWhatsAppMessageController::class, 'store']);
 Route::put('conversations/{conversation}/messages/{message}/whatsapp', [ConversationWhatsAppMessageController::class, 'update']);
