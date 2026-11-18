@@ -111,7 +111,7 @@ class SendWhatsAppMessageAction
 
         DispatchDomainJob::dispatch(new SendWhatsAppMessageJob($message->getKey()));
 
-        return $message->load('user');
+        return $message->fresh(['user']) ?? $message->load('user');
     }
 
     public function retry(Message $message): Message
@@ -128,6 +128,6 @@ class SendWhatsAppMessageAction
 
         DispatchDomainJob::dispatch(new SendWhatsAppMessageJob($message->getKey()));
 
-        return $message->load('user');
+        return $message->fresh(['user']) ?? $message->load('user');
     }
 }

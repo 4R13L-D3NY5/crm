@@ -166,6 +166,7 @@ export function useConversationMutations(conversationId: MaybeRefOrGetter<string
       }
     })
     queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    queryClient.invalidateQueries({ queryKey: ['conversation', convId] })
   }
 
   const rollbackOptimisticMessage = (convId: string, tempId: string) => {
