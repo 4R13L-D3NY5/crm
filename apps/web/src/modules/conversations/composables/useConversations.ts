@@ -43,8 +43,8 @@ export function useConversations(filters: MaybeRefOrGetter<ConversationFilters>)
   return useQuery({
     queryKey: computed(() => ['conversations', toValue(filters)]),
     queryFn: () => getConversations(toValue(filters)),
-    refetchInterval: 3000,
-    refetchIntervalInBackground: true,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
 }
@@ -54,8 +54,8 @@ export function useConversation(conversationId: MaybeRefOrGetter<string>) {
     queryKey: computed(() => ['conversation', toValue(conversationId)]),
     queryFn: () => getConversation(toValue(conversationId)),
     enabled: computed(() => Boolean(toValue(conversationId))),
-    refetchInterval: 2500,
-    refetchIntervalInBackground: true,
+    refetchInterval: 3500,
+    refetchIntervalInBackground: false,
     staleTime: 0,
   })
 }

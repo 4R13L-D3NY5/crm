@@ -96,7 +96,7 @@ services:
         condition: service_started
     networks:
       - crm-internal
-    command: ["sh", "-c", "while true; do php artisan social:sync > /dev/null 2>&1; php artisan messages:dispatch-scheduled > /dev/null 2>&1; php artisan campaigns:dispatch-recipients > /dev/null 2>&1; php artisan queue:work --stop-when-empty --queue=whatsapp,automations,default > /dev/null 2>&1; sleep 3; done"]
+    command: ["sh", "-c", "(while true; do php artisan queue:work --stop-when-empty --queue=whatsapp,automations,default > /dev/null 2>&1; sleep 1; done) & while true; do php artisan social:sync > /dev/null 2>&1; php artisan messages:dispatch-scheduled > /dev/null 2>&1; php artisan campaigns:dispatch-recipients > /dev/null 2>&1; sleep 5; done"]
 
   whatsapp-service:
     image: ${CRM_INSTANCE_NAME:-crm}-whatsapp-service:production

@@ -67,17 +67,30 @@ class ConversationController
             $conversation->unread_count = 0;
         }
 
+        $limit = max(1, min((int) $request->input('limit', 100), 500));
+
+        $conversation->load([
+            'contact.tags',
+            'company',
+            'assignment.assignee',
+            'latestMessage.user',
+            'whatsappAccount',
+            'customStatus',
+            'categories',
+        ]);
+
+        $recentMessages = $conversation->messages()
+            ->latest('created_at')
+            ->take($limit)
+            ->with('user')
+            ->get()
+            ->reverse()
+            ->values();
+
+        $conversation->setRelation('messages', $recentMessages);
+
         return response()->json([
-            'data' => (new ConversationResource($conversation->load([
-                'contact.tags',
-                'company',
-                'assignment.assignee',
-                'messages.user',
-                'latestMessage.user',
-                'whatsappAccount',
-                'customStatus',
-                'categories',
-            ])))->resolve(),
+            'data' => (new ConversationResource($conversation))->resolve(),
         ]);
     }
 
