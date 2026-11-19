@@ -80,7 +80,7 @@ class ConversationController
         ]);
 
         $recentMessages = $conversation->messages()
-            ->latest('created_at')
+            ->reorder('created_at', 'desc')
             ->take($limit)
             ->with('user')
             ->get()
